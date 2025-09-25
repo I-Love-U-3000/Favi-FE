@@ -1,26 +1,128 @@
 @import "tailwindcss";
 
+/* Default (Light theme) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f2f2f3;
+  --bg-secondary: #fff;
+  --text: #3b3f42;
+  --text-secondary: #7a7f85;
+  --primary: #238574;
+  --accent: #ff9800;
+  --border: #e0e0e0;
+  --error: #e53935;
+  --success: #43a047;
+  --warning: #fbc02d;
+  --input-bg: #fff;
+  --input-border: #ccc;
+}
+/* Dark Night theme */
+html.dark-night {
+  --bg: #0d1117;
+  --bg-secondary: #161b22;
+  --text: #c9d1d9;
+  --text-secondary: #8b949e;
+  --primary: #58a6ff;
+  --accent: #ff9800;
+  --border: #30363d;
+  --error: #f85149;
+  --success: #238636;
+  --warning: #d29922;
+  --input-bg: #161b22;
+  --input-border: #30363d;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Blue Horizon theme */
+html.blue-horizon {
+  --bg: #e6f0ff;
+  --bg-secondary: #cce0ff;
+  --text: #00264d;
+  --text-secondary: #336699;
+  --primary: #0059b3;
+  --accent: #ff9800;
+  --border: #99b3cc;
+  --error: #e53935;
+  --success: #43a047;
+  --warning: #fbc02d;
+  --input-bg: #fff;
+  --input-border: #99b3cc;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Sakura theme */
+html.sakura {
+  --bg: #fff0f5;
+  --bg-secondary: #ffe4ec;
+  --text: #4a001f;
+  --text-secondary: #b85c8a;
+  --primary: #ff6699;
+  --accent: #ffb7c5;
+  --border: #ffb7c5;
+  --error: #e57373;
+  --success: #81c784;
+  --warning: #ffd54f;
+  --input-bg: #fff;
+  --input-border: #ffb7c5;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Claude theme */
+html.claude {
+  --bg: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --text: #232946;
+  --text-secondary: #6b7280;
+  --primary: #7c3aed;      /* tím nhạt */
+  --accent: #38bdf8;       /* xanh dương nhạt */
+  --border: #e5e7eb;
+  --error: #ef4444;
+  --success: #22c55e;
+  --warning: #facc15;
+  --input-bg: #fff;
+  --input-border: #d1d5db;
+}
+
+/* Aurora (Tím hồng nghệ thuật) */
+html.aurora {
+  --bg: #f8f0fc;
+  --bg-secondary: #f3d9fa;
+  --text: #3d0066;
+  --text-secondary: #a685e2;
+  --primary: #a259f7;
+  --accent: #ff7eb9;
+  --border: #e0b3ff;
+  --error: #ff5e5b;
+  --success: #43e97b;
+  --warning: #ffd166;
+  --input-bg: #fff;
+  --input-border: #e0b3ff;
+}
+
+/* Minty (Xanh lá nhạt nghệ thuật) */
+html.minty {
+  --bg: #eafaf1;
+  --bg-secondary: #d1f2eb;
+  --text: #14532d;
+  --text-secondary: #4ade80;
+  --primary: #34d399;
+  --accent: #a7f3d0;
+  --border: #bbf7d0;
+  --error: #f87171;
+  --success: #22c55e;
+  --warning: #fde68a;
+  --input-bg: #fff;
+  --input-border: #bbf7d0;
+}
+
+/* Oceanic (Xanh đậm, xanh nhạt, xám) */
+html.oceanic {
+  --bg: #e0f2fe;
+  --bg-secondary: #bae6fd;
+  --text: #0f172a;
+  --text-secondary: #64748b;
+  --primary: #2563eb;
+  --accent: #38bdf8;
+  --border: #cbd5e1;
+  --error: #f87171;
+  --success: #22d3ee;
+  --warning: #fbbf24;
+  --input-bg: #fff;
+  --input-border: #cbd5e1;
 }
