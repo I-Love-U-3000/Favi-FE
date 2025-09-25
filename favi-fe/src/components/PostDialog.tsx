@@ -4,6 +4,7 @@ import { Button } from 'primereact/button';
 import { Galleria } from 'primereact/galleria';
 import { Chips } from 'primereact/chips';
 import CropImage from './CropImage';
+import LocationIQAutoComplete from './LocationIQAutoComplete'; // Import component mới
 import 'primereact/resources/themes/lara-light-indigo/theme.css';
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
@@ -15,6 +16,12 @@ interface CroppedAreaPixels {
   y: number;
   width: number;
   height: number;
+}
+
+interface SelectedPlace {
+  placeName: string;
+  coordinates: [number, number]; // [lng, lat]
+  fullAddress: string;
 }
 
 interface InstagramPostDialogProps {
@@ -33,6 +40,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
   const [uploading, setUploading] = useState(false);
   const [croppedImages, setCroppedImages] = useState<(Blob | null)[]>([]);
   const [aspect, setAspect] = useState<number>(1);
+  const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(null); // State mới cho vị trí
   const fileInputRef = useRef<HTMLInputElement>(null); // Add ref for file input
   const MIN_SIZE = 320;
 
@@ -172,6 +180,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
       setSelectedFiles([]);
       setCropMode(false);
       setCroppedImages([]);
+      setSelectedPlace(null); // Reset selected place
       if (fileInputRef.current) {
         fileInputRef.current.value = ''; // Reset file input
       }
@@ -189,6 +198,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
     setCroppedImages([]);
     setCaption('');
     setTags([]);
+    setSelectedPlace(null); // Reset selected place
     setAspect(1); // Reset aspect ratio
     if (fileInputRef.current) {
       fileInputRef.current.value = ''; // Reset file input
@@ -277,6 +287,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
         setCroppedImages([]);
         setCaption('');
         setTags([]);
+        setSelectedPlace(null); // Reset selected place
         setAspect(1); // Reset aspect ratio
         if (fileInputRef.current) {
           fileInputRef.current.value = ''; // Reset file input
@@ -321,6 +332,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
               imageSrc={URL.createObjectURL(selectedFiles[currentIndex])}
               onCropComplete={handleCropComplete}
               aspect={aspect}
+              setAspect={setAspect} // Pass setAspect to CropImage
             />
           )}
           {!cropMode && media.length === 0 && (
@@ -398,6 +410,37 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
               placeholder="Nhập tags (dùng dấu phẩy để tách)"
               className="w-full"
             />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Vị trí</label>
+            <LocationIQAutoComplete
+              apiKey={process.env.NEXT_PUBLIC_LOCATIONIQ_API_KEY || ''}
+              onSelect={(place) => setSelectedPlace(place)}
+              placeholder="Tìm kiếm địa chỉ..."
+              className="mb-2"
+            />
+            {selectedPlace && (
+              <div className="p-2 bg-blue-50 rounded text-sm flex items-center">
+                <i className="pi pi-map-marker mr-2" style={{ color: 'var(--primary-color)' }} />
+                <div className="flex-1">
+                  <div className="font-bold">{selectedPlace.placeName}</div>
+                  <div>
+                    <strong>Tọa độ:</strong> {selectedPlace.coordinates.join(', ')}
+                  </div>
+                  <div>
+                    <strong>Địa chỉ đầy đủ:</strong>{' '}
+                    <a
+                      href={`https://www.google.com/maps?q=${selectedPlace.coordinates[1]},${selectedPlace.coordinates[0]}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 underline hover:text-blue-700"
+                    >
+                      {selectedPlace.fullAddress}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             <Button

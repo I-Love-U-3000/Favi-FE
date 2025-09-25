@@ -51,6 +51,7 @@ import { PrimeReactProvider } from "primereact/api";
 import { Toast } from "primereact/toast";
 import { useRef } from "react";
 import { RootProvider } from "@/components/RootProvider";
+import Dock from "@/components/Dock";
 
 
 export const metadata: Metadata = {
@@ -77,6 +78,7 @@ export default async function RootLayout({
         />
       </head>
       <body>
+        
         <Toast/>
         <PrimeReactProvider value={{ ripple: true }}>
           <RootProvider>

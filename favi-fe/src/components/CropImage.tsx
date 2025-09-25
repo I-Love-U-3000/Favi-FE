@@ -16,9 +16,10 @@ interface CropImageProps {
   imageSrc: string;
   onCropComplete: (croppedImage: Blob | null, aspect: number) => void;
   aspect: number;
+  setAspect: (aspect: number) => void; // Add setAspect prop to update parent state
 }
 
-const CropImage: React.FC<CropImageProps> = ({ imageSrc, onCropComplete, aspect }) => {
+const CropImage: React.FC<CropImageProps> = ({ imageSrc, onCropComplete, aspect, setAspect }) => {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<CroppedAreaPixels | null>(null);
@@ -110,7 +111,7 @@ const CropImage: React.FC<CropImageProps> = ({ imageSrc, onCropComplete, aspect 
           <Dropdown
             value={aspect}
             options={aspectOptions}
-            onChange={(e) => onCropComplete(null, e.value)}
+            onChange={(e) => setAspect(e.value)} // Update aspect without triggering crop
             placeholder="Chọn tỷ lệ"
             className="w-32"
           />

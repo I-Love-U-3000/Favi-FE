@@ -1,11 +1,16 @@
 "use client";
+
 import { useState } from "react";
 import { Dock as PrimeDock } from "primereact/dock";
 import { useOverlay } from "./RootProvider";
+import InstagramPostDialog from "./PostDialog";
+import { useRouter } from "next/navigation"; 
 
 function Dock() {
   const { showToast, confirm } = useOverlay();
   const [active, setActive] = useState<string>("");
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const router = useRouter(); 
 
   const dockItems = [
     {
@@ -17,7 +22,10 @@ function Dock() {
           }`}
         />
       ),
-      command: () => setActive("Home"),
+      command: () => {
+        setActive("Home");
+        router.push("/home"); 
+      },
     },
     {
       label: "Search",
@@ -49,13 +57,7 @@ function Dock() {
         />
       ),
       command: () => {
-        setActive("New Post");
-        showToast({
-          severity: "info",
-          summary: "Uploaded",
-          detail: "Your photo is live!",
-          life: 3000,
-        });
+        setDialogVisible(true);
       },
     },
     {
@@ -78,24 +80,38 @@ function Dock() {
           }`}
         />
       ),
-      command: () => setActive("Profile"),
+      command: () => {
+        setActive("Profile");
+        router.push("/profile"); 
+      },
     },
   ];
 
   return (
     <div>
       <PrimeDock
-        model={dockItems}
-        position="left"
-        className="mt-10"
-        style={{ transform: "scale(0.9)" }}
+  model={dockItems}
+  position="left"
+  className="mt-10 custom-dock"
+  style={{ transform: "scale(0.9)" }}
+/>
+<style jsx>{`
+  :global(.p-dock .p-dock-item .pi) {
+    font-size: 1.3rem;
+    transition: color 0.2s ease-in-out;
+  }
+  /* Khi bạn muốn “dính” (sticky) */
+  :global(.custom-dock) {
+    position: sticky !important;
+    top: 20px; /* bạn chỉnh khoảng cách từ top */
+  }
+`}</style>
+
+
+      <InstagramPostDialog
+        visible={dialogVisible}
+        onHide={() => setDialogVisible(false)}
       />
-      <style jsx>{`
-        :global(.p-dock .p-dock-item .pi) {
-          font-size: 1.3rem;
-          transition: color 0.2s ease-in-out;
-        }
-      `}</style>
     </div>
   );
 }
