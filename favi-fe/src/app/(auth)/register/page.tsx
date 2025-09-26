@@ -7,7 +7,6 @@ import { supabase } from "@/app/supabase-client";
 
 import { Card } from "primereact/card";
 import { InputText } from "primereact/inputtext";
-import { Password } from "primereact/password";
 import { Button } from "primereact/button";
 import { Divider } from "primereact/divider";
 import { Toast } from "primereact/toast";
@@ -48,27 +47,15 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      // === CÁCH 1 (Supabase email/password):
-      // Nếu bạn dùng Supabase Auth với email/password, hãy coi "username" là email.
-      // const { data, error } = await supabase.auth.signUp({
-      //   email: values.username,
-      //   password: values.password,
-      // });
-      // if (error) throw error;
-
-      // === CÁCH 2 (backend tự viết / username riêng):
-      // Gọi API backend để tạo user theo "username" & "password"
-      // const res = await fetch("/api/register", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(values),
-      // });
-      // if (!res.ok) throw new Error((await res.json())?.message || "Đăng ký thất bại");
-
-      // Tùy chọn của bạn ở trên. Ở đây mình minh hoạ dùng Supabase cho gọn:
       const { error } = await supabase.auth.signUp({
-        email: values.username, // dùng như email
-        password: values.password,
+      email: values.username.trim(),
+      password: values.password,
+      options: {
+        emailRedirectTo:
+          typeof window !== "undefined"
+            ? `${window.location.origin}/auth/callback`
+            : undefined,
+        },
       });
       if (error) throw error;
 
@@ -155,7 +142,7 @@ export default function RegisterPage() {
                 value={values.password}
                 onChange={(e) => onChange("password", e.target.value)}
                 placeholder="●●●●●●●●"
-                autoComplete="current-password"
+                autoComplete="new-password"
                 className="w-full"
                 required
                 aria-required
