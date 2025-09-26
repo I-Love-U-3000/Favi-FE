@@ -77,8 +77,8 @@ export default function RegisterPage() {
         options: {
           redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
           queryParams: {
-            // prompt: "consent",
-            // access_type: "offline",
+            prompt: "select_account",
+            access_type: "offline"
           },
         },
       });
