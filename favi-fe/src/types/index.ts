@@ -1,5 +1,5 @@
 export type LoginValues = {
-  usernameOrEmail: string;
+  identifier: string;
   password: string;
   remember: boolean;
 };

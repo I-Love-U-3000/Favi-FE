@@ -14,18 +14,14 @@ import { Toast } from "primereact/toast";
 
 import { BackgroundBubbles } from "@/components/ui/BackgroundBubbles";
 
-type LoginValues = {
-  usernameOrEmail: string;
-  password: string;
-  remember: boolean;
-};
+import { LoginValues } from "@/types";
 
 export default function LoginPage() {
   const router = useRouter();
   const toastRef = useRef<Toast | null>(null);
 
   const [values, setValues] = useState<LoginValues>({
-    usernameOrEmail: "",
+    identifier: "",
     password: "",
     remember: true,
   });
@@ -57,9 +53,9 @@ export default function LoginPage() {
       if (loading) return;
       setLoading(true);
       try {
-        const { usernameOrEmail, password } = values;
+        const { identifier, password } = values;
 
-        if (!usernameOrEmail.includes("@")) {
+        if (!identifier.includes("@")) {
           showToast(
             "warn",
             "Email required",
@@ -69,7 +65,7 @@ export default function LoginPage() {
         }
 
         const { error } = await supabase.auth.signInWithPassword({
-          email: usernameOrEmail.trim(),
+          email: identifier.trim(),
           password,
         });
 
@@ -93,12 +89,15 @@ export default function LoginPage() {
     if (googleLoading) return;
     setGoogleLoading(true);
     try {
-      const redirectTo =
-        typeof window !== "undefined" ? `${window.location.origin}/home` : undefined;
-
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo },
+        options: {
+          redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
+          queryParams: {
+            prompt: "select_account",
+            access_type: "offline"
+          },
+        },
       });
 
       if (error) {
@@ -147,8 +146,8 @@ export default function LoginPage() {
               </span>
               <InputText
                 id="usernameOrEmail"
-                value={values.usernameOrEmail}
-                onChange={(e) => onChange("usernameOrEmail", e.target.value)}
+                value={values.identifier}
+                onChange={(e) => onChange("identifier", e.target.value)}
                 placeholder="you@example.com"
                 autoComplete="username"
                 className="w-full"

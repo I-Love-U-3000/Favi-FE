@@ -70,6 +70,7 @@ export default function RegisterPage() {
   };
 
   const handleGoogle = async () => {
+    if (googleLoading) return;
     setGoogleLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
