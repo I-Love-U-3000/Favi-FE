@@ -187,7 +187,7 @@ export default function RegisterPage() {
             type="button"
             outlined
             icon="pi pi-google"
-            label={googleLoading ? "Đang mở Google..." : "Đăng ký / Đăng nhập với Google"}
+            label={googleLoading ? "Đang mở Google..." : "Đăng nhập với Google"}
             className="w-full"
             onClick={handleGoogle}
             disabled={googleLoading || loading}
