@@ -3,14 +3,37 @@ import { notFound } from "next/navigation";
 import { Avatar } from "primereact/avatar";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
-import { useState } from "react";
+import { ScrollPanel } from "primereact/scrollpanel";
+import { useRef, useState } from "react";
 import Dock from "@/components/Dock";
+import { Separator } from "@/components/ui/Seperator";
+import { Badge } from "primereact/badge";
+import { cn } from "@/components/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/Dropdown-menu";
+import {
+  Heart,
+  MessageCircle,
+  Share2,
+  Download,
+  Lock,
+  Users,
+  Globe,
+  Edit,
+  Trash2,
+  MoreHorizontal,
+} from "lucide-react";
 
 type PostPageProps = {
   params: { id: string };
 };
 
-// Mock post data (in a real app, this would come from an API or database)
+type PrivacyType = "public" | "friends" | "private";
+
 const posts = [
   {
     username: "markpawson",
@@ -23,32 +46,21 @@ const posts = [
     comments: [
       { username: "elenavoyage", text: "So adorable! 😍", time: "5 hours ago" },
     ],
-  },
-  {
-    username: "bob",
-    avatar: "https://i.pravatar.cc/150?img=2",
-    image: "https://images.unsplash.com/photo-1516321310762-479437144403",
-    caption: "City vibes 🏙️",
-    id: "2",
-    tags: ["city", "urban", "night"],
-    likes: 89,
-    comments: [
-      { username: "alice", text: "Such a cool shot!", time: "2 hours ago" },
-    ],
-  },
-  {
-    username: "charlie",
-    avatar: "https://i.pravatar.cc/150?img=3",
-    image: "https://images.unsplash.com/photo-1473496169904-658ba7b873b7",
-    caption: "Beach day 🏖️",
-    id: "3",
-    tags: ["beach", "summer", "relax"],
-    likes: 156,
-    comments: [
-      { username: "alice", text: "Wish I was there!", time: "1 hour ago" },
-    ],
+    privacy: "public" as PrivacyType,
   },
 ];
+
+const PrivacyIcon = ({ privacy }: { privacy: PrivacyType }) => {
+  const props = { className: "h-4 w-4 mr-2" };
+  switch (privacy) {
+    case "private":
+      return <Lock {...props} />;
+    case "friends":
+      return <Users {...props} />;
+    default:
+      return <Globe {...props} />;
+  }
+};
 
 export default function PostPage({ params }: PostPageProps) {
   const { id } = params;
@@ -58,146 +70,262 @@ export default function PostPage({ params }: PostPageProps) {
   const [likes, setLikes] = useState(post.likes);
   const [comments, setComments] = useState(post.comments);
   const [newComment, setNewComment] = useState("");
+  const [isLiked, setIsLiked] = useState(false);
+  const [privacy, setPrivacy] = useState<PrivacyType>(post.privacy);
+  const isAuthor = post.username === "markpawson";
+
 
   const handleLike = () => {
-    setLikes(likes + 1);
+    setLikes(isLiked ? likes - 1 : likes + 1);
+    setIsLiked(!isLiked);
   };
 
-  const handleAddComment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newComment.trim()) {
-      setComments([
-        ...comments,
-        { username: "current_user", text: newComment, time: "just now" },
-      ]);
-      setNewComment("");
-    }
-  };
+  const lastCommentRef = useRef<HTMLDivElement>(null);
+
+  const handleAddComment = (e?: React.MouseEvent | React.KeyboardEvent) => {
+  if (newComment.trim()) {
+    const updatedComments = [
+      ...comments,
+      { username: "current_user", text: newComment, time: "just now" },
+    ];
+    setComments(updatedComments);
+    setNewComment("");
+
+    setTimeout(() => {
+      lastCommentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }
+};
 
   return (
-    <div className="flex bg-gray-900 min-h-screen text-white">
-      {/* Fixed Dock on the left */}
+    <div className="flex bg-amber-50 min-h-screen ">
       <div className="fixed left-4 top-1/2 -translate-y-1/2">
         <Dock />
       </div>
-
-      {/* Main content */}
       <main className="flex-1 flex justify-center p-6 ml-24">
-        <div className="w-full max-w-3xl bg-gray-800 rounded-lg shadow-lg p-4">
-          {/* User Info and Image */}
-          <div className="flex items-start mb-4">
-            <img
-              src={post.image}
-              alt={post.caption}
-              className="w-1/2 h-auto object-cover rounded-lg mr-4"
-            />
-            <div className="flex-1 p-5">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center">
-                  <Avatar
-                    image={post.avatar}
-                    shape="circle"
-                    size="large"
-                    className="mr-2"
-                  />
-                  <div>
-                    <div className="font-bold">{post.username}</div>
-                    <div className="text-gray-400">@{post.username}</div>
+        <div className="w-full max-w-6xl mx-auto  rounded-xl shadow-xl overflow-hidden">
+          <div className="grid md:grid-cols-[1fr_420px]">
+            {/* Image Section */}
+            <div className="bg-muted/30 flex items-center justify-center p-4 sm:p-8 relative min-h-[400px]">
+              <img
+                src={post.image}
+                alt={post.caption}
+                className="rounded-lg object-contain w-full h-full max-h-[80vh] shadow-lg"
+              />
+            </div>
+
+            {/* Details Section */}
+            <div className="flex flex-col bg-background">
+              <div className="p-6">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12">
+                      <img
+                        src={post.avatar}
+                        alt={post.username}
+                        className="rounded-full"
+                      />
+                    </Avatar>
+                    <div>
+                      <h2 className="font-semibold text-lg">{post.username}</h2>
+                      <p className="text-sm text-gray-400">@{post.username}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {!isAuthor && (
+                      <Button
+                        label="Follow"
+                        size="small"
+                        severity="secondary"
+                      />
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button className="p-button-rounded p-button-text">
+                          <MoreHorizontal />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="bg-gray-700 text-white"
+                      >
+                        {isAuthor && (
+                          <DropdownMenuItem
+                            onClick={() => {}}
+                            className="hover:bg-gray-600 transition-colors"
+                          >
+                            <Edit className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          onClick={() => setPrivacy("public")}
+                          className="hover:bg-gray-600 transition-colors"
+                        >
+                          <Globe className="mr-2 h-4 w-4" /> Set to Public
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setPrivacy("friends")}
+                          className="hover:bg-gray-600 transition-colors"
+                        >
+                          <Users className="mr-2 h-4 w-4" /> Set to Friends
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setPrivacy("private")}
+                          className="hover:bg-gray-600 transition-colors"
+                        >
+                          <Lock className="mr-2 h-4 w-4" /> Set to Private
+                        </DropdownMenuItem>
+                        {isAuthor && (
+                          <DropdownMenuItem className="text-red-500 hover:bg-gray-600 transition-colors">
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
-                <Button
-                  label="Follow"
-                  className="p-button-outlined p-button-sm"
-                />
               </div>
-              <p className="mb-2">{post.caption}</p>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {post.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-sm text-gray-400 bg-gray-700 px-2 py-1 rounded-full"
+
+              <div className="p-6 pt-0 space-y-4 flex-grow flex flex-col min-h-0">
+                <p>{post.caption}</p>
+                <div className="flex flex-wrap gap-2">
+                  {post.tags.map((tag) => (
+                    <Badge
+                      key={tag}
+                      value={tag}
+                      severity="info"
+                      className="bg-blue-600 text-white p-1"
+                    />
+                  ))}
+                </div>
+                <Separator className="bg-gray-700" />
+                <ScrollPanel style={{ height: "400px" }}>
+  {comments.map((comment, idx) => (
+    <div
+      key={idx}
+      ref={idx === comments.length - 1 ? lastCommentRef : null}
+      className="flex items-start mb-2"
+    >
+      <Avatar className="h-10 w-10 mr-2">
+        <img
+          src={`https://i.pravatar.cc/150?img=${idx + 4}`}
+          alt={comment.username}
+          className="rounded-full"
+        />
+      </Avatar>
+      <div className="max-w-[calc(100%-3rem)]">
+        <div className="font-semibold">{comment.username}</div>
+        <div className="text-gray-400 text-sm">{comment.time}</div>
+        <p className="break-words">{comment.text}</p>
+      </div>
+    </div>
+  ))}
+</ScrollPanel>
+                <Separator className="bg-gray-700" />
+              </div>
+
+              <div className="p-4 ">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      className="p-button-rounded p-button-text"
+                      onClick={handleLike}
+                      aria-label="Like"
+                    >
+                      <Heart
+                        className={cn(
+                          "transition-colors",
+                          isLiked ? "fill-red-500 text-red-500" : ""
+                        )}
+                      />
+                    </Button>
+                    <Button
+                      className="p-button-rounded p-button-text"
+                      aria-label="Comment"
+                    >
+                      <MessageCircle />
+                    </Button>
+                    <Button
+                      className="p-button-rounded p-button-text"
+                      aria-label="Share"
+                    >
+                      <Share2 />
+                    </Button>
+                  </div>
+                  <Button
+                  icon="pi pi-download"
+                    onClick={() => {
+                      const link = document.createElement("a");
+                      link.href = post.image;
+                      link.download = post.caption || "image.jpg";
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "6px 12px",
+                      backgroundColor: "#3B82F6", // màu xanh hiện đại
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "8px", // bo góc nhẹ
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      fontWeight: 500,
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                      transition:
+                        "background-color 0.3s ease, transform 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "#2563EB"; // hover xanh đậm hơn
+                      e.currentTarget.style.transform = "scale(1.05)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "#3B82F6";
+                      e.currentTarget.style.transform = "scale(1)";
+                    }}
                   >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-            <hr className="mx-10"/>
-          {/* Comments Section */}
-          <div className="mb-4">
-            <h3 className="font-semibold mb-2">Comments ({comments.length})</h3>
-            {comments.map((comment, idx) => (
-              <div key={idx} className="flex items-start mb-2">
-                <Avatar
-                  image={`https://i.pravatar.cc/150?img=${idx + 4}`}
-                  shape="circle"
-                  size="large"
-                  className="mr-2"
-                />
-                <div>
-                  <div className="font-semibold">{comment.username}</div>
-                  <div className="text-gray-400 text-sm">{comment.time}</div>
-                  <p>{comment.text}</p>
+                    Get image
+                  </Button>
+                </div>
+                <div className="flex items-center mt-4">
+                  <InputText
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Add a comment..."
+                    className="flex-1 p-inputtext-sm bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    style={{
+                      borderRadius: "0",
+                      borderTopLeftRadius: "0.375rem",
+                      borderBottomLeftRadius: "0.375rem",
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault(); // ngăn form submit mặc định nếu có
+                        handleAddComment(e as any); // cast sang any vì handleAddComment đang nhận MouseEvent
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    severity="info"
+                    onClick={handleAddComment}
+                    
+                    className="p-button-sm flex items-center justify-center hover:bg-blue-600 transition-colors"
+                    style={{
+                      borderRadius: "0",
+                      borderTopRightRadius: "0.375rem",
+                      borderBottomRightRadius: "0.375rem",
+                    }}
+                    
+                  >
+                    Post
+                  </Button>
                 </div>
               </div>
-            ))}
-          </div>
-
-          {/* Comment Input */}
-          <form onSubmit={handleAddComment} className="flex items-center mb-4">
-  <InputText
-    value={newComment}
-    onChange={(e) => setNewComment(e.target.value)}
-    placeholder="Add a comment..."
-    className="flex-1 p-inputtext-sm bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-    style={{
-      borderRadius: "0",
-      borderTopLeftRadius: "0.375rem",
-      borderBottomLeftRadius: "0.375rem",
-    }}
-  />
-  <Button
-    type="submit"
-    className="p-button-sm bg-blue-800 text-white border border-blue-800 flex items-center justify-center hover:bg-blue-600 transition-colors"
-    icon="pi pi-send"
-    style={{
-      borderRadius: "0",
-      borderTopRightRadius: "0.375rem",
-      borderBottomRightRadius: "0.375rem",
-    }}
-  />
-  <style jsx>{`
-    .p-inputtext {
-      border-radius: 0 !important;
-    }
-    .p-button {
-      border-radius: 0 !important;
-    }
-  `}</style>
-</form>
-<hr className="mx-5 my-5"/>
-          {/* Action Buttons */}
-          <div className="mx-5 flex justify-between items-center ">
-            <div className="flex space-x-4">
-              <Button
-                icon="pi pi-heart"
-                className="p-button-text p-button-rounded"
-                onClick={handleLike}
-              />
-              <Button
-                icon="pi pi-comment"
-                className="p-button-text p-button-rounded"
-              />
-              <Button
-                icon="pi pi-share-alt"
-                className="p-button-text p-button-rounded"
-              />
             </div>
-            <Button
-              label="Download"
-              className="p-button-outlined p-button-sm"
-            />
           </div>
         </div>
       </main>
