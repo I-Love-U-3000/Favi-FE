@@ -11,7 +11,7 @@ import { Button } from "primereact/button";
 import { Divider } from "primereact/divider";
 import { Toast } from "primereact/toast";
 
-import { BackgroundBubbles } from "@/components/ui/BackgroundBubbles";
+import { BackgroundBubbles } from "@/components/BackgroundBubbles";
 
 import { RegisterValues } from "@/types";
 
