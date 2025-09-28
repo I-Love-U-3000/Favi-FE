@@ -1,26 +1,36 @@
 import { useState, useCallback } from 'react';
-import Cropper from 'react-easy-crop';
+import Cropper, { Area } from 'react-easy-crop';
 import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
 import 'react-easy-crop/react-easy-crop.css';
 
-// Define CroppedAreaPixels inline to match InstagramPostDialog
-interface CroppedAreaPixels {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+interface CroppedAreaPixels { x: number; y: number; width: number; height: number; }
 
 interface CropImageProps {
   imageSrc: string;
   onCropComplete: (croppedImage: Blob | null, aspect: number) => void;
   aspect: number;
-  setAspect: (aspect: number) => void; // Add setAspect prop to update parent state
+  setAspect: (aspect: number) => void;
+  /** Optional - ẩn dropdown đổi tỉ lệ (VD: avatar luôn 1:1) */
+  lockAspect?: boolean;
+  /** Optional - mime & chất lượng output */
+  outputMime?: 'image/jpeg' | 'image/png' | 'image/webp';
+  outputQuality?: number; // 0..1
+  /** Optional - khi người dùng đóng dialog mà không export */
+  onCancel?: () => void;
 }
 
-const CropImage: React.FC<CropImageProps> = ({ imageSrc, onCropComplete, aspect, setAspect }) => {
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
+const CropImage: React.FC<CropImageProps> = ({
+  imageSrc,
+  onCropComplete,
+  aspect,
+  setAspect,
+  lockAspect = false,
+  outputMime = 'image/jpeg',
+  outputQuality = 0.9,
+  onCancel,
+}) => {
+  const [crop, setCrop] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<CroppedAreaPixels | null>(null);
 
@@ -31,66 +41,59 @@ const CropImage: React.FC<CropImageProps> = ({ imageSrc, onCropComplete, aspect,
     { label: '9:16 (Story)', value: 9 / 16 },
   ];
 
-  const onCropCompleteHandler = useCallback((croppedArea: any, croppedAreaPixels: CroppedAreaPixels) => {
-    setCroppedAreaPixels(croppedAreaPixels);
+  const onCropCompleteHandler = useCallback((_: Area, pixels: CroppedAreaPixels) => {
+    setCroppedAreaPixels(pixels);
   }, []);
 
+  // an toàn cho cả object URL & http URL
   const createImage = (url: string): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {
       const image = new Image();
+      // crossOrigin không gây hại với object URL; với remote image thì cần để export canvas
       image.crossOrigin = 'anonymous';
-      image.addEventListener('load', () => resolve(image));
-      image.addEventListener('error', (error) => reject(error));
+      image.onload = () => resolve(image);
+      image.onerror = (err) => reject(err);
       image.src = url;
     });
 
-  const getCroppedImg = useCallback(async () => {
+  const handleExport = useCallback(async () => {
     if (!croppedAreaPixels) {
       alert('Please select a crop area.');
       return;
     }
-
     try {
       const image = await createImage(imageSrc);
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-
-      if (!ctx) throw new Error('Canvas context not available');
+      if (!ctx) throw new Error('Canvas 2D not available');
 
       const scaleX = image.naturalWidth / image.width;
       const scaleY = image.naturalHeight / image.height;
-      const cropX = croppedAreaPixels.x * scaleX;
-      const cropY = croppedAreaPixels.y * scaleY;
-      const cropWidth = croppedAreaPixels.width * scaleX;
-      const cropHeight = croppedAreaPixels.height * scaleY;
 
-      canvas.width = cropWidth;
-      canvas.height = cropHeight;
+      const sx = croppedAreaPixels.x * scaleX;
+      const sy = croppedAreaPixels.y * scaleY;
+      const sw = croppedAreaPixels.width * scaleX;
+      const sh = croppedAreaPixels.height * scaleY;
 
-      ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+      canvas.width = Math.max(1, Math.round(sw));
+      canvas.height = Math.max(1, Math.round(sh));
 
-      return new Promise<Blob | null>((resolve) => {
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              onCropComplete(blob, aspect);
-            } else {
-              onCropComplete(null, aspect);
-            }
-            resolve(blob);
-            URL.revokeObjectURL(imageSrc);
-          },
-          'image/jpeg',
-          0.8
-        );
-      });
-    } catch (error) {
-      console.error('Error cropping image:', error);
+      ctx.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(
+        (blob) => {
+          onCropComplete(blob, aspect);
+          // QUAN TRỌNG: KHÔNG revoke imageSrc ở đây — parent sẽ quản lý
+        },
+        outputMime,
+        outputQuality
+      );
+    } catch (e) {
+      console.error('Crop error:', e);
       alert('Failed to crop image. Please try again.');
       onCropComplete(null, aspect);
-      return null;
     }
-  }, [imageSrc, croppedAreaPixels, aspect, onCropComplete]);
+  }, [croppedAreaPixels, imageSrc, aspect, onCropComplete, outputMime, outputQuality]);
 
   return (
     <div className="relative w-full">
@@ -104,32 +107,41 @@ const CropImage: React.FC<CropImageProps> = ({ imageSrc, onCropComplete, aspect,
           onCropComplete={onCropCompleteHandler}
           onZoomChange={setZoom}
           cropShape="rect"
-          showGrid={true}
+          showGrid
           objectFit="contain"
         />
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 items-center">
-          <Dropdown
-            value={aspect}
-            options={aspectOptions}
-            onChange={(e) => setAspect(e.value)} // Update aspect without triggering crop
-            placeholder="Chọn tỷ lệ"
-            className="w-32"
-          />
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 items-center">
+          {!lockAspect && (
+            <Dropdown
+              value={aspect}
+              options={aspectOptions}
+              onChange={(e) => setAspect(e.value)}
+              placeholder="Chọn tỷ lệ"
+              className="w-36"
+            />
+          )}
           <Button
             label="Zoom In"
             icon="pi pi-plus"
-            onClick={() => setZoom(Math.min(zoom + 0.1, 3))}
+            onClick={() => setZoom((z) => Math.min(z + 0.1, 3))}
             className="p-button-text"
           />
           <Button
             label="Zoom Out"
             icon="pi pi-minus"
-            onClick={() => setZoom(Math.max(zoom - 0.1, 1))}
+            onClick={() => setZoom((z) => Math.max(z - 0.1, 1))}
             className="p-button-text"
           />
+          {onCancel && (
+            <Button
+              label="Hủy"
+              className="p-button-text"
+              onClick={onCancel}
+            />
+          )}
           <Button
             label="Crop & Export"
-            onClick={getCroppedImg}
+            onClick={handleExport}
             className="p-button-raised p-button-primary"
           />
         </div>

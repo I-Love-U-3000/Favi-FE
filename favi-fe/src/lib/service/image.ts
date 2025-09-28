@@ -4,7 +4,6 @@ export async function uploadToImgbb(file: File): Promise<string> {
 
   const form = new FormData();
   form.append("image", file);
-  // có thể thêm name/expiration nếu cần
   const r = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
     method: "POST",
     body: form,
