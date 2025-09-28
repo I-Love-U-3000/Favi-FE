@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, FormEvent } from "react";
+import { useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/supabase-client";
@@ -14,6 +15,8 @@ import { Toast } from "primereact/toast";
 import { BackgroundBubbles } from "@/components/BackgroundBubbles";
 
 import { RegisterValues } from "@/types";
+
+import { loginWithGoogle } from "@/lib/service/auth";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -69,27 +72,17 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGoogle = async () => {
-    if (googleLoading) return;
-    setGoogleLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
-          queryParams: {
-            prompt: "select_account",
-            access_type: "offline"
-          },
-        },
-      });
-      if (error) throw error;
-      // Sau khi OAuth redirect, Supabase sẽ quay về redirectTo -> xử lý tiếp ở route /auth/callback
-    } catch (err: any) {
-      showToast("error", "Google sign-in lỗi", err.message || "Không thể đăng nhập với Google.");
-      setGoogleLoading(false);
-    }
-  };
+  const handleGoogle = useCallback(async () => {
+      if (googleLoading) return;
+      setGoogleLoading(true);
+      try {
+        await loginWithGoogle();
+      } catch (err: any) {
+        showToast("error", "Google sign-in lỗi", err?.message ?? "Unknown error");
+      } finally {
+        setGoogleLoading(false);
+      }
+    }, [googleLoading, showToast]);
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0ea5e9]/10 via-[#a78bfa]/10 to-[#22c55e]/10 flex flex-col items-center justify-center p-6">
@@ -116,7 +109,7 @@ export default function RegisterPage() {
           <form onSubmit={handleRegister} className="space-y-4">
             <div className="flex flex-col gap-2">
               <label htmlFor="username" className="text-sm font-medium">
-                Tên đăng nhập / Email
+                Email
               </label>
               <InputText
                 id="username"

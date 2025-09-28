@@ -85,7 +85,7 @@ export default function AuthCallbackPage() {
         }
 
         if (!profile?.username) {
-          router.replace("/onboarding/username");
+          router.replace("/onboarding");
           return;
         }
         let redirectTo = "/";

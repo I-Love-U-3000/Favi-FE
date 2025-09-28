@@ -1,4 +1,5 @@
 import { supabase } from "@/app/supabase-client";
+import { ProfileUpdateInput } from "@/types";
 
 export async function getMyProfile() {
     const user = (await supabase.auth.getUser()).data.user;
@@ -37,4 +38,16 @@ export async function resolveEmailByUsername(username: string) {
     }
 
     return (await r.json()) as { email: string };
+}
+
+export async function updateMyProfile(payload: ProfileUpdateInput) {
+  const user = (await supabase.auth.getUser()).data.user;
+  if (!user) throw new Error("Unauthorized");
+
+  const { error } = await supabase
+    .from("profile")
+    .update(payload)
+    .eq("id", user.id);
+
+  if (error) throw error;
 }

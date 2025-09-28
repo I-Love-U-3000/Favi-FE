@@ -101,7 +101,7 @@ export default function LoginPage() {
         title={
           <div className="text-center">
             <div className="text-xl font-semibold tracking-tight">Welcome back 👋</div>
-            <div className="mt-1 text-sm text-gray-500">Sign in to continue</div>
+            <div className="mt-1 text-sm text-gray-500">Log in to continue</div>
           </div>
         }
       >
@@ -193,7 +193,7 @@ export default function LoginPage() {
           {/* Submit */}
           <Button
             type="submit"
-            label={loading ? "Signing in..." : "Sign in"}
+            label={loading ? "Logging in..." : "Log in"}
             icon={loading ? "pi pi-spin pi-spinner" : "pi pi-sign-in"}
             className="w-full !h-11"
             disabled={loading}
