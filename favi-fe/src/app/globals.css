@@ -126,3 +126,13 @@ html.oceanic {
   --input-bg: #fff;
   --input-border: #cbd5e1;
 }
+
+@font-face {
+  font-family: "Fulcher";
+  src: url("/fonts/Fulcher.otf");
+  
+}
+
+.font-fulcher {
+  font-family: "Fulcher";
+}
