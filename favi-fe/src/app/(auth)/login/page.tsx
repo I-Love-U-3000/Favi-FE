@@ -1,9 +1,11 @@
 "use client";
 
+import { login, loginWithGoogle } from "@/lib/service/auth";
+import { getMyProfile } from "@/lib/service/profile";
+
 import { useState, useRef, useCallback, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/app/supabase-client";
 
 import { Card } from "primereact/card";
 import { InputText } from "primereact/inputtext";
@@ -12,7 +14,7 @@ import { Divider } from "primereact/divider";
 import { Checkbox } from "primereact/checkbox";
 import { Toast } from "primereact/toast";
 
-import { BackgroundBubbles } from "@/components/ui/BackgroundBubbles";
+import { BackgroundBubbles } from "@/components/BackgroundBubbles";
 
 import { LoginValues } from "@/types";
 
@@ -52,59 +54,28 @@ export default function LoginPage() {
       e.preventDefault();
       if (loading) return;
       setLoading(true);
+
       try {
-        const { identifier, password } = values;
-
-        if (!identifier.includes("@")) {
-          showToast(
-            "warn",
-            "Email required",
-            "Hiện form password đang cần email. Bạn có thể dùng nút Google hoặc nhập email."
-          );
-          return;
-        }
-
-        const { error } = await supabase.auth.signInWithPassword({
-          email: identifier.trim(),
-          password,
-        });
-
-        if (error) {
-          showToast("error", "Đăng nhập thất bại", error.message);
-          return;
-        }
-
+        await login(values.identifier, values.password); // username hoặc email đều OK
+        const prof = await getMyProfile();
         showToast("success", "Đăng nhập thành công");
-        router.push("/home");
+        router.push(prof?.username ? "/home" : "/onboarding");
       } catch (err: any) {
-        showToast("error", "Đã có lỗi", err?.message ?? "Unknown error");
+        showToast("error", "Đăng nhập thất bại", err?.message ?? "Unknown error");
       } finally {
         setLoading(false);
       }
     },
-    [loading, router, showToast, values]
+    [loading, router, showToast, values.identifier, values.password]
   );
 
   const handleGoogle = useCallback(async () => {
     if (googleLoading) return;
     setGoogleLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
-          queryParams: {
-            prompt: "select_account",
-            access_type: "offline"
-          },
-        },
-      });
-
-      if (error) {
-        showToast("error", "Google sign-in lỗi", error.message);
-      }
+      await loginWithGoogle();
     } catch (err: any) {
-      showToast("error", "Đã có lỗi", err?.message ?? "Unknown error");
+      showToast("error", "Google sign-in lỗi", err?.message ?? "Unknown error");
     } finally {
       setGoogleLoading(false);
     }
@@ -130,7 +101,7 @@ export default function LoginPage() {
         title={
           <div className="text-center">
             <div className="text-xl font-semibold tracking-tight">Welcome back 👋</div>
-            <div className="mt-1 text-sm text-gray-500">Sign in to continue</div>
+            <div className="mt-1 text-sm text-gray-500">Log in to continue</div>
           </div>
         }
       >
@@ -222,7 +193,7 @@ export default function LoginPage() {
           {/* Submit */}
           <Button
             type="submit"
-            label={loading ? "Signing in..." : "Sign in"}
+            label={loading ? "Logging in..." : "Log in"}
             icon={loading ? "pi pi-spin pi-spinner" : "pi pi-sign-in"}
             className="w-full !h-11"
             disabled={loading}
