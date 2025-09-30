@@ -6,7 +6,7 @@ import { InputText } from "primereact/inputtext";
 import { ScrollPanel } from "primereact/scrollpanel";
 import { useRef, useState } from "react";
 import Dock from "@/components/Dock";
-import { Separator } from "@/components/ui/Seperator";
+import { Separator } from "@/components/Seperator";
 import { Badge } from "primereact/badge";
 import { cn } from "@/components/lib/utils";
 import {
@@ -14,7 +14,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/Dropdown-menu";
+} from "@/components/Dropdown-menu";
 import {
   Heart,
   MessageCircle,

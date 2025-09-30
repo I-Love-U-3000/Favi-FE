@@ -12,7 +12,7 @@ import { Dialog } from "primereact/dialog";
 import CropImage from "@/components/CropImage";
 import { isValidUsername, normalizeUsername } from "@/lib/validator/username";
 import { updateMyProfile } from "@/lib/service/profile";
-import { uploadToImgbb } from "@/lib/service/image";
+import { uploadToCloudinary } from "@/lib/service/image";
 import { BackgroundBubbles } from "@/components/BackgroundBubbles";
 
 type NameStatus = "idle" | "invalid" | "checking" | "available" | "taken";
@@ -234,13 +234,13 @@ export default function OnboardingPage() {
         const file = new File([avatarBlob], `avatar_${Date.now()}.jpg`, {
           type: "image/jpeg",
         });
-        finalAvatar = await uploadToImgbb(file);
+        finalAvatar = await uploadToCloudinary(file);
       }
       if (coverBlob) {
         const file = new File([coverBlob], `cover_${Date.now()}.jpg`, {
           type: "image/jpeg",
         });
-        finalCover = await uploadToImgbb(file);
+        finalCover = await uploadToCloudinary(file);
       }
 
       await updateMyProfile({
