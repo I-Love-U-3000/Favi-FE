@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import "./globals.css";
+import "../globals.css";
 import { cookies } from "next/headers";
 import "primereact/resources/themes/lara-light-blue/theme.css";  // theme mặc định
 import "primereact/resources/primereact.min.css";               // core styles
@@ -53,6 +53,8 @@ import { useRef } from "react";
 import { RootProvider } from "@/components/RootProvider";
 import Dock from "@/components/Dock";
 
+import { NextIntlClientProvider } from "next-intl";
+
 
 export const metadata: Metadata = {
   title: "Favi",
@@ -68,7 +70,7 @@ export default async function RootLayout({
 
   const themeFromCookie = (await cookies()).get("theme")?.value ?? "";
   return (
-    
+
     <html lang="en" className={themeFromCookie}>
       <head>
         <link
@@ -78,14 +80,15 @@ export default async function RootLayout({
         />
       </head>
       <body>
-        
-        <Toast/>
-        <PrimeReactProvider value={{ ripple: true }}>
-          <RootProvider>
-            {children}
-          </RootProvider>
-        </PrimeReactProvider>
-        </body>
+        <NextIntlClientProvider>
+          <Toast />
+          <PrimeReactProvider value={{ ripple: true }}>
+            <RootProvider>
+              {children}
+            </RootProvider>
+          </PrimeReactProvider>
+        </NextIntlClientProvider>
+      </body>
     </html>
   );
 }

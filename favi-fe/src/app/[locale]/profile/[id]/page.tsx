@@ -10,6 +10,7 @@ import { mockUserProfile } from "@/lib/mockUserProfile";   // có thể là 1 ob
 import { mockPost } from "@/lib/mockPost";                 // array hoặc single
 import { mockCollection } from "@/lib/mockCollection";     // array hoặc single
 import type { UserProfile, PhotoPost, Collection } from "@/types";
+import { getTranslations } from "next-intl/server";
 
 /* ========== Helpers: chọn dữ liệu theo id/username, fallback mock ========== */
 function asArray<T>(x: T | T[] | undefined | null): T[] {
@@ -126,7 +127,7 @@ function CollectionsGrid({ items }: { items: Collection[] }) {
 }
 
 /* ========== PAGE ========== */
-export default function ProfilePage() {
+export default async function ProfilePage() {
   const { id } = useParams<{ id: string }>(); // nhận từ /profile/[id]
   const profile = useMemo(() => resolveProfile(id), [id]);
 
@@ -140,6 +141,8 @@ export default function ProfilePage() {
 
   // format ngày tham gia: dùng chuỗi ISO cố định để tránh lệch SSR/CSR
   const joined = profile!.joinedAtISO ?? undefined;
+
+  const t= await getTranslations("Profile")
 
   return (
     <div className="min-h-screen">
@@ -193,7 +196,7 @@ export default function ProfilePage() {
               )}
               {joined && (
                 <span className="inline-flex items-center gap-1" suppressHydrationWarning>
-                  <i className="pi pi-calendar" /> Joined {joined}
+                  <i className="pi pi-calendar" /> {t('Joined')} {joined}
                 </span>
               )}
             </div>

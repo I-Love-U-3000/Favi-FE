@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 const nextConfig: NextConfig = {
   images: {
-    domains: ["i.pravatar.cc", "source.unsplash.com", "i.pravatar.cc"], // thêm host mà bạn muốn dùng
+    domains: ["i.pravatar.cc", "source.unsplash.com", "i.pravatar.cc"], 
   },
 };
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin();
+export default withNextIntl(nextConfig);
