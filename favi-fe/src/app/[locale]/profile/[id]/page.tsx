@@ -218,7 +218,7 @@ export default function ProfilePage() {
         </div>
 
         {/* TABS */}
-        <div className="mt-8">
+        <div className="mt-8 mb-20">
           <TabView>
             <TabPanel header="Posts">
               <PhotoGrid items={posts} />
