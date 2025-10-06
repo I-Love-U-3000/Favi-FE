@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Dock as PrimeDock } from "primereact/dock";
 import { useOverlay } from "./RootProvider";
 import InstagramPostDialog from "./PostDialog";
-import { useRouter } from "next/navigation"; 
+import { useRouter } from "next/navigation";
 import { Sidebar } from "primereact/sidebar";
 import { ScrollPanel } from "primereact/scrollpanel";
 import { Avatar } from "primereact/avatar";
@@ -13,7 +13,7 @@ function Dock() {
   const { showToast, confirm } = useOverlay();
   const [active, setActive] = useState<string>("");
   const [dialogVisible, setDialogVisible] = useState(false);
-  const router = useRouter(); 
+  const router = useRouter();
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
   const messages = [
@@ -39,7 +39,8 @@ function Dock() {
       time: "2 hours ago",
     },
   ];
-  
+
+  // ===== Dock items =====
   const dockItems = [
     {
       label: "Home",
@@ -52,7 +53,7 @@ function Dock() {
       ),
       command: () => {
         setActive("Home");
-        router.push("/home"); 
+        router.push("/home");
       },
     },
     {
@@ -85,6 +86,7 @@ function Dock() {
         />
       ),
       command: () => {
+        setActive("New Post");
         setDialogVisible(true);
       },
     },
@@ -99,7 +101,7 @@ function Dock() {
       ),
       command: () => {
         setActive("Messages");
-        router.push("/chat");
+        setSidebarVisible(true);
       },
     },
     {
@@ -113,37 +115,60 @@ function Dock() {
       ),
       command: () => {
         setActive("Profile");
-        router.push("/profile"); 
+        router.push("/profile");
       },
     },
   ];
 
   return (
-    <div>
-      <PrimeDock
-  model={dockItems}
-  position="left"
-  className="mt-10 custom-dock"
-  style={{ transform: "scale(0.9)" }}
-/>
-<style jsx>{`
-  :global(.p-dock .p-dock-item .pi) {
-    font-size: 1.3rem;
-    transition: color 0.2s ease-in-out;
-  }
-  /* Khi bạn muốn “dính” (sticky) */
-  :global(.custom-dock) {
-    position: sticky !important;
-    top: 20px; /* bạn chỉnh khoảng cách từ top */
-  }
-`}</style>
+    <>
+      {/* Navbar ngang trên cùng */}
+      <header className="fixed top-0 left-0 w-full z-50 bg-white/80 backdrop-blur-lg shadow-sm ring-1 ring-black/5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-3">
+          {/* Logo */}
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 bg-sky-500 rounded-lg grid place-items-center text-white font-bold text-xl">
+              F
+            </div>
+            <span className="font-semibold text-lg">Favi</span>
+          </div>
 
+          {/* Dock menu ngang */}
+          <div className="flex-1 flex justify-center">
+            <PrimeDock
+              model={dockItems}
+              position="top"
+              className="!bg-transparent !shadow-none scale-90"
+            />
+          </div>
 
+          {/* Search hoặc Avatar bên phải */}
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              placeholder="Search..."
+              className="hidden md:block border border-gray-200 rounded-full px-4 py-1.5 text-sm focus:ring-2 focus:ring-sky-300 outline-none"
+            />
+            <Avatar
+              image="https://i.pravatar.cc/100?img=10"
+              shape="circle"
+              className="cursor-pointer border border-gray-300"
+              onClick={() => router.push("/profile")}
+            />
+          </div>
+        </div>
+      </header>
+
+      {/* Spacer để tránh che nội dung */}
+      <div className="h-[68px]" />
+
+      {/* Dialog tạo bài post */}
       <InstagramPostDialog
         visible={dialogVisible}
         onHide={() => setDialogVisible(false)}
       />
 
+      {/* Sidebar tin nhắn */}
       <Sidebar
         visible={sidebarVisible}
         onHide={() => {
@@ -155,7 +180,10 @@ function Dock() {
       >
         <div className="p-4">
           <h2 className="text-lg font-semibold mb-4">Messages</h2>
-          <ScrollPanel style={{ height: "calc(100vh - 100px)" }} className="w-full">
+          <ScrollPanel
+            style={{ height: "calc(100vh - 100px)" }}
+            className="w-full"
+          >
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -178,7 +206,21 @@ function Dock() {
           </ScrollPanel>
         </div>
       </Sidebar>
-    </div>
+
+      <style jsx global>{`
+        .p-dock {
+          background: transparent !important;
+          border: none !important;
+        }
+        .p-dock .p-dock-item {
+          transition: transform 0.15s ease-in-out;
+        }
+        .p-dock .p-dock-item:hover {
+          transform: scale(1.1);
+        }
+      `}</style>
+    </>
   );
 }
+
 export default Dock;
