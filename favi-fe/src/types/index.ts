@@ -1,12 +1,31 @@
-export type LoginValues = {
+export type LoginRequest = {
   identifier: string;
   password: string;
   remember: boolean;
 };
 
-export type RegisterValues = {
+export type LoginResponse = { 
+  accessToken: string; 
+  refreshToken: string 
+};
+
+export type RegisterRequest = {
   username: string; 
   password: string;
+};
+
+export type GoogleIdTokenLoginRequest = { 
+  idToken: string 
+};
+
+export type DecodedJwt = {
+  sub?: string;
+  exp?: number;           
+  iat?: number;           
+  nbf?: number;           
+  email?: string;
+  role?: string | string[];
+  [key: string]: any;     
 };
 
 export type ProfileUpdateInput = {

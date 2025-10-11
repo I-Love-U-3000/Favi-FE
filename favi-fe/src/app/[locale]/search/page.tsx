@@ -10,7 +10,7 @@ import {useTranslations} from "next-intl";
 import {Checkbox} from "primereact/checkbox";
 import {Slider} from "primereact/slider";
 
-import {mockPost} from "@/lib/mockPost";
+import {mockPost} from "@/lib/mockTest/mockPost";
 import type {PhotoPost} from "@/types";
 
 /* ==================== Utils & Mock helpers ==================== */

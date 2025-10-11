@@ -7,9 +7,9 @@ import {TabView, TabPanel} from "primereact/tabview";
 import {Tag} from "primereact/tag";
 import {useTranslations} from "next-intl";
 
-import {mockUserProfile} from "@/lib/mockUserProfile";
-import {mockPost} from "@/lib/mockPost";
-import {mockCollection} from "@/lib/mockCollection";
+import {mockUserProfile} from "@/lib/mockTest/mockUserProfile";
+import {mockPost} from "@/lib/mockTest/mockPost";
+import {mockCollection} from "@/lib/mockTest/mockCollection";
 import type {UserProfile, PhotoPost, Collection} from "@/types";
 
 /* ========== Helpers ========== */
