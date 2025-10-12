@@ -1,8 +1,8 @@
 const baseUrl = process.env.NEXT_PUBLIC_API_URL
 
 function getAuthHeaders(): Record<string, string> {
-    const token = localStorage.getItem("access_token");
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    const token=localStorage.getItem("access_token")
+    return token ? { Authorization : `Bearer ${token}` } : {}
 }
 
 async function handleResponse(res: Response) {

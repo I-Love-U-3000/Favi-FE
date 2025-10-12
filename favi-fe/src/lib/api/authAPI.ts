@@ -1,9 +1,6 @@
 // src/lib/api/authAPI.ts
 import { fetchWrapper } from "@/lib/fetchWrapper";
 import type { LoginResponse } from "@/types";
-
-import type { GoogleIdTokenLoginRequest } from "@/types";
-
 import type { DecodedJwt } from "@/types";
 
 /** Decode a JWT without verifying signature (client-side convenience only) */
@@ -39,8 +36,22 @@ const isExpired = (decoded: DecodedJwt | null): boolean => {
   return decoded.exp <= nowSec;
 };
 
+const isEmail = (s: string) => /\S+@\S+\.\S+/.test(s);
+
 export const authAPI = {
-  /** Login tài khoản thường */
+  loginWithIdentifier: async (identifier: string, password: string) => {
+    const trimmed = identifier.trim();
+    let payload: { email?: string; username?: string; password: string };
+
+    if (isEmail(trimmed)) {
+      payload = { email: trimmed, password };
+    } else {
+      payload = { username: trimmed, password };
+    }
+
+    return authAPI.login(payload);
+  },
+
   login: async (payload: { email?: string; cccd?: string; password: string }) => {
     const res = await fetchWrapper.post<LoginResponse>("/auth/login", payload, false);
     if (res.accessToken && res.refreshToken) {
@@ -54,28 +65,28 @@ export const authAPI = {
         );
       }
     }
-    return res;
   },
 
-  loginWithGoogleIdToken: async (idToken: string) => {
-    const res = await fetchWrapper.post<LoginResponse>(
-      "/auth/google",
-      { idToken } as GoogleIdTokenLoginRequest,
-      false
-    );
-    if (res.accessToken && res.refreshToken) {
-      localStorage.setItem("access_token", res.accessToken);
-      localStorage.setItem("refresh_token", res.refreshToken);
-      const decoded = decodeJWT(res.accessToken);
+    register: async (payload: { email: string; password: string; username: string }) => {
+    const res = await fetchWrapper.post<any>("/auth/register", payload, false);
+    // Hỗ trợ cả camelCase và snake_case
+    const access = res?.accessToken ?? res?.access_token;
+    const refresh = res?.refreshToken ?? res?.refresh_token;
+
+    if (access && refresh) {
+      localStorage.setItem("access_token", access);
+      localStorage.setItem("refresh_token", refresh);
+      const decoded = decodeJWT(access);
       if (decoded) {
         localStorage.setItem(
           "user_info",
-          JSON.stringify({ id: decoded.sub, email: decoded.email, role: decoded.role })
+          JSON.stringify({ id: decoded.sub, email: (decoded as any).email, role: (decoded as any).role })
         );
       }
     }
     return res;
   },
+
 
   /** Refresh access token */
   refresh: async () => {

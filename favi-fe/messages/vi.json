@@ -2,5 +2,11 @@
     "Profile": {
         "Joined": "tham gia vào",
         "Website": "trang web"
+    },
+    "LoginPage": {
+        "Slogan": "Bắt lấy khoảng khắc"
+    },
+    "RegisterPage": {
+        "Slogan": "Bắt lấy khoảng khắc"
     }
 }

@@ -17,14 +17,12 @@ export default function AuthCallbackPage() {
         if (code) {
           try {
             await supabase.auth.exchangeCodeForSession(code);
-            // Dọn URL: bỏ query ?code=...
             window.history.replaceState({}, "", window.location.pathname);
           } catch (ex) {
             console.warn("exchangeCodeForSession failed (fallback to getSession):", ex);
           }
         }
 
-        // 2) Lấy session hiện tại
         const { data: sessData, error: sessErr } = await supabase.auth.getSession();
         if (sessErr || !sessData.session) {
           console.error("OAuth callback - no session:", sessErr?.message);
@@ -47,7 +45,7 @@ export default function AuthCallbackPage() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 provider: "google",
-              refresh_token: provider_refresh_token,
+                refresh_token: provider_refresh_token,
               }),
             });
           }
@@ -67,7 +65,7 @@ export default function AuthCallbackPage() {
             profile = data;
             break;
           }
-          await sleep(200); // đợi 200ms rồi thử lại
+          await sleep(200);
         }
 
         if (!profile) {

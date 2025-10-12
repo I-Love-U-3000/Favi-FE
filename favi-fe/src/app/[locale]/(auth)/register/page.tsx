@@ -1,134 +1,219 @@
 "use client";
 
-import { useState, useRef, FormEvent } from "react";
-import { useCallback } from "react";
+import authAPI from "@/lib/api/authAPI";
+import { useState, useRef, useCallback, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/app/supabase-client";
-
 import { Card } from "primereact/card";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Divider } from "primereact/divider";
 import { Toast } from "primereact/toast";
+import LoginBackdrop from "@/components/LoginRegisterBackground";
+import { supabase } from "@/app/supabase-client";
+import { useTranslations } from "next-intl";
 
-import { BackgroundBubbles } from "@/components/BackgroundBubbles";
+async function loginWithGoogle() {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo:
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback`
+          : undefined,
+      queryParams: { prompt: "select_account", access_type: "offline" },
+    },
+  });
+  if (error) throw error;
+}
 
-import { RegisterValues } from "@/types";
-
-import { loginWithGoogle } from "@/lib/service/auth";
+type RegisterForm = {
+  username: string;
+  email: string;
+  password: string;
+};
 
 export default function RegisterPage() {
+  const t = useTranslations("RegisterPage");
   const router = useRouter();
   const toastRef = useRef<Toast | null>(null);
 
-  const [showPassword, setShowPassword] = useState(false);
-
-  const [values, setValues] = useState<RegisterValues>({
+  const [values, setValues] = useState<RegisterForm>({
     username: "",
+    email: "",
     password: "",
   });
-
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const showToast = (severity: "success" | "info" | "warn" | "error", summary: string, detail?: string) => {
-    toastRef.current?.show({ severity, summary, detail, life: 3000 });
+  const showToast = useCallback(
+    (
+      severity: "success" | "info" | "warn" | "error",
+      summary: string,
+      detail?: string
+    ) => {
+      toastRef.current?.show({ severity, summary, detail, life: 3500 });
+    },
+    []
+  );
+
+  const onChange = useCallback(
+    <K extends keyof RegisterForm>(key: K, val: RegisterForm[K]) => {
+      setValues((prev) => ({ ...prev, [key]: val }));
+    },
+    []
+  );
+
+  const validate = () => {
+    const emailOk = /\S+@\S+\.\S+/.test(values.email.trim());
+    if (!emailOk) return "Email không hợp lệ";
+    if (values.username.trim().length < 3) return "Username phải từ 3 ký tự";
+    if (values.password.length < 6) return "Mật khẩu phải từ 6 ký tự";
+    return "";
   };
 
-  const onChange = (field: keyof RegisterValues, value: string) => {
-    setValues(v => ({ ...v, [field]: value }));
-  };
+  const handleRegister = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      if (loading) return;
+      const errMsg = validate();
+      if (errMsg) {
+        showToast("warn", "Dữ liệu chưa hợp lệ", errMsg);
+        return;
+      }
 
+      setLoading(true);
+      try {
+        const payload = {
+          username: values.username.trim(),
+          email: values.email.trim(),
+          password: values.password,
+        };
 
-  const handleRegister = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!values.username || !values.password) {
-      showToast("warn", "Thiếu thông tin", "Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.");
-      return;
-    }
+        const res = await authAPI.register(payload);
 
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signUp({
-      email: values.username.trim(),
-      password: values.password,
-      options: {
-        emailRedirectTo:
-          typeof window !== "undefined"
-            ? `${window.location.origin}/auth/callback`
-            : undefined,
-        },
-      });
-      if (error) throw error;
+        // Kiểm tra xem đã auto-login chưa (có token trong localStorage)
+        const access = localStorage.getItem("access_token");
+        if (access) {
+          showToast("success", "Đăng ký thành công");
+          // Lúc mới tạo account → đưa qua onboarding hợp lý hơn
+          router.push("/onboarding");
+          return;
+        }
 
-      showToast("success", "Đăng ký thành công", "Vui lòng kiểm tra email (nếu yêu cầu xác thực).");
-      // Điều hướng về feed hoặc login tuỳ flow của bạn:
-      router.push("/login");
-    } catch (err: any) {
-      showToast("error", "Đăng ký thất bại", err.message || "Đã có lỗi xảy ra.");
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Nếu backend yêu cầu xác minh email và không trả token
+        showToast("success", "Đăng ký thành công. Vui lòng kiểm tra email xác minh.");
+        router.push("/login");
+      } catch (err: any) {
+        const msg = err?.error || err?.message || "Unknown error";
+        showToast("error", "Đăng ký thất bại", msg);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loading, values.username, values.email, values.password, showToast, router]
+  );
 
   const handleGoogle = useCallback(async () => {
-      if (googleLoading) return;
-      setGoogleLoading(true);
-      try {
-        await loginWithGoogle();
-      } catch (err: any) {
-        showToast("error", "Google sign-in lỗi", err?.message ?? "Unknown error");
-      } finally {
-        setGoogleLoading(false);
-      }
-    }, [googleLoading, showToast]);
+    if (googleLoading) return;
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle();
+    } catch (err: any) {
+      showToast("error", "Google sign-in lỗi", err?.message ?? "Unknown error");
+    } finally {
+      setGoogleLoading(false);
+    }
+  }, [googleLoading, showToast]);
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0ea5e9]/10 via-[#a78bfa]/10 to-[#22c55e]/10 flex flex-col items-center justify-center p-6">
-      <BackgroundBubbles fast/>
-
+      <LoginBackdrop variant="neon-stripes"/>
       <Toast ref={toastRef} />
 
-      <header className="mb-6 text-center pointer-events-none select-none">
-        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-cyan-500 via-violet-500 to-emerald-500">
+      <header className="mb-10 text-center pointer-events-none select-none relative z-10">
+        <h1
+          className="text-6xl md:text-7xl font-extrabold tracking-tight leading-none
+               bg-clip-text text-transparent
+               bg-gradient-to-r from-cyan-400 via-violet-500 to-emerald-400
+               drop-shadow-sm">
           Favi
         </h1>
-        <p className="mt-2 text-sm md:text-base text-gray-600 dark:text-gray-300">
-          Capture the Mood
+        <p className="mt-3 text-xl md:text-2xl font-medium text-gray-700 dark:text-gray-200 opacity-90">
+          {t("Slogan")}
         </p>
       </header>
-      
-      <Card className="w-full max-w-md shadow-2 rounded-3xl overflow-hidden relative z-10">
-        <div className="p-6 md:p-8">
-          <h1 className="text-2xl font-semibold mb-1">Tạo tài khoản</h1>
-          <p className="text-surface-500 dark:text-surface-400 mb-6">
-            Đăng ký để bắt đầu trải nghiệm.
-          </p>
 
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div className="flex flex-col gap-2">
-              <label htmlFor="username" className="text-sm font-medium">
-                Email
-              </label>
+      <Card
+        className="relative z-10 w-full max-w-[560px]
+             backdrop-blur-2xl
+             bg-white/75 dark:bg-[#0b1020]/70
+             border border-white/40 dark:border-white/10
+             shadow-[0_20px_80px_-20px_rgba(0,0,0,0.45)]
+             rounded-3xl"
+        title={
+          <div className="text-center space-y-1">
+            <div className="text-2xl md:text-3xl font-bold tracking-tight">Welcome</div>
+            <div className="text-sm md:text-base text-gray-500">Đăng ký</div>
+          </div>
+        }
+      >
+        <form className="mt-8 space-y-6" noValidate onSubmit={handleRegister}>
+          {/* Username */}
+          <div className="space-y-2">
+            <label htmlFor="username" className="text-sm md:text-base font-medium">
+              Username
+            </label>
+            <div className="p-inputgroup w-full">
+              <span className="p-inputgroup-addon !px-4 !text-base">
+                <i className="pi pi-id-card" />
+              </span>
               <InputText
                 id="username"
                 value={values.username}
                 onChange={(e) => onChange("username", e.target.value)}
-                placeholder="vd: user@example.com"
-                className="w-full"
+                placeholder="yourname"
                 autoComplete="username"
-                disabled={loading}
+                className="w-full !h-12 !text-base"
+                required
+                aria-required
               />
             </div>
+            <p className="text-xs text-gray-500">Tên hiển thị và đăng nhập bằng username tuỳ backend.</p>
+          </div>
 
-            <div className="flex flex-col gap-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Mật khẩu
-              </label>
-              <div className="p-inputgroup w-full">
-              <span className="p-inputgroup-addon">
-                <i className="pi pi-lock" aria-hidden />
+          {/* Email */}
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm md:text-base font-medium">
+              Email
+            </label>
+            <div className="p-inputgroup w-full">
+              <span className="p-inputgroup-addon !px-4 !text-base">
+                <i className="pi pi-envelope" />
+              </span>
+              <InputText
+                id="email"
+                value={values.email}
+                onChange={(e) => onChange("email", e.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+                className="w-full !h-12 !text-base"
+                required
+                aria-required
+              />
+            </div>
+            <p className="text-xs text-gray-500">Email sẽ dùng để xác minh tài khoản và khôi phục mật khẩu.</p>
+          </div>
+
+          {/* Password */}
+          <div className="space-y-2">
+            <label htmlFor="password" className="text-sm md:text-base font-medium">
+              Mật khẩu
+            </label>
+            <div className="p-inputgroup w-full">
+              <span className="p-inputgroup-addon !px-4 !text-base">
+                <i className="pi pi-lock" />
               </span>
               <InputText
                 id="password"
@@ -137,50 +222,54 @@ export default function RegisterPage() {
                 onChange={(e) => onChange("password", e.target.value)}
                 placeholder="●●●●●●●●"
                 autoComplete="new-password"
-                className="w-full"
+                className="w-full !h-12 !text-base"
                 required
                 aria-required
               />
               <button
                 type="button"
-                className="p-inputgroup-addon cursor-pointer"
+                className="p-inputgroup-addon cursor-pointer !px-4 !text-base"
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 onClick={() => setShowPassword((v) => !v)}
               >
                 <i className={showPassword ? "pi pi-eye-slash" : "pi pi-eye"} />
               </button>
             </div>
-            </div>
+          </div>
 
-            <Button
-              type="submit"
-              label={loading ? "Đang đăng ký..." : "Đăng ký"}
-              className="w-full"
-              disabled={loading}
-            />
-          </form>
-
-          <Divider align="center" className="my-6">
-            <span className="text-xs uppercase tracking-wide text-surface-400">Hoặc</span>
-          </Divider>
-
+          {/* Submit */}
           <Button
-            type="button"
-            outlined
-            icon="pi pi-google"
-            label={googleLoading ? "Đang mở Google..." : "Đăng nhập với Google"}
-            className="w-full"
-            onClick={handleGoogle}
-            disabled={googleLoading || loading}
+            type="submit"
+            label={loading ? "Đang đăng ký..." : "Đăng ký"}
+            icon={loading ? "pi pi-spin pi-spinner" : "pi pi-user-plus"}
+            className="w-full !h-12 !text-base !font-semibold"
+            disabled={loading}
+            aria-busy={loading}
           />
 
-          <p className="mt-6 text-center text-sm">
+          {/* Đã có TK? */}
+          <div className="text-center text-sm md:text-base">
             Đã có tài khoản?{" "}
-            <Link href="/login" className="text-primary hover:underline">
-              Đăng nhập
+            <Link href="/login" className="text-primary hover:underline" prefetch={false}>
+              Đăng nhập ngay
             </Link>
-          </p>
-        </div>
+          </div>
+
+          <Divider align="center">
+            <span className="text-xs md:text-sm text-gray-500">hoặc</span>
+          </Divider>
+
+          {/* Google */}
+          <Button
+            type="button"
+            onClick={handleGoogle}
+            label={googleLoading ? "Đang kết nối..." : "Tiếp tục với Google"}
+            icon={googleLoading ? "pi pi-spin pi-spinner" : "pi pi-google"}
+            className="w-full p-button-outlined !h-12 !text-base !font-semibold"
+            disabled={googleLoading}
+            aria-busy={googleLoading}
+          />
+        </form>
       </Card>
     </div>
   );

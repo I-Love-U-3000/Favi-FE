@@ -1,28 +1,41 @@
 "use client";
 
-import { login, loginWithGoogle } from "@/lib/service/auth";
-import { getMyProfile } from "@/lib/service/profile";
-
+import authAPI from "@/lib/api/authAPI";
+import { LoginRequest } from "@/types";
 import { useState, useRef, useCallback, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
 import { Card } from "primereact/card";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Divider } from "primereact/divider";
 import { Checkbox } from "primereact/checkbox";
 import { Toast } from "primereact/toast";
+import LoginBackdrop from "@/components/LoginRegisterBackground";
+import { supabase } from "@/app/supabase-client";
+import { useTranslations } from "next-intl";
 
-import { BackgroundBubbles } from "@/components/BackgroundBubbles";
+async function loginWithGoogle() {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo:
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback`
+          : undefined,
+      queryParams: { prompt: "select_account", access_type: "offline" },
+    },
+  });
 
-import { LoginValues } from "@/types";
+  if (error) throw error;
+}
 
 export default function LoginPage() {
+  const t = useTranslations("LoginPage");
   const router = useRouter();
   const toastRef = useRef<Toast | null>(null);
 
-  const [values, setValues] = useState<LoginValues>({
+  const [values, setValues] = useState<LoginRequest>({
     identifier: "",
     password: "",
     remember: true,
@@ -43,7 +56,7 @@ export default function LoginPage() {
   );
 
   const onChange = useCallback(
-    (key: keyof LoginValues, val: LoginValues[typeof key]) => {
+    (key: keyof LoginRequest, val: LoginRequest[typeof key]) => {
       setValues((prev) => ({ ...prev, [key]: val }));
     },
     []
@@ -56,18 +69,34 @@ export default function LoginPage() {
       setLoading(true);
 
       try {
-        await login(values.identifier, values.password); // username hoặc email đều OK
-        const prof = await getMyProfile();
+        const id = values.identifier.trim();
+        const pwd = values.password;
+
+        if (!id || !pwd) {
+          showToast("warn", "Thiếu thông tin", "Vui lòng nhập đầy đủ tài khoản và mật khẩu");
+          return;
+        }
+
+        await authAPI.loginWithIdentifier(id, pwd);
+
+        // (Khuyến nghị) Lấy profile chuẩn từ server rồi điều hướng
+        // Nếu bạn đã có profileAPI:
+        // const prof = await getMyProfile();
+        // router.push(prof?.username ? "/home" : "/onboarding");
+
         showToast("success", "Đăng nhập thành công");
-        router.push(prof?.username ? "/home" : "/onboarding");
+        router.push("/home"); // tạm thời điều hướng thẳng, tùy flow của bạn
       } catch (err: any) {
-        showToast("error", "Đăng nhập thất bại", err?.message ?? "Unknown error");
+        // fetchWrapper nên trả lỗi có message; nếu không, fallback
+        const msg = err?.message ?? "Unknown error";
+        showToast("error", "Đăng nhập thất bại", msg);
       } finally {
         setLoading(false);
       }
     },
-    [loading, router, showToast, values.identifier, values.password]
+    [loading, values.identifier, values.password, showToast, router]
   );
+
 
   const handleGoogle = useCallback(async () => {
     if (googleLoading) return;
@@ -83,70 +112,72 @@ export default function LoginPage() {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0ea5e9]/10 via-[#a78bfa]/10 to-[#22c55e]/10 flex flex-col items-center justify-center p-6">
-      <BackgroundBubbles fast />
+      <LoginBackdrop variant="neon-stripes" />
       <Toast ref={toastRef} />
 
-      {/* Brand + slogan */}
-      <header className="mb-6 text-center pointer-events-none select-none">
-        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-cyan-500 via-violet-500 to-emerald-500">
+      <header className="mb-10 text-center pointer-events-none select-none relative z-10">
+        <h1
+          className="text-6xl md:text-7xl font-extrabold tracking-tight leading-none
+               bg-clip-text text-transparent
+               bg-gradient-to-r from-cyan-400 via-violet-500 to-emerald-400
+               drop-shadow-sm">
           Favi
         </h1>
-        <p className="mt-2 text-sm md:text-base text-gray-600 dark:text-gray-300">
-          Capture the Mood
+        <p
+          className="mt-3 text-xl md:text-2xl font-medium
+               text-gray-700 dark:text-gray-200
+               opacity-90">
+          {t('Slogan')}
         </p>
       </header>
 
       <Card
-        className="relative z-10 w-full max-w-[420px] backdrop-blur-xl bg-white/70 dark:bg-[#0b1020]/70 border border-white/40 dark:border-white/10 shadow-2xl rounded-2xl"
+        className="relative z-10 w-full max-w-[560px]
+             backdrop-blur-2xl
+             bg-white/75 dark:bg-[#0b1020]/70
+             border border-white/40 dark:border-white/10
+             shadow-[0_20px_80px_-20px_rgba(0,0,0,0.45)]
+             rounded-3xl"
         title={
-          <div className="text-center">
-            <div className="text-xl font-semibold tracking-tight">Welcome back 👋</div>
-            <div className="mt-1 text-sm text-gray-500">Log in to continue</div>
+          <div className="text-center space-y-1">
+            <div className="text-2xl md:text-3xl font-bold tracking-tight">Welcome back</div>
+            <div className="text-sm md:text-base text-gray-500">Đăng nhập để tiếp tục</div>
           </div>
         }
       >
-        <form onSubmit={handleLogin} className="mt-6 space-y-4" noValidate>
-          {/* Username/Email */}
+        <form className="mt-8 space-y-6" noValidate onSubmit={handleLogin}>
           <div className="space-y-2">
-            <label htmlFor="usernameOrEmail" className="text-sm font-medium">
-              Username or Email
+            <label htmlFor="usernameOrEmail" className="text-sm md:text-base font-medium">
+              Username / Email
             </label>
             <div className="p-inputgroup w-full">
-              <span className="p-inputgroup-addon">
-                <i className="pi pi-user" aria-hidden />
-              </span>
+              <span className="p-inputgroup-addon !px-4 !text-base"><i className="pi pi-user" /></span>
               <InputText
                 id="usernameOrEmail"
                 value={values.identifier}
                 onChange={(e) => onChange("identifier", e.target.value)}
                 placeholder="you@example.com"
                 autoComplete="username"
-                className="w-full"
+                className="w-full !h-12 !text-base"
                 required
                 aria-required
               />
             </div>
+            <p className="text-xs text-gray-500">Dùng email hoặc username bạn đã đăng ký.</p>
           </div>
 
-          {/* Password — dùng InputText + addon icon để toggle */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
+              <label htmlFor="password" className="text-sm md:text-base font-medium">
+                Mật khẩu
               </label>
-              <Link
-                href="/forgot-password"
-                className="text-sm text-primary hover:underline"
-                prefetch={false}
-              >
-                Forgot password?
+              <Link href="/forgot-password" className="text-sm md:text-base text-primary hover:underline" prefetch={false}>
+                Quên mật khẩu?
               </Link>
             </div>
 
             <div className="p-inputgroup w-full">
-              <span className="p-inputgroup-addon">
-                <i className="pi pi-lock" aria-hidden />
-              </span>
+              <span className="p-inputgroup-addon !px-4 !text-base"><i className="pi pi-lock" /></span>
               <InputText
                 id="password"
                 type={showPassword ? "text" : "password"}
@@ -154,13 +185,13 @@ export default function LoginPage() {
                 onChange={(e) => onChange("password", e.target.value)}
                 placeholder="●●●●●●●●"
                 autoComplete="current-password"
-                className="w-full"
+                className="w-full !h-12 !text-base"
                 required
                 aria-required
               />
               <button
                 type="button"
-                className="p-inputgroup-addon cursor-pointer"
+                className="p-inputgroup-addon cursor-pointer !px-4 !text-base"
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 onClick={() => setShowPassword((v) => !v)}
               >
@@ -169,48 +200,39 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Remember + Register */}
-          <div className="flex items-center justify-between pt-1">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between pt-2">
+            <label htmlFor="remember" className="flex items-center gap-2 cursor-pointer">
               <Checkbox
                 inputId="remember"
                 checked={values.remember}
                 onChange={(e) => onChange("remember", Boolean(e.checked))}
               />
-              <label htmlFor="remember" className="text-sm">
-                Remember me
-              </label>
-            </div>
-            <Link
-              href="/register"
-              className="text-sm hover:underline text-primary"
-              prefetch={false}
-            >
-              Register
+              <span className="text-sm md:text-base">Ghi nhớ đăng nhập</span>
+            </label>
+            <Link href="/register" className="text-sm md:text-base hover:underline text-primary" prefetch={false}>
+              Tạo tài khoản mới
             </Link>
           </div>
 
-          {/* Submit */}
           <Button
             type="submit"
-            label={loading ? "Logging in..." : "Log in"}
+            label={loading ? "Đang đăng nhập..." : "Đăng nhập"}
             icon={loading ? "pi pi-spin pi-spinner" : "pi pi-sign-in"}
-            className="w-full !h-11"
+            className="w-full !h-12 !text-base !font-semibold"
             disabled={loading}
             aria-busy={loading}
           />
 
           <Divider align="center">
-            <span className="text-xs text-gray-500">or</span>
+            <span className="text-xs md:text-sm text-gray-500">hoặc</span>
           </Divider>
 
-          {/* Google */}
           <Button
             type="button"
             onClick={handleGoogle}
-            label={googleLoading ? "Connecting..." : "Continue with Google"}
+            label={googleLoading ? "Đang kết nối..." : "Tiếp tục với Google"}
             icon={googleLoading ? "pi pi-spin pi-spinner" : "pi pi-google"}
-            className="w-full p-button-outlined !h-11"
+            className="w-full p-button-outlined !h-12 !text-base !font-semibold"
             disabled={googleLoading}
             aria-busy={googleLoading}
           />

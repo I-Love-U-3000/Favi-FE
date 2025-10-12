@@ -13,7 +13,7 @@ import CropImage from "@/components/CropImage";
 import { isValidUsername, normalizeUsername } from "@/lib/validator/username";
 import { updateMyProfile } from "@/lib/service/profile";
 import { uploadToCloudinary } from "@/lib/service/image";
-import { BackgroundBubbles } from "@/components/BackgroundBubbles";
+import { BackgroundBubbles } from "@/components/LoginRegisterBackground";
 
 type NameStatus = "idle" | "invalid" | "checking" | "available" | "taken";
 

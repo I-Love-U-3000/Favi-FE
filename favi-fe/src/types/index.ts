@@ -10,12 +10,10 @@ export type LoginResponse = {
 };
 
 export type RegisterRequest = {
+  identifier: string;
+  email: string;
   username: string; 
   password: string;
-};
-
-export type GoogleIdTokenLoginRequest = { 
-  idToken: string 
 };
 
 export type DecodedJwt = {
