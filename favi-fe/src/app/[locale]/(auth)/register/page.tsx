@@ -1,6 +1,7 @@
 "use client";
 
 import authAPI from "@/lib/api/authAPI";
+import { profileAPI } from "@/lib/api/profileAPI";
 import { useState, useRef, useCallback, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -31,6 +32,19 @@ type RegisterForm = {
   username: string;
   email: string;
   password: string;
+};
+
+const validateLocalUsername = (username: string): string | "" => {
+  const s = username.trim();
+  if (s.length < 3 || s.length > 32)
+    return "Username phải dài từ 3–32 ký tự.";
+  if (/\s/.test(s))
+    return "Username không được chứa khoảng trắng.";
+  if (!/^[a-zA-Z0-9_.]+$/.test(s))
+    return "Username chỉ được chứa chữ, số, dấu gạch dưới hoặc chấm.";
+  if (/[À-ỹ]/.test(s))
+    return "Username không được chứa dấu tiếng Việt.";
+  return "";
 };
 
 export default function RegisterPage() {
@@ -65,26 +79,37 @@ export default function RegisterPage() {
     []
   );
 
-  const validate = () => {
-    const emailOk = /\S+@\S+\.\S+/.test(values.email.trim());
-    if (!emailOk) return "Email không hợp lệ";
-    if (values.username.trim().length < 3) return "Username phải từ 3 ký tự";
-    if (values.password.length < 6) return "Mật khẩu phải từ 6 ký tự";
-    return "";
-  };
-
   const handleRegister = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
       if (loading) return;
-      const errMsg = validate();
-      if (errMsg) {
-        showToast("warn", "Dữ liệu chưa hợp lệ", errMsg);
+
+      const emailOk = /\S+@\S+\.\S+/.test(values.email.trim());
+      if (!emailOk) {
+        showToast("warn", "Email không hợp lệ");
+        return;
+      }
+
+      const usernameError = validateLocalUsername(values.username);
+      if (usernameError) {
+        showToast("warn", "Username không hợp lệ", usernameError);
+        return;
+      }
+
+      if (values.password.length < 6) {
+        showToast("warn", "Mật khẩu quá ngắn", "Mật khẩu phải từ 6 ký tự trở lên.");
         return;
       }
 
       setLoading(true);
       try {
+        const check = await profileAPI.checkUsername(values.username.trim());
+        if (!check.valid) {
+          showToast("warn", "Username đã tồn tại", check.message);
+          setLoading(false);
+          return;
+        }
+
         const payload = {
           username: values.username.trim(),
           email: values.email.trim(),
@@ -93,21 +118,23 @@ export default function RegisterPage() {
 
         const res = await authAPI.register(payload);
 
-        // Kiểm tra xem đã auto-login chưa (có token trong localStorage)
-        const access = localStorage.getItem("access_token");
-        if (access) {
-          showToast("success", "Đăng ký thành công");
-          // Lúc mới tạo account → đưa qua onboarding hợp lý hơn
-          router.push("/onboarding");
-          return;
-        }
-
-        // Nếu backend yêu cầu xác minh email và không trả token
-        showToast("success", "Đăng ký thành công. Vui lòng kiểm tra email xác minh.");
-        router.push("/login");
+        showToast(
+          "info",
+          "Xác minh email",
+          "Chúng tôi đã gửi thông báo cho bạn. Hãy sử dụng email để xác minh trước khi tiếp tục với ứng dụng."
+        );
+        router.push("/auth/verify-notion");
       } catch (err: any) {
-        const msg = err?.error || err?.message || "Unknown error";
-        showToast("error", "Đăng ký thất bại", msg);
+        const code = err?.response?.data?.code;
+        const msg = err?.response?.data?.message || "Đã xảy ra lỗi";
+
+        if (code === "EMAIL_EXISTS") {
+          showToast("warn", "Email đã đăng ký", msg);
+        } else if (code === "PROFILE_EXISTS") {
+          showToast("warn", "Hồ sơ đã tồn tại", msg);
+        } else {
+          showToast("error", "Đăng ký thất bại", msg);
+        }
       } finally {
         setLoading(false);
       }
@@ -129,7 +156,7 @@ export default function RegisterPage() {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0ea5e9]/10 via-[#a78bfa]/10 to-[#22c55e]/10 flex flex-col items-center justify-center p-6">
-      <LoginBackdrop variant="neon-stripes"/>
+      <LoginBackdrop variant="neon-stripes" />
       <Toast ref={toastRef} />
 
       <header className="mb-10 text-center pointer-events-none select-none relative z-10">

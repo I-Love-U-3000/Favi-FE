@@ -87,7 +87,6 @@ export const authAPI = {
     return res;
   },
 
-
   /** Refresh access token */
   refresh: async () => {
     const refreshToken = localStorage.getItem("refresh_token");
