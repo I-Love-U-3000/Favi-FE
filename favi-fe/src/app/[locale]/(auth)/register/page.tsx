@@ -13,6 +13,7 @@ import { Toast } from "primereact/toast";
 import LoginBackdrop from "@/components/LoginRegisterBackground";
 import { supabase } from "@/app/supabase-client";
 import { useTranslations } from "next-intl";
+import ThemeSwitcher from "@/components/ThemeSwitcher";
 
 async function loginWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
@@ -158,6 +159,9 @@ export default function RegisterPage() {
     <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0ea5e9]/10 via-[#a78bfa]/10 to-[#22c55e]/10 flex flex-col items-center justify-center p-6">
       <LoginBackdrop variant="neon-stripes" />
       <Toast ref={toastRef} />
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeSwitcher />
+      </div>
 
       <header className="mb-10 text-center pointer-events-none select-none relative z-10">
         <h1
