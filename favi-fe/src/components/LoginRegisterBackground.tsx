@@ -209,7 +209,6 @@ function EnhancedBubbles({ color, theme, count = 18, opacity = 0.5 }: any) {
         const orbit = 8 + Math.random() * 6;
         const delay = Math.random() * 2;
 
-        // 🔹 Màu bubble tuỳ theme
         const bubbleColor = dark ? color.glow : "rgba(0,0,0,0.15)";
         const shadowColor = dark ? color.glow : "rgba(0,0,0,0.2)";
 

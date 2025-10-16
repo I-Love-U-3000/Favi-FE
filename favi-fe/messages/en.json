@@ -7,6 +7,17 @@
         "Slogan": "Capture The Mood"
     },
     "RegisterPage": {
-        "Slogan": "Capture The Mood"
+        "Slogan": "Capture The Mood",
+        "Welcome": "Welcome",
+        "Register": "Register",
+        "Username": "Username",
+        "Email": "Email",
+        "Password": "Password",
+        "AlreadyHasAccount": "Already has account",
+        "Login": "Login",
+        "Or": "or",
+        "ContinueWithGoogle": "Continue with Google",
+        "IsConnecting": "Connecting...",
+        "IsRegistering": "Registering..."
     }
 }

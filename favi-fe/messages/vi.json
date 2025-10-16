@@ -7,6 +7,17 @@
         "Slogan": "Bắt lấy khoảng khắc"
     },
     "RegisterPage": {
-        "Slogan": "Bắt lấy khoảng khắc"
+        "Slogan": "Bắt lấy khoảng khắc",
+        "Welcome": "Chào mừng",
+        "Register": "Đăng kí",
+        "Username": "Tên tài khoản",
+        "Email": "Email",
+        "Password": "Mật khẩu",
+        "AlreadyHasAccount": "Đã có tài khoản",
+        "Login": "Đăng nhập",
+        "Or": "hoặc",
+        "ContinueWithGoogle": "Tiếp tục với Google",
+        "IsConnecting": "Đang kết nối...",
+        "IsRegistering": "Đang đăng kí..."
     }
 }

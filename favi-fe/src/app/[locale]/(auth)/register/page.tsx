@@ -14,6 +14,7 @@ import LoginBackdrop from "@/components/LoginRegisterBackground";
 import { supabase } from "@/app/supabase-client";
 import { useTranslations } from "next-intl";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 async function loginWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
@@ -164,8 +165,9 @@ export default function RegisterPage() {
       <LoginBackdrop />
       <Toast ref={toastRef} />
 
-      <div className="absolute top-4 right-4 z-20">
+      <div className="fixed top-4 right-4 z-20 flex items-center gap-3">
         <ThemeSwitcher />
+        <LanguageSwitcher />
       </div>
 
       <header className="mb-10 text-center select-none relative z-10">
@@ -198,13 +200,13 @@ export default function RegisterPage() {
         title={
           <div className="text-center space-y-1">
             <div className="text-2xl md:text-3xl font-bold tracking-tight">
-              Welcome
+              {t("Welcome")}
             </div>
             <div
               className="text-sm md:text-base"
               style={{ color: "var(--text-secondary)" }}
             >
-              Đăng ký
+              {t("Register")}
             </div>
           </div>
         }
@@ -213,7 +215,7 @@ export default function RegisterPage() {
           {/* Username */}
           <div className="space-y-2">
             <label htmlFor="username" className="text-sm md:text-base font-medium">
-              Username
+              {t("Username")}
             </label>
             <div className="p-inputgroup w-full">
               <span className="p-inputgroup-addon !px-4 !text-base">
@@ -233,7 +235,7 @@ export default function RegisterPage() {
           {/* Email */}
           <div className="space-y-2">
             <label htmlFor="email" className="text-sm md:text-base font-medium">
-              Email
+              {t("Email")}
             </label>
             <div className="p-inputgroup w-full">
               <span className="p-inputgroup-addon !px-4 !text-base">
@@ -253,7 +255,7 @@ export default function RegisterPage() {
           {/* Password */}
           <div className="space-y-2">
             <label htmlFor="password" className="text-sm md:text-base font-medium">
-              Mật khẩu
+              {t("Password")}
             </label>
             <div className="p-inputgroup w-full">
               <span className="p-inputgroup-addon !px-4 !text-base">
@@ -281,7 +283,7 @@ export default function RegisterPage() {
           {/* Submit */}
           <Button
             type="submit"
-            label={loading ? "Đang đăng ký..." : "Đăng ký"}
+            label={loading ? t("IsRegistering") : t("Register")}
             icon={loading ? "pi pi-spin pi-spinner" : "pi pi-user-plus"}
             className="w-full !h-12 !text-base !font-semibold"
             disabled={loading}
@@ -292,26 +294,26 @@ export default function RegisterPage() {
           />
 
           <div className="text-center text-sm md:text-base">
-            Đã có tài khoản?{" "}
+            {t("AlreadyHasAccount")}?{" "}
             <Link
               href="/login"
               className="hover:underline"
               style={{ color: "var(--primary)" }}
             >
-              Đăng nhập ngay
+              {t("Login")}
             </Link>
           </div>
 
           <Divider align="center">
             <span className="text-xs md:text-sm" style={{ color: "var(--text-secondary)" }}>
-              hoặc
+              {t("Or")}
             </span>
           </Divider>
 
           <Button
             type="button"
             onClick={handleGoogle}
-            label={googleLoading ? "Đang kết nối..." : "Tiếp tục với Google"}
+            label={googleLoading ? t("IsConnecting") : t("ContinueWithGoogle")}
             icon={googleLoading ? "pi pi-spin pi-spinner" : "pi pi-google"}
             className="w-full p-button-outlined !h-12 !text-base !font-semibold"
             disabled={googleLoading}

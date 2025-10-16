@@ -2,26 +2,45 @@
 
 import { useTheme } from "next-themes";
 import { Dropdown } from "primereact/dropdown";
+import { Button } from "primereact/button";
+import { useState, useMemo } from "react";
 import { THEMES, ThemeKey } from "@/theme/themes";
 
 export default function ThemeSwitcher() {
   const { theme, setTheme } = useTheme();
+  const [open, setOpen] = useState(false);
 
-  const options = Object.entries(THEMES).map(([key, val]) => ({
-    label: val.name,
-    value: key,
-  }));
+  const options = useMemo(
+    () =>
+      Object.entries(THEMES).map(([key, val]) => ({
+        label: val.name,
+        value: key,
+      })),
+    []
+  );
 
   return (
-    <div className="flex items-center gap-2">
-      <i className="pi pi-palette text-xl" />
-      <Dropdown
-        value={theme}
-        options={options}
-        onChange={(e) => setTheme(e.value as ThemeKey)}
-        placeholder="Select Theme"
-        className="w-40"
+    <div className="relative">
+      <Button
+        icon="pi pi-palette"
+        rounded
+        text
+        className="!text-xl"
+        onClick={() => setOpen((v) => !v)}
       />
+      {open && (
+        <div className="absolute right-0 mt-2 w-40">
+          <Dropdown
+            value={theme}
+            options={options}
+            onChange={(e) => {
+              setTheme(e.value as ThemeKey);
+              setOpen(false);
+            }}
+            className="w-full"
+          />
+        </div>
+      )}
     </div>
   );
 }
