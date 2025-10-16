@@ -86,53 +86,64 @@ export default function LoginBackdrop({
   return <GrainyGradient className={cx("")} color={colorMap} theme={theme} />;
 }
 
-function NeonStripes({ className, color }: any) {
-  const stripes = useMemo(
-    () =>
-      Array.from({ length: 3 }).map((_, i) => ({
-        rotate: -18,
-        blur: "3xl",
-        width: `${70 - i * 10}rem`,
-        opacity: 0.35 + 0.1 * i,
-        delay: i * 0.3,
-      })),
+function NeonStripes({ className, color, theme }: any) {
+  const dark = isDarkTheme(theme);
+
+  // danh sách ảnh, bạn có thể thay bằng ảnh thật trong /public/images
+  const images = useMemo(
+    () => [
+      { src: "/images/social1.png", delay: 0, scale: 1.1 },
+      { src: "/images/social2.png", delay: 2, scale: 1.15 },
+      { src: "/images/social3.png", delay: 4, scale: 1.05 },
+    ],
     []
   );
 
-
   return (
     <div className={className}>
-      <div className="absolute inset-0 transition-colors duration-500" style={{ background: "var(--bg)" }} />
-      <EnhancedBubbles color={color} count={24} />
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-[1400px] h-[130vh] -skew-y-[8deg]">
-        {stripes.map((s, i) => (
-          <motion.div
+      {/* nền */}
+      <div
+        className="absolute inset-0 transition-colors duration-500"
+        style={{ background: "var(--bg)" }}
+      />
+
+      {/* bong bóng + bụi sáng */}
+      <EnhancedBubbles color={color} theme={theme} count={24} />
+      <ReactiveParticles color={color.glow} theme={theme} count={150} />
+
+      {/* 3 hình ảnh */}
+      <div className="absolute inset-0 overflow-hidden">
+        {images.map((img, i) => (
+          <motion.img
             key={i}
-            initial={{ backgroundPosition: "0% 50%", opacity: 0 }}
+            src={img.src}
+            alt={`social-${i}`}
+            className="absolute left-1/2 top-1/2 rounded-3xl shadow-2xl object-cover opacity-70 select-none"
+            style={{
+              width: "60vw",
+              maxWidth: "900px",
+              height: "auto",
+              transform: "translate(-50%, -50%)",
+              filter: dark
+                ? "brightness(0.9) contrast(1.1) blur(2px)"
+                : "brightness(1.2) contrast(0.9) blur(3px)",
+            }}
             animate={{
-              backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-              opacity: s.opacity,
+              y: [0, 10, 0, -10, 0],
+              scale: [1, img.scale, 1],
+              rotate: [0, 1, -1, 0],
             }}
             transition={{
-              duration: 16 + i * 2,
+              duration: 20 + i * 2,
               repeat: Infinity,
               ease: "easeInOut",
-              delay: s.delay,
-            }}
-            className={`absolute left-1/2 -translate-x-1/2 rounded-[4rem] shadow-2xl blur-${s.blur}`}
-            style={{
-              top: `${i * 10 + 6}%`,
-              rotate: `${s.rotate}deg`,
-              width: s.width,
-              height: "20rem",
-              backgroundImage: `linear-gradient(90deg, ${color.primary}, ${color.accent})`,
-              backgroundSize: "200% 200%",
-              filter: "saturate(130%)",
+              delay: img.delay,
             }}
           />
         ))}
       </div>
-      <ReactiveParticles color={color.glow} count={150} />
+
+      {/* ánh sáng trung tâm + noise */}
       <GlowLayer color={color.glow} />
       <NoiseOverlay />
     </div>
