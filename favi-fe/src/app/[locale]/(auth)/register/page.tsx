@@ -39,8 +39,7 @@ const validateLocalUsername = (username: string): string | "" => {
   const s = username.trim();
   if (s.length < 3 || s.length > 32)
     return "Username phải dài từ 3–32 ký tự.";
-  if (/\s/.test(s))
-    return "Username không được chứa khoảng trắng.";
+  if (/\s/.test(s)) return "Username không được chứa khoảng trắng.";
   if (!/^[a-zA-Z0-9_.]+$/.test(s))
     return "Username chỉ được chứa chữ, số, dấu gạch dưới hoặc chấm.";
   if (/[À-ỹ]/.test(s))
@@ -117,7 +116,7 @@ export default function RegisterPage() {
           password: values.password,
         };
 
-        const res = await authAPI.register(payload);
+        await authAPI.register(payload);
 
         showToast(
           "info",
@@ -156,37 +155,57 @@ export default function RegisterPage() {
   }, [googleLoading, showToast]);
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0ea5e9]/10 via-[#a78bfa]/10 to-[#22c55e]/10 flex flex-col items-center justify-center p-6">
-      <LoginBackdrop variant="neon-stripes" />
+    <div
+      className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center p-6 transition-colors duration-500"
+      style={{
+        color: "var(--text)",
+      }}
+    >
+      <LoginBackdrop />
       <Toast ref={toastRef} />
+
       <div className="absolute top-4 right-4 z-20">
         <ThemeSwitcher />
       </div>
 
-      <header className="mb-10 text-center pointer-events-none select-none relative z-10">
+      <header className="mb-10 text-center select-none relative z-10">
         <h1
-          className="text-6xl md:text-7xl font-extrabold tracking-tight leading-none
-               bg-clip-text text-transparent
-               bg-gradient-to-r from-cyan-400 via-violet-500 to-emerald-400
-               drop-shadow-sm">
+          className="text-6xl md:text-7xl font-extrabold tracking-tight leading-none"
+          style={{
+            background: "linear-gradient(to right, var(--primary), var(--accent))",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
           Favi
         </h1>
-        <p className="mt-3 text-xl md:text-2xl font-medium text-gray-700 dark:text-gray-200 opacity-90">
+        <p
+          className="mt-3 text-xl md:text-2xl font-medium opacity-90"
+          style={{ color: "var(--text-secondary)" }}
+        >
           {t("Slogan")}
         </p>
       </header>
 
       <Card
-        className="relative z-10 w-full max-w-[560px]
-             backdrop-blur-2xl
-             bg-white/75 dark:bg-[#0b1020]/70
-             border border-white/40 dark:border-white/10
-             shadow-[0_20px_80px_-20px_rgba(0,0,0,0.45)]
-             rounded-3xl"
+        className="relative z-10 w-full max-w-[560px] rounded-3xl shadow-lg"
+        style={{
+          backgroundColor: "var(--bg-secondary)",
+          borderColor: "var(--border)",
+          color: "var(--text)",
+          borderWidth: "1px",
+        }}
         title={
           <div className="text-center space-y-1">
-            <div className="text-2xl md:text-3xl font-bold tracking-tight">Welcome</div>
-            <div className="text-sm md:text-base text-gray-500">Đăng ký</div>
+            <div className="text-2xl md:text-3xl font-bold tracking-tight">
+              Welcome
+            </div>
+            <div
+              className="text-sm md:text-base"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Đăng ký
+            </div>
           </div>
         }
       >
@@ -205,13 +224,10 @@ export default function RegisterPage() {
                 value={values.username}
                 onChange={(e) => onChange("username", e.target.value)}
                 placeholder="yourname"
-                autoComplete="username"
                 className="w-full !h-12 !text-base"
                 required
-                aria-required
               />
             </div>
-            <p className="text-xs text-gray-500">Tên hiển thị và đăng nhập bằng username tuỳ backend.</p>
           </div>
 
           {/* Email */}
@@ -228,13 +244,10 @@ export default function RegisterPage() {
                 value={values.email}
                 onChange={(e) => onChange("email", e.target.value)}
                 placeholder="you@example.com"
-                autoComplete="email"
                 className="w-full !h-12 !text-base"
                 required
-                aria-required
               />
             </div>
-            <p className="text-xs text-gray-500">Email sẽ dùng để xác minh tài khoản và khôi phục mật khẩu.</p>
           </div>
 
           {/* Password */}
@@ -252,15 +265,12 @@ export default function RegisterPage() {
                 value={values.password}
                 onChange={(e) => onChange("password", e.target.value)}
                 placeholder="●●●●●●●●"
-                autoComplete="new-password"
                 className="w-full !h-12 !text-base"
                 required
-                aria-required
               />
               <button
                 type="button"
                 className="p-inputgroup-addon cursor-pointer !px-4 !text-base"
-                aria-label={showPassword ? "Hide password" : "Show password"}
                 onClick={() => setShowPassword((v) => !v)}
               >
                 <i className={showPassword ? "pi pi-eye-slash" : "pi pi-eye"} />
@@ -275,22 +285,29 @@ export default function RegisterPage() {
             icon={loading ? "pi pi-spin pi-spinner" : "pi pi-user-plus"}
             className="w-full !h-12 !text-base !font-semibold"
             disabled={loading}
-            aria-busy={loading}
+            style={{
+              backgroundColor: "var(--primary)",
+              borderColor: "var(--primary)",
+            }}
           />
 
-          {/* Đã có TK? */}
           <div className="text-center text-sm md:text-base">
             Đã có tài khoản?{" "}
-            <Link href="/login" className="text-primary hover:underline" prefetch={false}>
+            <Link
+              href="/login"
+              className="hover:underline"
+              style={{ color: "var(--primary)" }}
+            >
               Đăng nhập ngay
             </Link>
           </div>
 
           <Divider align="center">
-            <span className="text-xs md:text-sm text-gray-500">hoặc</span>
+            <span className="text-xs md:text-sm" style={{ color: "var(--text-secondary)" }}>
+              hoặc
+            </span>
           </Divider>
 
-          {/* Google */}
           <Button
             type="button"
             onClick={handleGoogle}
@@ -298,7 +315,10 @@ export default function RegisterPage() {
             icon={googleLoading ? "pi pi-spin pi-spinner" : "pi pi-google"}
             className="w-full p-button-outlined !h-12 !text-base !font-semibold"
             disabled={googleLoading}
-            aria-busy={googleLoading}
+            style={{
+              color: "var(--primary)",
+              borderColor: "var(--primary)",
+            }}
           />
         </form>
       </Card>

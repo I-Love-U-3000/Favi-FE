@@ -2,22 +2,42 @@ export const THEMES = {
   light: {
     name: "Light",
     primereact: "lara-light-blue",
-    className: "theme-light",
+    className: "light", 
   },
-  dark: {
-    name: "Dark",
-    primereact: "lara-dark-teal",
-    className: "theme-dark",
+  darkNight: {
+    name: "Dark Night",
+    primereact: "lara-dark-blue",
+    className: "dark-night",
+  },
+  blueHorizon: {
+    name: "Blue Horizon",
+    primereact: "lara-light-indigo",
+    className: "blue-horizon",
+  },
+  sakura: {
+    name: "Sakura",
+    primereact: "lara-light-purple",
+    className: "sakura",
+  },
+  claude: {
+    name: "Claude",
+    primereact: "lara-light-teal",
+    className: "claude",
   },
   aurora: {
     name: "Aurora",
     primereact: "md-dark-indigo",
-    className: "theme-aurora",
+    className: "aurora",
   },
-  neon: {
-    name: "Neon",
-    primereact: "vela-orange",
-    className: "theme-neon",
+  minty: {
+    name: "Minty",
+    primereact: "saga-green",
+    className: "minty",
+  },
+  oceanic: {
+    name: "Oceanic",
+    primereact: "vela-blue",
+    className: "oceanic",
   },
 } as const;
 
