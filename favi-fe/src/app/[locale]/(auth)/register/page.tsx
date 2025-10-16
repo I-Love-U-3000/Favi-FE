@@ -36,20 +36,21 @@ type RegisterForm = {
   password: string;
 };
 
+const t = useTranslations("RegisterPage");
+
 const validateLocalUsername = (username: string): string | "" => {
   const s = username.trim();
   if (s.length < 3 || s.length > 32)
-    return "Username phải dài từ 3–32 ký tự.";
-  if (/\s/.test(s)) return "Username không được chứa khoảng trắng.";
+    return t("UsernameLength");
+  if (/\s/.test(s)) return t("UsernameNoSpaces");
   if (!/^[a-zA-Z0-9_.]+$/.test(s))
-    return "Username chỉ được chứa chữ, số, dấu gạch dưới hoặc chấm.";
+    return t("UsernameInvalidChars");
   if (/[À-ỹ]/.test(s))
-    return "Username không được chứa dấu tiếng Việt.";
+    return t("UsernameNoVietnamese");
   return "";
 };
 
 export default function RegisterPage() {
-  const t = useTranslations("RegisterPage");
   const router = useRouter();
   const toastRef = useRef<Toast | null>(null);
 
@@ -87,29 +88,29 @@ export default function RegisterPage() {
 
       const emailOk = /\S+@\S+\.\S+/.test(values.email.trim());
       if (!emailOk) {
-        showToast("warn", "Email không hợp lệ");
-        return;
-      }
+  showToast("warn", t("InvalidEmail"));
+  return;
+}
 
       const usernameError = validateLocalUsername(values.username);
       if (usernameError) {
-        showToast("warn", "Username không hợp lệ", usernameError);
-        return;
-      }
+  showToast("warn", t("InvalidUsername"), usernameError);
+  return;
+}
 
       if (values.password.length < 6) {
-        showToast("warn", "Mật khẩu quá ngắn", "Mật khẩu phải từ 6 ký tự trở lên.");
-        return;
-      }
+  showToast("warn", t("ShortPassword"), t("ShortPasswordDetail"));
+  return;
+}
 
       setLoading(true);
       try {
         const check = await profileAPI.checkUsername(values.username.trim());
         if (!check.valid) {
-          showToast("warn", "Username đã tồn tại", check.message);
-          setLoading(false);
-          return;
-        }
+  showToast("warn", t("UsernameExists"), check.message);
+  setLoading(false);
+  return;
+}
 
         const payload = {
           username: values.username.trim(),
@@ -121,8 +122,8 @@ export default function RegisterPage() {
 
         showToast(
           "info",
-          "Xác minh email",
-          "Chúng tôi đã gửi thông báo cho bạn. Hãy sử dụng email để xác minh trước khi tiếp tục với ứng dụng."
+          t('EmailVerification'),
+          t('EmailVerificationDetail')
         );
         router.push("/auth/verify-notion");
       } catch (err: any) {
@@ -130,12 +131,12 @@ export default function RegisterPage() {
         const msg = err?.response?.data?.message || "Đã xảy ra lỗi";
 
         if (code === "EMAIL_EXISTS") {
-          showToast("warn", "Email đã đăng ký", msg);
-        } else if (code === "PROFILE_EXISTS") {
-          showToast("warn", "Hồ sơ đã tồn tại", msg);
-        } else {
-          showToast("error", "Đăng ký thất bại", msg);
-        }
+  showToast("warn", t("EmailExists"), msg);
+} else if (code === "PROFILE_EXISTS") {
+  showToast("warn", t("ProfileExists"), msg);
+} else {
+  showToast("error", t("RegisterFailed"), msg);
+}
       } finally {
         setLoading(false);
       }
@@ -149,7 +150,7 @@ export default function RegisterPage() {
     try {
       await loginWithGoogle();
     } catch (err: any) {
-      showToast("error", "Google sign-in lỗi", err?.message ?? "Unknown error");
+      showToast("error", t("GoogleSignInError"), err?.message ?? t("UnknownError"));
     } finally {
       setGoogleLoading(false);
     }
@@ -165,7 +166,7 @@ export default function RegisterPage() {
       <LoginBackdrop />
       <Toast ref={toastRef} />
 
-      <div className="fixed top-4 right-4 z-20 flex items-center gap-3">
+      <div className="top-4 right-4 z-20 flex items-center gap-3">
         <ThemeSwitcher />
         <LanguageSwitcher />
       </div>

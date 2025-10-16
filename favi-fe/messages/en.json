@@ -3,9 +3,11 @@
         "Joined": "joined",
         "Website": "website"
     },
+
     "LoginPage": {
         "Slogan": "Capture The Mood"
     },
+
     "RegisterPage": {
         "Slogan": "Capture The Mood",
         "Welcome": "Welcome",
@@ -18,6 +20,22 @@
         "Or": "or",
         "ContinueWithGoogle": "Continue with Google",
         "IsConnecting": "Connecting...",
-        "IsRegistering": "Registering..."
+        "IsRegistering": "Registering...",
+        "EmailVerification": "Email Verification",
+        "EmailVerificationDetail": "We have sent an email verification form to your email. Confirm it to continue.",
+        "InvalidEmail": "Invalid email address",
+        "InvalidUsername": "Invalid username",
+        "UsernameExists": "Username already exists",
+        "ShortPassword": "Password too short",
+        "ShortPasswordDetail": "Password must be at least 6 characters long.",
+        "EmailExists": "Email already registered",
+        "ProfileExists": "Profile already exists",
+        "RegisterFailed": "Registration failed",
+        "GoogleSignInError": "Google sign-in error",
+        "UnknownError": "Unknown error",
+        "UsernameLength": "Username must be 3–32 characters long.",
+        "UsernameNoSpaces": "Username cannot contain spaces.",
+        "UsernameInvalidChars": "Username may only include letters, numbers, underscores, or dots.",
+        "UsernameNoVietnamese": "Username cannot contain Vietnamese diacritics."
     }
 }

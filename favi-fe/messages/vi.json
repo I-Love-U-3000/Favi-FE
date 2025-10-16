@@ -3,9 +3,11 @@
         "Joined": "tham gia vào",
         "Website": "trang web"
     },
+
     "LoginPage": {
         "Slogan": "Bắt lấy khoảng khắc"
     },
+
     "RegisterPage": {
         "Slogan": "Bắt lấy khoảng khắc",
         "Welcome": "Chào mừng",
@@ -18,6 +20,22 @@
         "Or": "hoặc",
         "ContinueWithGoogle": "Tiếp tục với Google",
         "IsConnecting": "Đang kết nối...",
-        "IsRegistering": "Đang đăng kí..."
+        "IsRegistering": "Đang đăng kí...",
+        "EmailVerification": "Xác minh Email",
+        "EmailVerificationDetail": "Chúng tôi đã gửi thông báo cho bạn. Hãy sử dụng email để xác minh trước khi tiếp tục với ứng dụng.",
+        "InvalidEmail": "Email không hợp lệ",
+        "InvalidUsername": "Username không hợp lệ",
+        "UsernameExists": "Tên tài khoản đã tồn tại",
+        "ShortPassword": "Mật khẩu quá ngắn",
+        "ShortPasswordDetail": "Mật khẩu phải có ít nhất 6 ký tự.",
+        "EmailExists": "Email đã đăng ký",
+        "ProfileExists": "Hồ sơ đã tồn tại",
+        "RegisterFailed": "Đăng ký thất bại",
+        "GoogleSignInError": "Lỗi khi đăng nhập Google",
+        "UnknownError": "Lỗi không xác định",
+        "UsernameLength": "Username phải dài từ 3–32 ký tự.",
+        "UsernameNoSpaces": "Username không được chứa khoảng trắng.",
+        "UsernameInvalidChars": "Username chỉ được chứa chữ, số, dấu gạch dưới hoặc chấm.",
+        "UsernameNoVietnamese": "Username không được chứa dấu tiếng Việt."
     }
 }
