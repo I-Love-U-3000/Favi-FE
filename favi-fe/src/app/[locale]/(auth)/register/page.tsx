@@ -36,21 +36,21 @@ type RegisterForm = {
   password: string;
 };
 
-const t = useTranslations("RegisterPage");
-
-const validateLocalUsername = (username: string): string | "" => {
+// nhận t qua tham số để không dùng hook ngoài component
+const validateLocalUsername = (
+  username: string,
+  t: (key: string) => string
+): string | "" => {
   const s = username.trim();
-  if (s.length < 3 || s.length > 32)
-    return t("UsernameLength");
+  if (s.length < 3 || s.length > 32) return t("UsernameLength");
   if (/\s/.test(s)) return t("UsernameNoSpaces");
-  if (!/^[a-zA-Z0-9_.]+$/.test(s))
-    return t("UsernameInvalidChars");
-  if (/[À-ỹ]/.test(s))
-    return t("UsernameNoVietnamese");
+  if (!/^[a-zA-Z0-9_.]+$/.test(s)) return t("UsernameInvalidChars");
+  if (/[À-ỹ]/.test(s)) return t("UsernameNoVietnamese");
   return "";
 };
 
 export default function RegisterPage() {
+  const t = useTranslations("RegisterPage"); // <-- di chuyển vào đây
   const router = useRouter();
   const toastRef = useRef<Toast | null>(null);
 
@@ -88,29 +88,29 @@ export default function RegisterPage() {
 
       const emailOk = /\S+@\S+\.\S+/.test(values.email.trim());
       if (!emailOk) {
-  showToast("warn", t("InvalidEmail"));
-  return;
-}
+        showToast("warn", t("InvalidEmail"));
+        return;
+      }
 
-      const usernameError = validateLocalUsername(values.username);
+      const usernameError = validateLocalUsername(values.username, t);
       if (usernameError) {
-  showToast("warn", t("InvalidUsername"), usernameError);
-  return;
-}
+        showToast("warn", t("InvalidUsername"), usernameError);
+        return;
+      }
 
       if (values.password.length < 6) {
-  showToast("warn", t("ShortPassword"), t("ShortPasswordDetail"));
-  return;
-}
+        showToast("warn", t("ShortPassword"), t("ShortPasswordDetail"));
+        return;
+      }
 
       setLoading(true);
       try {
         const check = await profileAPI.checkUsername(values.username.trim());
         if (!check.valid) {
-  showToast("warn", t("UsernameExists"), check.message);
-  setLoading(false);
-  return;
-}
+          showToast("warn", t("UsernameExists"), check.message);
+          setLoading(false);
+          return;
+        }
 
         const payload = {
           username: values.username.trim(),
@@ -120,28 +120,24 @@ export default function RegisterPage() {
 
         await authAPI.register(payload);
 
-        showToast(
-          "info",
-          t('EmailVerification'),
-          t('EmailVerificationDetail')
-        );
+        showToast("info", t("EmailVerification"), t("EmailVerificationDetail"));
         router.push("/auth/verify-notion");
       } catch (err: any) {
         const code = err?.response?.data?.code;
         const msg = err?.response?.data?.message || "Đã xảy ra lỗi";
 
         if (code === "EMAIL_EXISTS") {
-  showToast("warn", t("EmailExists"), msg);
-} else if (code === "PROFILE_EXISTS") {
-  showToast("warn", t("ProfileExists"), msg);
-} else {
-  showToast("error", t("RegisterFailed"), msg);
-}
+          showToast("warn", t("EmailExists"), msg);
+        } else if (code === "PROFILE_EXISTS") {
+          showToast("warn", t("ProfileExists"), msg);
+        } else {
+          showToast("error", t("RegisterFailed"), msg);
+        }
       } finally {
         setLoading(false);
       }
     },
-    [loading, values.username, values.email, values.password, showToast, router]
+    [loading, values.username, values.email, values.password, showToast, router, t]
   );
 
   const handleGoogle = useCallback(async () => {
@@ -154,14 +150,12 @@ export default function RegisterPage() {
     } finally {
       setGoogleLoading(false);
     }
-  }, [googleLoading, showToast]);
+  }, [googleLoading, showToast, t]);
 
   return (
     <div
       className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center p-6 transition-colors duration-500"
-      style={{
-        color: "var(--text)",
-      }}
+      style={{ color: "var(--text)" }}
     >
       <LoginBackdrop />
       <Toast ref={toastRef} />
@@ -203,10 +197,7 @@ export default function RegisterPage() {
             <div className="text-2xl md:text-3xl font-bold tracking-tight">
               {t("Welcome")}
             </div>
-            <div
-              className="text-sm md:text-base"
-              style={{ color: "var(--text-secondary)" }}
-            >
+            <div className="text-sm md:text-base" style={{ color: "var(--text-secondary)" }}>
               {t("Register")}
             </div>
           </div>
@@ -288,19 +279,12 @@ export default function RegisterPage() {
             icon={loading ? "pi pi-spin pi-spinner" : "pi pi-user-plus"}
             className="w-full !h-12 !text-base !font-semibold"
             disabled={loading}
-            style={{
-              backgroundColor: "var(--primary)",
-              borderColor: "var(--primary)",
-            }}
+            style={{ backgroundColor: "var(--primary)", borderColor: "var(--primary)" }}
           />
 
           <div className="text-center text-sm md:text-base">
             {t("AlreadyHasAccount")}?{" "}
-            <Link
-              href="/login"
-              className="hover:underline"
-              style={{ color: "var(--primary)" }}
-            >
+            <Link href="/login" className="hover:underline" style={{ color: "var(--primary)" }}>
               {t("Login")}
             </Link>
           </div>
@@ -318,10 +302,7 @@ export default function RegisterPage() {
             icon={googleLoading ? "pi pi-spin pi-spinner" : "pi pi-google"}
             className="w-full p-button-outlined !h-12 !text-base !font-semibold"
             disabled={googleLoading}
-            style={{
-              color: "var(--primary)",
-              borderColor: "var(--primary)",
-            }}
+            style={{ color: "var(--primary)", borderColor: "var(--primary)" }}
           />
         </form>
       </Card>
