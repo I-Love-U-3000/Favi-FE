@@ -11,6 +11,8 @@ import {mockUserProfile} from "@/lib/mockTest/mockUserProfile";
 import {mockPost} from "@/lib/mockTest/mockPost";
 import {mockCollection} from "@/lib/mockTest/mockCollection";
 import type {UserProfile, PhotoPost, Collection} from "@/types";
+import CollectionDialog from "@/components/CollectionDialog";
+import ReportDialog from "@/components/ReportDialog";
 
 /* ========== Helpers ========== */
 function asArray<T>(x: T | T[] | undefined | null): T[] {
@@ -52,24 +54,31 @@ function Stat({label, value}: {label: string; value: number | string}) {
 
 function ActionButtons({profile}: {profile: UserProfile}) {
   const [following, setFollowing] = useState(!!profile.isFollowing);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [newCollectionOpen, setNewCollectionOpen] = useState(false);
+
   if (profile.isMe) {
     return (
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-center">
         <Button label="Edit profile" className="p-button-outlined" />
+        <Button label="New collection" icon="pi pi-images" onClick={() => setNewCollectionOpen(true)} />
         <Button icon="pi pi-share-alt" className="p-button-text" />
         <Button icon="pi pi-ellipsis-h" className="p-button-text" />
+        <CollectionDialog visible={newCollectionOpen} onHide={() => setNewCollectionOpen(false)} />
       </div>
     );
   }
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 items-center">
       <Button
         label={following ? "Following" : "Follow"}
         className={following ? "" : "p-button-rounded"}
         onClick={() => setFollowing(v => !v)}
       />
       <Button icon="pi pi-envelope" className="p-button-outlined" />
+      <Button icon="pi pi-flag" className="p-button-text" onClick={() => setReportOpen(true)} />
       <Button icon="pi pi-ellipsis-h" className="p-button-text" />
+      <ReportDialog visible={reportOpen} onHide={() => setReportOpen(false)} targetType="user" targetName={profile.username} />
     </div>
   );
 }

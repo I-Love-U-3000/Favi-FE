@@ -4,6 +4,8 @@ import { Avatar } from "primereact/avatar";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { ScrollPanel } from "primereact/scrollpanel";
+import ReportDialog from "@/components/ReportDialog";
+import EditPostDialog from "@/components/EditPostDialog";
 import { useRef, useState } from "react";
 import Dock from "@/components/Dock";
 import { Separator } from "@/components/Seperator";
@@ -27,6 +29,7 @@ import {
   Trash2,
   MoreHorizontal,
 } from "lucide-react";
+import { mockPost } from "@/lib/mockTest/mockPost";
 
 type PostPageProps = {
   params: { id: string };
@@ -64,15 +67,42 @@ const PrivacyIcon = ({ privacy }: { privacy: PrivacyType }) => {
 
 export default function PostPage({ params }: PostPageProps) {
   const { id } = params;
-  const post = posts.find((p) => p.id === id);
-  if (!post) notFound();
+  let post = posts.find((p) => p.id === id) as any;
+  if (!post) {
+    // Fallback: build from mockPost by id or index extracted from id
+    const fromMock = mockPost.find(mp => mp.id === id) ?? (() => {
+      const m = id.match(/(\d+)/);
+      const n = m ? Math.max(1, parseInt(m[1], 10)) : 1;
+      return mockPost[(n - 1) % mockPost.length];
+    })();
+    if (fromMock) {
+      post = {
+        username: "mockuser",
+        avatar: "https://i.pravatar.cc/150?img=1",
+        image: fromMock.imageUrl,
+        caption: fromMock.alt ?? "",
+        id: id,
+        tags: fromMock.tags ?? [],
+        likes: fromMock.likeCount ?? 0,
+        comments: [],
+        privacy: "public" as PrivacyType,
+      };
+    } else {
+      notFound();
+    }
+  }
 
   const [likes, setLikes] = useState(post.likes);
   const [comments, setComments] = useState(post.comments);
   const [newComment, setNewComment] = useState("");
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState<string>("");
   const [isLiked, setIsLiked] = useState(false);
   const [privacy, setPrivacy] = useState<PrivacyType>(post.privacy);
   const isAuthor = post.username === "markpawson";
+  const [showReport, setShowReport] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ type: "post" | "comment" | "user"; name?: string } | null>(null);
+  const [showEditPost, setShowEditPost] = useState(false);
 
 
   const handleLike = () => {
@@ -102,7 +132,7 @@ export default function PostPage({ params }: PostPageProps) {
       <div className="fixed left-4 top-1/2 -translate-y-1/2">
         <Dock />
       </div>
-      <main className="flex-1 flex justify-center p-6 ml-24">
+      <main className="flex-1 flex justify-center p-6">
         <div className="w-full max-w-6xl mx-auto  rounded-xl shadow-xl overflow-hidden">
           <div className="grid md:grid-cols-[1fr_420px]">
             {/* Image Section */}
@@ -131,38 +161,60 @@ export default function PostPage({ params }: PostPageProps) {
                       <p className="text-sm text-gray-400">@{post.username}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    {!isAuthor && (
-                      <Button
-                        label="Follow"
-                        size="small"
-                        severity="secondary"
-                      />
-                    )}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button className="p-button-rounded p-button-text">
-                          <MoreHorizontal />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="bg-gray-700 text-white"
-                      >
-                        {isAuthor && (
-                          <DropdownMenuItem
-                            onClick={() => {}}
-                            className="hover:bg-gray-600 transition-colors"
-                          >
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem
-                          onClick={() => setPrivacy("public")}
-                          className="hover:bg-gray-600 transition-colors"
-                        >
-                          <Globe className="mr-2 h-4 w-4" /> Set to Public
-                        </DropdownMenuItem>
+            <div className="flex items-center gap-1">
+              {!isAuthor && (
+                <Button
+                  label="Follow"
+                  size="small"
+                  severity="secondary"
+                />
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="p-button-rounded p-button-text">
+                    <MoreHorizontal />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="bg-gray-700 text-white"
+                >
+                  {isAuthor && (
+                    <DropdownMenuItem
+                      onClick={() => setShowEditPost(true)}
+                      className="hover:bg-gray-600 transition-colors"
+                    >
+                      <Edit className="mr-2 h-4 w-4" /> Edit post
+                    </DropdownMenuItem>
+                  )}
+                  {!isAuthor && (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setReportTarget({ type: "post" });
+                        setShowReport(true);
+                      }}
+                      className="hover:bg-gray-600 transition-colors"
+                    >
+                      <i className="pi pi-flag mr-2" /> Report post
+                    </DropdownMenuItem>
+                  )}
+                  {!isAuthor && (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setReportTarget({ type: "user", name: post.username });
+                        setShowReport(true);
+                      }}
+                      className="hover:bg-gray-600 transition-colors"
+                    >
+                      <i className="pi pi-user-minus mr-2" /> Report user
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    onClick={() => setPrivacy("public")}
+                    className="hover:bg-gray-600 transition-colors"
+                  >
+                    <Globe className="mr-2 h-4 w-4" /> Set to Public
+                  </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => setPrivacy("friends")}
                           className="hover:bg-gray-600 transition-colors"
@@ -180,47 +232,76 @@ export default function PostPage({ params }: PostPageProps) {
                             <Trash2 className="mr-2 h-4 w-4" /> Delete
                           </DropdownMenuItem>
                         )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 pt-0 space-y-4 flex-grow flex flex-col min-h-0">
+            <p>{post.caption}</p>
+            <div className="flex flex-wrap gap-2">
+              {post.tags.map((tag) => (
+                <Badge
+                  key={tag}
+                  value={tag}
+                  severity="info"
+                  className="bg-blue-600 text-white p-1"
+                />
+              ))}
+            </div>
+            <Separator className="bg-gray-700" />
+            <ScrollPanel style={{ height: "400px" }}>
+              {comments.map((comment, idx) => (
+                <div
+                  key={idx}
+                  ref={idx === comments.length - 1 ? lastCommentRef : null}
+                  className="flex items-start mb-3"
+                >
+                  <Avatar className="h-10 w-10 mr-2">
+                    <img
+                      src={`https://i.pravatar.cc/150?img=${idx + 4}`}
+                      alt={comment.username}
+                      className="rounded-full"
+                    />
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-semibold">{comment.username}</div>
+                        <div className="text-gray-400 text-sm">{comment.time}</div>
+                      </div>
+                      <div className="flex items-center gap-1 whitespace-nowrap">
+                        {editingIndex === idx ? (
+                          <>
+                            <Button className="p-button-text p-button-sm" onClick={() => {
+                              const next = [...comments];
+                              next[idx] = { ...next[idx], text: editingText } as any;
+                              setComments(next);
+                              setEditingIndex(null);
+                              setEditingText("");
+                            }}>Save</Button>
+                            <Button className="p-button-text p-button-sm" onClick={() => { setEditingIndex(null); setEditingText(""); }}>Cancel</Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button className="p-button-text p-button-sm" onClick={() => { setEditingIndex(idx); setEditingText(comment.text); }}>Edit</Button>
+                            <Button className="p-button-text p-button-sm" onClick={() => { setReportTarget({ type: "comment" }); setShowReport(true); }}>
+                              <i className="pi pi-flag" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {editingIndex === idx ? (
+                      <InputText value={editingText} onChange={(e) => setEditingText(e.target.value)} className="w-full mt-1" />
+                    ) : (
+                      <p className="break-words mt-1">{comment.text}</p>
+                    )}
                   </div>
                 </div>
-              </div>
-
-              <div className="p-6 pt-0 space-y-4 flex-grow flex flex-col min-h-0">
-                <p>{post.caption}</p>
-                <div className="flex flex-wrap gap-2">
-                  {post.tags.map((tag) => (
-                    <Badge
-                      key={tag}
-                      value={tag}
-                      severity="info"
-                      className="bg-blue-600 text-white p-1"
-                    />
-                  ))}
-                </div>
-                <Separator className="bg-gray-700" />
-                <ScrollPanel style={{ height: "400px" }}>
-  {comments.map((comment, idx) => (
-    <div
-      key={idx}
-      ref={idx === comments.length - 1 ? lastCommentRef : null}
-      className="flex items-start mb-2"
-    >
-      <Avatar className="h-10 w-10 mr-2">
-        <img
-          src={`https://i.pravatar.cc/150?img=${idx + 4}`}
-          alt={comment.username}
-          className="rounded-full"
-        />
-      </Avatar>
-      <div className="max-w-[calc(100%-3rem)]">
-        <div className="font-semibold">{comment.username}</div>
-        <div className="text-gray-400 text-sm">{comment.time}</div>
-        <p className="break-words">{comment.text}</p>
-      </div>
-    </div>
-  ))}
-</ScrollPanel>
+              ))}
+            </ScrollPanel>
                 <Separator className="bg-gray-700" />
               </div>
 
@@ -328,7 +409,25 @@ export default function PostPage({ params }: PostPageProps) {
             </div>
           </div>
         </div>
+        {/* Dialogs */}
+        <ReportDialog
+          visible={showReport}
+          onHide={() => setShowReport(false)}
+          targetType={(reportTarget?.type ?? "post") as any}
+          targetName={reportTarget?.name}
+        />
+        <EditPostDialog
+          visible={showEditPost}
+          onHide={() => setShowEditPost(false)}
+          initialCaption={post.caption}
+          initialTags={post.tags}
+          initialPrivacy={privacy}
+        />
       </main>
     </div>
   );
 }
+
+{/* Dialogs */}
+
+

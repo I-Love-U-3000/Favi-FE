@@ -1,51 +1,69 @@
 "use client";
 
-import Link from "next/link";
-import { Bayon, PT_Mono } from "next/font/google";
+import { Link } from "@/i18n/routing";
+import { usePathname } from "next/navigation";
+import LanguageSwitcher from "./LanguageSwitcher";
+import ThemeSwitcher from "./ThemeSwitcher";
 
-const bayon = Bayon({ weight: "400", subsets: ["latin"] });
-const ptMono = PT_Mono({ weight: "400", subsets: ["latin"] });
+type Item = { label: string; href: string; icon: string };
+
+const NAV: Item[] = [
+  { label: "Home", href: "/home", icon: "pi pi-home" },
+  { label: "Explore", href: "/search", icon: "pi pi-search" },
+  { label: "Chat", href: "/chat", icon: "pi pi-comments" },
+  { label: "Profile", href: "/profile/markpawson", icon: "pi pi-user" },
+  { label: "Friends", href: "/friends", icon: "pi pi-users" },
+  { label: "Settings", href: "/settings", icon: "pi pi-cog" },
+];
 
 export default function Navbar() {
-  const menuItems = ["About us", "Our gallery", "Login", "Register"];
+  const pathname = usePathname();
 
+  // Outer spacer preserves layout width; inner is fixed so it never scrolls away
   return (
-    <nav className="flex items-center justify-between pt-4 px-8 bg-[#FEF7F7] border-b border-gray-200 z-20 navbar">
-      {/* Logo */}
-      <div className="flex items-center gap-2">
-        <img src="/favi-logo.png" alt="logo" className="w-10 h-10" />
-        <span className={`${bayon.className} text-[47px] text-red-600`}>FAVI</span>
-      </div>
-
-      {/* Menu */}
-      <div className="flex justify-center flex-grow">
-        <div className={`flex gap-12 ${ptMono.className}`}>
-          {menuItems.map((item, idx) => (
-            <Link
-              key={idx}
-              href="#"
-              className="
-                relative
-                pb-2
-                transition-all
-                duration-300
-                hover:text-red-500
-                group
-              "
-            >
-              {item}
-              {/* Underline */}
-              <span
-                className="
-                  absolute left-0 bottom-0 h-[2px] w-0
-                  bg-red-500 transition-all duration-300
-                  group-hover:w-full
-                "
-              ></span>
-            </Link>
-          ))}
+    <div className="hidden md:block shrink-0 w-64">
+      <aside
+        className="fixed top-0 left-0 h-screen w-64 z-40"
+        style={{
+          backgroundColor: "var(--bg-secondary)",
+          color: "var(--text)",
+          borderRight: "1px solid var(--border)",
+          backdropFilter: "saturate(1.1) blur(6px)",
+        }}
+      >
+        <div
+          className="flex items-center gap-3 px-5 py-4"
+          style={{ borderBottom: "1px solid var(--border)" }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/favi-logo.png" alt="logo" className="w-8 h-8 rounded" />
+          <span className="text-xl font-semibold" style={{ color: "var(--text)" }}>Favi</span>
         </div>
-      </div>
-    </nav>
+
+        <nav className="px-2 py-4 space-y-1 overflow-y-auto h-[calc(100vh-64px-64px)]">
+          {NAV.map((item) => {
+            const active = pathname?.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition"
+                style={{
+                  backgroundColor: active ? "rgba(0,0,0,0.05)" : "transparent",
+                  color: "var(--text)",
+                }}
+              >
+                <i className={`${item.icon} text-lg`} />
+                <span className="text-sm font-medium">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="px-3 py-4" style={{ borderTop: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+          <div className="text-xs">© Favi</div>
+        </div>
+      </aside>
+    </div>
   );
 }
