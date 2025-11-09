@@ -11,7 +11,7 @@ const NAV: Item[] = [
   { label: "Home", href: "/home", icon: "pi pi-home" },
   { label: "Explore", href: "/search", icon: "pi pi-search" },
   { label: "Chat", href: "/chat", icon: "pi pi-comments" },
-  { label: "Profile", href: "/profile/markpawson", icon: "pi pi-user" },
+  { label: "Profile", href: "/profile/u_001", icon: "pi pi-user" },
   { label: "Friends", href: "/friends", icon: "pi pi-users" },
   { label: "Settings", href: "/settings", icon: "pi pi-cog" },
 ];

@@ -162,7 +162,7 @@ export default function ProfilePage() {
     <div className="min-h-screen">
       {/* COVER */}
       <div className="relative">
-        <div className="relative w-full aspect-[16/6] bg-gradient-to-br from-sky-200/40 to-purple-200/40 dark:from-sky-900/20 dark:to-purple-900/20">
+        <div className="relative w-full aspect-[16/6]" style={{ background: 'linear-gradient(135deg, var(--bg-secondary), transparent)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {profile.coverUrl && (
             <img
@@ -176,7 +176,7 @@ export default function ProfilePage() {
         {/* AVATAR */}
         <div className="absolute inset-x-0 -bottom-12">
           <div className="mx-auto max-w-6xl px-6">
-            <div className="h-40 w-40 rounded-full overflow-hidden ring-4 ring-white dark:ring-neutral-900 bg-neutral-200 dark:bg-neutral-800">
+            <div className="h-40 w-40 rounded-full overflow-hidden ring-4" style={{ borderColor: 'var(--bg)', backgroundColor: 'var(--bg-secondary)' }}>
               {profile.avatarUrl ? (
                 <img src={profile.avatarUrl} alt={profile.displayName} className="h-full w-full object-cover" />
               ) : (
@@ -188,7 +188,7 @@ export default function ProfilePage() {
       </div>
 
       {/* HEADER INFO */}
-      <div className="mx-auto max-w-6xl px-6">
+      <div className="mx-auto max-w-6xl px-6" style={{ color: 'var(--text)' }}>
         <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between pt-16">
           <div>
             <div className="text-2xl font-semibold">{profile.displayName}</div>
@@ -238,7 +238,7 @@ export default function ProfilePage() {
             </TabPanel>
 
             <TabPanel header="About">
-              <div className="rounded-2xl ring-1 ring-black/5 dark:ring-white/10 p-6 bg-white/60 dark:bg-neutral-900/60">
+              <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <div className="text-sm opacity-60 mb-1">Bio</div>

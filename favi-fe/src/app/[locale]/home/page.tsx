@@ -82,7 +82,7 @@ export default function HomePage() {
 
   // ====== UI ======
   return (
-    <div className="flex bg-gray-100 min-h-screen">
+    <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
       {/* Dock cố định giữa bên trái */}
       <div className="fixed left-4 top-1/2 -translate-y-1/2 z-20">
         <Dock />
@@ -124,7 +124,7 @@ export default function HomePage() {
               </div>
             </div>
             {/* Stories */}
-            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm px-4">
+            <div className="rounded-2xl shadow-sm px-4" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
               <StoriesStrip stories={stories} />
             </div>
 
