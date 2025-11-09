@@ -6,15 +6,16 @@ import ChatList from "@/components/ChatList";
 import Dock from "@/components/Dock";
 import MessageInput from "@/components/MessageInput";
 import MessageList from "@/components/MessageList";
-import { Card } from "primereact/card";
-import { Divider } from "primereact/divider";
+ 
 import { useTranslations } from "next-intl";
 
 interface Message {
   id: number;
   sender: string;
-  text: string;
+  text?: string;
   timestamp: string;
+  imageUrl?: string;
+  stickerUrl?: string;
 }
 
 interface Recipient {
@@ -138,33 +139,16 @@ export default function ChatPage() {
       </header>
 
       {/* Khung Chat chính trong Card giống Register */}
-      <Card
-        className="relative z-10 w-full max-w-6xl rounded-3xl shadow-lg overflow-hidden"
-        style={{
-          backgroundColor: "var(--bg-secondary)",
-          borderColor: "var(--border)",
-          color: "var(--text)",
-          borderWidth: "1px"
-        }}
-        title={
-          <div className="flex items-center justify-between">
-            <div className="text-xl md:text-2xl font-bold tracking-tight">
-              {t?.("Chats") ?? "Chats"}
-            </div>
-            <div className="text-sm md:text-base" style={{ color: "var(--text-secondary)" }}>
-              {selectedConversation?.recipient
-                ? `${t?.("TalkingTo") ?? "Talking to"} @${selectedConversation.recipient.username}`
-                : t?.("NoConversation") ?? "No conversation selected"}
-            </div>
+      <div className="relative z-10 w-full max-w-6xl rounded-3xl shadow-lg overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="text-xl md:text-2xl font-bold tracking-tight">{t?.("Chats") ?? 'Chats'}</div>
+          <div className="text-sm md:text-base" style={{ color: 'var(--text-secondary)' }}>
+            {selectedConversation?.recipient ? `${t?.("TalkingTo") ?? 'Talking to'} @${selectedConversation.recipient.username}` : t?.("NoConversation") ?? 'No conversation selected'}
           </div>
-        }
-      >
+        </div>
         <div className="flex gap-0">
           {/* Sidebar danh sách hội thoại */}
-          <aside
-            className="w-full md:w-1/3 lg:w-1/4 p-4 border-r"
-            style={{ borderColor: "var(--border)", maxHeight: "70vh" }}
-          >
+          <aside className="w-full md:w-1/3 lg:w-1/4 p-4" style={{ borderRight: '1px solid var(--border)' }}>
             <ChatList
               userId={userId}
               onClose={() => {}}
@@ -178,14 +162,26 @@ export default function ChatPage() {
             {selectedConversation ? (
               <>
                 <ChatHeader recipient={selectedConversation.recipient} onBack={() => {}} />
-                <Divider className="!my-0" />
-                <div className="flex-1 overflow-y-auto" style={{ maxHeight: "58vh" }}>
+                <div className="flex-1 overflow-y-auto" style={{ maxHeight: '58vh' }}>
                   <MessageList messages={messages} currentUser={userId} />
                 </div>
-                <Divider className="!my-0" />
-                <div className="p-3">
-                  <MessageInput onSend={handleSendMessage} />
-                </div>
+                <MessageInput
+                  onSend={handleSendMessage}
+                  onSendImage={(url) => {
+                    if (!selectedConversation) return;
+                    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const newMessages = [...messages, { id: messages.length + 1, sender: userId, timestamp, imageUrl: url }];
+                    setMessages(newMessages);
+                    setSelectedConversation({ ...selectedConversation, messages: newMessages });
+                  }}
+                  onSendSticker={(url) => {
+                    if (!selectedConversation) return;
+                    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const newMessages = [...messages, { id: messages.length + 1, sender: userId, timestamp, stickerUrl: url }];
+                    setMessages(newMessages);
+                    setSelectedConversation({ ...selectedConversation, messages: newMessages });
+                  }}
+                />
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center p-6 text-center">
@@ -196,7 +192,7 @@ export default function ChatPage() {
             )}
           </section>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

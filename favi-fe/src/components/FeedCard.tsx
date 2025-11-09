@@ -15,6 +15,12 @@ export type Feed = {
 };
 
 export default function FeedCard({ f }: { f: Feed }) {
+  // Mock: derive a dominant reaction emoji from like count for display
+  const pickEmoji = () => {
+    const n = f.stats?.likes ?? 0;
+    const pool = ["👍", "❤️", "😂", "😮", "😢", "😡"];
+    return pool[n % pool.length];
+  };
   return (
     <article className="rounded-2xl bg-white shadow-sm ring-1 ring-black/5 overflow-hidden">
       <div className="grid sm:grid-cols-[1fr]">
@@ -49,8 +55,8 @@ export default function FeedCard({ f }: { f: Feed }) {
                   <span className="inline-flex items-center gap-1">
                     <i className="pi pi-comments" /> {f.stats.comments}
                   </span>
-                  <span className="inline-flex items-center gap-1">
-                    <i className="pi pi-heart" /> {f.stats.likes}
+                  <span className="inline-flex items-center gap-1" title="top reaction">
+                    <span>{pickEmoji()}</span> {f.stats.likes}
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <i className="pi pi-bookmark" /> {f.stats.saves}

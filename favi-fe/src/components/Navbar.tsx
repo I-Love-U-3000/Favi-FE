@@ -11,8 +11,10 @@ const NAV: Item[] = [
   { label: "Home", href: "/home", icon: "pi pi-home" },
   { label: "Explore", href: "/search", icon: "pi pi-search" },
   { label: "Chat", href: "/chat", icon: "pi pi-comments" },
+  { label: "Notifications", href: "/notifications", icon: "pi pi-bell" },
   { label: "Profile", href: "/profile/u_001", icon: "pi pi-user" },
   { label: "Friends", href: "/friends", icon: "pi pi-users" },
+  { label: "Create", href: "/create", icon: "pi pi-plus-circle" },
   { label: "Settings", href: "/settings", icon: "pi pi-cog" },
 ];
 
@@ -36,7 +38,7 @@ export default function Navbar() {
           style={{ borderBottom: "1px solid var(--border)" }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/favi-logo.png" alt="logo" className="w-8 h-8 rounded" />
+          <img src="/favi-logo.png" alt="logo" className="w-8 h-8 rounded-full" />
           <span className="text-xl font-semibold" style={{ color: "var(--text)" }}>Favi</span>
         </div>
 

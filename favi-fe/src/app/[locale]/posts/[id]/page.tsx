@@ -8,19 +8,21 @@ import { ScrollPanel } from "primereact/scrollpanel";
 import { Dialog } from "primereact/dialog";
 import ReportDialog from "@/components/ReportDialog";
 import EditPostDialog from "@/components/EditPostDialog";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Dock from "@/components/Dock";
 import { Separator } from "@/components/Seperator";
 import { Badge } from "primereact/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/Dropdown-menu";
 import { MessageCircle, Share2, Lock, Users, Globe, Edit, Trash2, MoreHorizontal } from "lucide-react";
 import { mockPost } from "@/lib/mockTest/mockPost";
+import { mockCollection } from "@/lib/mockTest/mockCollection";
 import { useRouter } from "@/i18n/routing";
 
 type PostPageProps = { params: { id: string } };
 type PrivacyType = "public" | "friends" | "private";
 type ReactionType = "Like" | "Love" | "Haha" | "Wow" | "Sad" | "Angry";
-type CommentItem = { id: string; username: string; text: string; time: string; replies?: CommentItem[] };
+type CommentItem = { id: string; username: string; text: string; time: string; imageUrl?: string; replies?: CommentItem[] };
 
 const seedPosts = [
   {
@@ -113,6 +115,11 @@ export default function PostPage({ params }: PostPageProps) {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareRecipient, setShareRecipient] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState(false);
+  // comment reactions (per comment)
+  const [commentReactions, setCommentReactions] = useState<Record<string, { counts: Record<ReactionType, number>; user?: ReactionType }>>({});
+  const [commentPickerFor, setCommentPickerFor] = useState<string | null>(null);
+  const [newCommentImage, setNewCommentImage] = useState<string | null>(null);
+  const [replyImage, setReplyImage] = useState<string | null>(null);
   const lastCommentRef = useRef<HTMLDivElement>(null);
 
   function chooseReaction(type: ReactionType) {
@@ -125,27 +132,47 @@ export default function PostPage({ params }: PostPageProps) {
     setUserReaction(type);
     setPickerOpen(false);
   }
+  function chooseCommentReaction(id: string, type: ReactionType) {
+    setCommentReactions(prev => {
+      const entry = prev[id] ?? { counts: { Like:0, Love:0, Haha:0, Wow:0, Sad:0, Angry:0 } as Record<ReactionType, number> };
+      const next = { ...entry, counts: { ...entry.counts } };
+      if (entry.user) next.counts[entry.user] = Math.max(0, (next.counts[entry.user]||0) - 1);
+      next.counts[type] = (next.counts[type]||0) + 1;
+      next.user = type;
+      return { ...prev, [id]: next };
+    });
+    setCommentPickerFor(null);
+  }
 
   function handleAddComment() {
     const txt = newComment.trim();
     if (!txt) return;
     const updated: CommentItem[] = [
       ...comments,
-      { id: `c-${Date.now()}`, username: "current_user", text: txt, time: "just now", replies: [] },
+      { id: `c-${Date.now()}`, username: "current_user", text: txt, time: "just now", imageUrl: newCommentImage ?? undefined, replies: [] },
     ];
     setComments(updated);
     setNewComment("");
+    setNewCommentImage(null);
     setTimeout(() => {
       lastCommentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 0);
   }
 
   // recursive thread (cap depth at 3)
+  const sp = useSearchParams();
+  const highlightId = sp.get('comment');
+  useEffect(() => {
+    if (!highlightId) return;
+    const el = document.getElementById(`comment-${highlightId}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlightId]);
+
   // track expanded replies per comment id
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   function renderThread(list: CommentItem[], depth = 1) {
     return list.map((c, idx) => (
-      <div key={c.id} ref={depth === 1 && idx === list.length - 1 ? lastCommentRef : undefined} className="mb-3">
+      <div key={c.id} id={`comment-${c.id}`} ref={depth === 1 && idx === list.length - 1 ? lastCommentRef : undefined} className="mb-3" style={highlightId===c.id?{ backgroundColor:'rgba(255,223,99,0.15)', borderRadius:8 }:undefined}>
         <div className="flex items-start">
           <Avatar className="h-10 w-10 mr-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -157,31 +184,55 @@ export default function PostPage({ params }: PostPageProps) {
               <div className="text-[12px] opacity-70">{c.time}</div>
             </div>
             <p className="mt-1 break-words">{c.text}</p>
+            {c.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={c.imageUrl} alt="attachment" className="mt-2 max-h-60 rounded-lg object-contain" />
+            )}
             <div className="mt-1 flex items-center gap-2">
               <Button className="p-button-text p-button-sm" onClick={() => setReplyToId(c.id)}>Reply</Button>
               <Button className="p-button-text p-button-sm" onClick={() => { setReportTarget({ type: "comment" }); setShowReport(true); }}>
                 <i className="pi pi-flag" />
               </Button>
+              {/* comment reaction */}
+              <div className="relative inline-flex items-center gap-2">
+                <Button className="p-button-text p-button-sm" aria-label="React" onClick={() => setCommentPickerFor(prev => prev===c.id?null:c.id)}>
+                  <span className={`text-base ${!commentReactions[c.id]?.user ? 'opacity-60' : ''}`}>{commentReactions[c.id]?.user ? ({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[commentReactions[c.id]!.user!] : '👍'}</span>
+                </Button>
+                {commentPickerFor === c.id && (
+                  <div className="absolute z-10 mt-8 bg-black/70 text-white rounded-full px-2 py-1 flex items-center gap-2">
+                    {["Like","Love","Haha","Wow","Sad","Angry"].map(r => (
+                      <button key={r} className="text-xl hover:scale-110 transition" onClick={() => chooseCommentReaction(c.id, r as ReactionType)}>{({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[r]}</button>
+                    ))}
+                  </div>
+                )}
+                <span className="text-xs opacity-70">
+                  {Object.values(commentReactions[c.id]?.counts ?? {}).reduce((a,b)=>a+b,0) || 0}
+                </span>
+              </div>
             </div>
             {replyToId === c.id && (
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-2 flex items-center gap-2 flex-wrap" style={{ overflow: 'visible' }}>
                 <InputText value={replyText} onChange={(e) => setReplyText(e.target.value)} className="flex-1" placeholder="Write a reply" />
+                <label className="p-2 rounded-lg cursor-pointer text-xs" title="Attach image" style={{ border: '1px solid var(--border)' }}>
+                  <i className="pi pi-image" />
+                  <input type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(!f) return; setReplyImage(URL.createObjectURL(f)); }} />
+                </label>
                 <Button className="p-button-sm" label="Reply" onClick={() => {
                   const t = replyText.trim(); if (!t) return;
                   const next = structuredClone(comments) as CommentItem[];
-                  function attach(arr: CommentItem[], id: string, d = 1): boolean {
-                    for (const it of arr) {
-                      if (it.id === id) {
-                        it.replies = it.replies ?? [];
-                        it.replies.push({ id: `r-${Date.now()}`, username: 'current_user', text: t, time: 'just now', replies: [] });
-                        return true;
-                      }
-                      if (d < 3 && it.replies && attach(it.replies, id, d + 1)) return true;
-                    }
-                    return false;
+                  // Attach to root-level thread (only one child layer)
+                  function containsId(arr: CommentItem[]|undefined, id: string): boolean {
+                    if (!arr) return false; for (const x of arr){ if (x.id===id) return true; if (containsId(x.replies, id)) return true; } return false;
                   }
-                  attach(next, c.id);
+                  for (const root of next) {
+                    if (root.id === c.id || containsId(root.replies, c.id)) {
+                      root.replies = root.replies ?? [];
+                      root.replies.push({ id: `r-${Date.now()}`, username: 'current_user', text: t, time: 'just now', imageUrl: replyImage ?? undefined, replies: [] });
+                      break;
+                    }
+                  }
                   setComments(next); setReplyToId(null); setReplyText("");
+                  setReplyImage(null);
                 }} />
                 <Button className="p-button-text p-button-sm" label="Cancel" onClick={() => { setReplyToId(null); setReplyText(""); }} />
               </div>
@@ -191,19 +242,70 @@ export default function PostPage({ params }: PostPageProps) {
         {c.replies && c.replies.length > 0 && (
           <div className="ml-8 mt-2 border-l pl-3">
             {(() => {
-              const reps = c.replies ?? [];
+              // Flatten any nested to one level
+              const gather = (arr: CommentItem[]|undefined, out: CommentItem[] = []) => { (arr??[]).forEach(x=>{ out.push({ ...x, replies: [] }); gather(x.replies, out); }); return out; };
+              const flat = gather(c.replies);
               const open = !!expanded[c.id];
-              const slice = open ? reps : reps.slice(0, 2);
-              return (
-                <>
-                  {renderThread(slice, Math.min(3, depth + 1))}
-                  {reps.length > 2 && (
-                    <button className="text-xs opacity-70 hover:opacity-100" onClick={() => setExpanded((m) => ({ ...m, [c.id]: !open }))}>
-                      {open ? 'Show less' : `View more replies (${reps.length - 2})`}
-                    </button>
-                  )}
-                </>
-              );
+              const slice = open ? flat : flat.slice(0,2);
+              return <>
+                {slice.map((r) => (
+                  <div key={r.id} className="mb-2">
+                    <div className="flex items-start">
+                      <Avatar className="h-8 w-8 mr-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={`https://i.pravatar.cc/150?u=${r.username}`} alt={r.username} className="rounded-full" />
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <div className="font-semibold text-sm">{r.username}</div>
+                          <div className="text-gray-400 text-xs">{r.time}</div>
+                        </div>
+                        <p className="text-sm break-words">{r.text}</p>
+                        {r.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={r.imageUrl} alt="attachment" className="mt-1 max-h-52 rounded-lg object-contain" />
+                        )}
+                        <div className="mt-1 inline-flex items-center gap-2">
+                          <Button className="p-button-text p-button-sm" onClick={() => setReplyToId(r.id)}>Reply</Button>
+                          <div className="relative inline-flex items-center gap-1">
+                            <Button className="p-button-text p-button-sm" aria-label="React" onClick={() => setCommentPickerFor(prev => prev===r.id?null:r.id)}>
+                              <span className={`text-base ${!commentReactions[r.id]?.user ? 'opacity-60' : ''}`}>{commentReactions[r.id]?.user ? ({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[commentReactions[r.id]!.user!] : '👍'}</span>
+                            </Button>
+                            {commentPickerFor === r.id && (
+                              <div className="absolute z-10 mt-8 bg-black/70 text-white rounded-full px-2 py-1 flex items-center gap-2">
+                                {["Like","Love","Haha","Wow","Sad","Angry"].map(x => (
+                                  <button key={x} className="text-xl hover:scale-110 transition" onClick={() => chooseCommentReaction(r.id, x as ReactionType)}>{({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[x]}</button>
+                                ))}
+                              </div>
+                            )}
+                            <span className="text-xs opacity-70">{Object.values(commentReactions[r.id]?.counts ?? {}).reduce((a,b)=>a+b,0) || 0}</span>
+                          </div>
+                        </div>
+                        {replyToId === r.id && (
+                          <div className="mt-2 flex items-center gap-2 flex-wrap" style={{ overflow: 'visible' }}>
+                            <InputText value={replyText} onChange={(e) => setReplyText(e.target.value)} className="flex-1" placeholder="Write a reply" />
+                            <label className="p-2 rounded-lg cursor-pointer text-xs" title="Attach image" style={{ border: '1px solid var(--border)' }}>
+                              <i className="pi pi-image" />
+                              <input type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(!f) return; setReplyImage(URL.createObjectURL(f)); }} />
+                            </label>
+                            <Button className="p-button-sm" label="Reply" onClick={() => {
+                              const t = replyText.trim(); if (!t) return;
+                              const next = structuredClone(comments) as CommentItem[];
+                              function attachToRoot(arr: CommentItem[], rootId: string, child: CommentItem){ for (const root of arr){ if (root.id===rootId || (root.replies ?? []).some(x=>x.id===rootId) || (root.replies ?? []).some(x=> (x.replies??[]).some(y=>y.id===rootId))){ root.replies = root.replies ?? []; root.replies.push(child); return true;} } return false; }
+                              attachToRoot(next, r.id, { id: `r-${Date.now()}`, username: 'current_user', text: t, time: 'just now', imageUrl: replyImage ?? undefined, replies: [] });
+                              setComments(next); setReplyToId(null); setReplyText(""); setReplyImage(null);
+                            }} />
+                            <Button className="p-button-text p-button-sm" label="Cancel" onClick={() => { setReplyToId(null); setReplyText(""); setReplyImage(null); }} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {flat.length > 2 && (
+                  <button className="text-xs opacity-70 hover:opacity-100" onClick={() => setExpanded(m => ({ ...m, [c.id]: !open }))}>{open ? 'Show less' : `View more replies (${flat.length - 2})`}</button>
+                )}
+              </>;
             })()}
           </div>
         )}
@@ -315,7 +417,7 @@ export default function PostPage({ params }: PostPageProps) {
                   <div className="flex items-center gap-2">
                     <div className="relative" onMouseEnter={() => setPickerOpen(true)} onMouseLeave={() => setPickerOpen(false)}>
                       <Button className="p-button-rounded p-button-text" aria-label="React">
-                        <span className="text-xl">{userReaction ? ({ Like: "👍", Love: "❤️", Haha: "😂", Wow: "😮", Sad: "😢", Angry: "😡" } as any)[userReaction] : "👍"}</span>
+                        <span className={`text-xl ${userReaction ? '' : 'opacity-60'}`}>{userReaction ? ({ Like: "👍", Love: "❤️", Haha: "😂", Wow: "😮", Sad: "😢", Angry: "😡" } as any)[userReaction] : "👍"}</span>
                       </Button>
                       {pickerOpen && (
                         <div className="absolute z-10 bg-black/70 text-white rounded-full px-2 py-1 flex items-center gap-2">
@@ -339,8 +441,16 @@ export default function PostPage({ params }: PostPageProps) {
                 </div>
                 <div className="flex items-center mt-4">
                   <InputText value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Add a comment..." className="flex-1" />
+                  <label className="ml-2 p-2 rounded-lg cursor-pointer" title="Attach image" style={{ border: '1px solid var(--border)' }}>
+                    <i className="pi pi-image" />
+                    <input type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(!f) return; setNewCommentImage(URL.createObjectURL(f)); }} />
+                  </label>
                   <Button type="button" severity="info" onClick={handleAddComment} className="ml-2 p-button-sm">Post</Button>
                 </div>
+                {newCommentImage && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={newCommentImage} alt="attachment" className="mt-2 max-h-60 rounded-lg object-contain" />
+                )}
               </div>
             </div>
           </div>
@@ -368,13 +478,34 @@ export default function PostPage({ params }: PostPageProps) {
         {/* Dialogs */}
         <ReportDialog visible={showReport} onHide={() => setShowReport(false)} targetType={(reportTarget?.type ?? "post") as any} targetName={reportTarget?.name} />
         <EditPostDialog visible={showEditPost} onHide={() => setShowEditPost(false)} initialCaption={post.caption} initialTags={post.tags} initialPrivacy={privacy} />
-        <Dialog header="Share post" visible={shareOpen} onHide={() => setShareOpen(false)} style={{ width: 480 }} footer={<div className="flex justify-end gap-2"><Button label="Close" className="p-button-text" onClick={() => setShareOpen(false)} /></div>}>
+        <Dialog header="Share post" visible={shareOpen} onHide={() => setShareOpen(false)} style={{ width: 520 }} footer={<div className="flex justify-between w-full">
+          <div />
+          <div className="flex gap-2">
+            <Button label="Close" className="p-button-text" onClick={() => setShareOpen(false)} />
+          </div>
+        </div>}>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <Button label="Share to chat" icon="pi pi-send" onClick={() => { setShareRecipient("elenavoyage"); alert("Shared to chat with @elenavoyage (mock)"); setShareOpen(false); }} />
               <Button label="Share to profile" icon="pi pi-user" onClick={() => { alert("Shared to your profile (mock)"); setShareOpen(false); }} />
             </div>
-            <div className="text-xs opacity-70">Mock action only</div>
+            {/* Save to collection (mock) */}
+            <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+              <div className="text-sm font-medium mb-2">Save to one of your collections</div>
+              <div className="grid grid-cols-2 gap-2 max-h-44 overflow-auto">
+                {mockCollection.map(c => (
+                  <button key={c.id} onClick={() => { alert(`Saved to collection "${c.title}" (mock)`); setShareOpen(false); }} className="flex items-center gap-2 p-2 rounded-lg hover:opacity-100" style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={c.coverUrl} alt={c.title} className="w-10 h-10 object-cover rounded" />
+                    <div className="text-left">
+                      <div className="text-sm">{c.title}</div>
+                      <div className="text-xs opacity-70">{c.count} photos</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="text-xs opacity-70">Mock actions only</div>
           </div>
         </Dialog>
         <Dialog visible={lightbox} onHide={() => setLightbox(false)} style={{ width: '90vw', maxWidth: 1200 }} header={null} closable modal>

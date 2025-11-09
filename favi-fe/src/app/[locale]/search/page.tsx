@@ -41,20 +41,36 @@ function topTags(posts: PhotoPost[], limit = 12) {
 }
 
 /* ==================== Small UI bits ==================== */
+import { Link } from "@/i18n/routing";
+
+// Simple mock reaction breakdown from likeCount
+function reactionBreakdown(n: number) {
+  const like = Math.max(0, Math.round(n * 0.55));
+  const love = Math.max(0, Math.round(n * 0.2));
+  const haha = Math.max(0, Math.round(n * 0.1));
+  const wow = Math.max(0, Math.round(n * 0.08));
+  const sad = Math.max(0, Math.round(n * 0.04));
+  const angry = Math.max(0, Math.round(n * 0.03));
+  return { like, love, haha, wow, sad, angry };
+}
+
 function ResultCard({p}: {p: PhotoPost}) {
+  const r = reactionBreakdown(p.likeCount ?? 0);
   return (
-    <article className="group relative overflow-hidden rounded-2xl ring-1 ring-black/5 dark:ring-white/10 bg-white/70 dark:bg-neutral-900/60 shadow-sm hover:shadow-md transition-shadow">
+    <Link href={`/posts/${p.id}`} className="group relative overflow-hidden rounded-2xl ring-1 ring-black/5 bg-white/70 shadow-sm hover:shadow-md transition-shadow" style={{ color: 'inherit', borderColor: 'var(--border)' }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={p.imageUrl}
-        alt={p.alt ?? ""}
-        className="h-56 w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-        loading="lazy"
-      />
+      <img src={p.imageUrl} alt={p.alt ?? ""} className="h-56 w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" loading="lazy" />
       <div className="absolute inset-x-0 bottom-0 p-3 text-xs bg-gradient-to-t from-black/60 to-transparent text-white">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1"><i className="pi pi-heart" /> {p.likeCount}</span>
+          <div className="flex items-center gap-2">
+            <span title="reactions" className="inline-flex items-center gap-2">
+              <span className="inline-flex items-center gap-1"><span>👍</span> {r.like}</span>
+              <span className="inline-flex items-center gap-1"><span>❤️</span> {r.love}</span>
+              <span className="inline-flex items-center gap-1"><span>😂</span> {r.haha}</span>
+              <span className="inline-flex items-center gap-1"><span>😮</span> {r.wow}</span>
+              <span className="inline-flex items-center gap-1"><span>😢</span> {r.sad}</span>
+              <span className="inline-flex items-center gap-1"><span>😡</span> {r.angry}</span>
+            </span>
             <span className="inline-flex items-center gap-1"><i className="pi pi-comments" /> {p.commentCount}</span>
           </div>
           <div className="flex gap-1">
@@ -64,7 +80,7 @@ function ResultCard({p}: {p: PhotoPost}) {
           </div>
         </div>
       </div>
-    </article>
+    </Link>
   );
 }
 
@@ -263,7 +279,7 @@ const haystackOf = (p: PhotoPost) => {
                     <InputText
                       value={q}
                       onChange={(e) => setQ(e.target.value)}
-                      placeholder="Search photos, captions, tags…"
+                      placeholder="     Search photos, captions, tags…"
                       className="w-full"
                     />
                   </span>

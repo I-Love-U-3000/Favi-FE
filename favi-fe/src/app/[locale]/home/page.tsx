@@ -3,10 +3,11 @@
 import Dock from "@/components/Dock";
 import StoriesStrip from "@/components/StoriesStrip";
 import FeedCard, {Feed} from "@/components/FeedCard";
-import LeftColumn from "@/components/LeftColumn";
-import RightLivePanel from "@/components/RightLivePanel";
+
+
 import { useState } from "react";
 import { mockPost } from "@/lib/mockTest/mockPost";
+import { mockCollection } from "@/lib/mockTest/mockCollection";
 import { useRouter, Link } from "@/i18n/routing";
 
 export default function HomePage() {
@@ -58,29 +59,7 @@ export default function HomePage() {
     },
   ];
 
-  const groups = [
-    { id: "g1", name: "Figma Community" },
-    { id: "g2", name: "Sketch Community" },
-  ];
-
-  const friends = [
-    { id: "u1", name: "Eleanor Pena",  avatar: "https://i.pravatar.cc/80?img=31", activeAgo: "11 min", online: true },
-    { id: "u2", name: "Leslie Alexander", avatar: "https://i.pravatar.cc/80?img=32", activeAgo: "11 min" },
-    { id: "u3", name: "Brooklyn Simmons", avatar: "https://i.pravatar.cc/80?img=33", activeAgo: "11 min", online: true },
-    { id: "u4", name: "Arlene McCoy", avatar: "https://i.pravatar.cc/80?img=34", activeAgo: "11 min" },
-    { id: "u5", name: "Jerome Bell", avatar: "https://i.pravatar.cc/80?img=35", activeAgo: "9 min" },
-    { id: "u6", name: "Darlene Robertson", avatar: "https://i.pravatar.cc/80?img=36", activeAgo: "9 min", online: true },
-  ];
-
-  const liveChats = [
-    { id: "c1", name: "Suny Suka", text: "Wow! Keep it up dude 🔥", time: "09:00" },
-    { id: "c2", name: "Arman Albreg", text: "Awesome 👍", time: "09:02" },
-    { id: "c3", name: "John Doe", text: "Can you link my comment here? 😅", time: "09:04" },
-    { id: "c4", name: "Stevany Pearl", text: "Great work team, thanks guys.", time: "09:07" },
-    { id: "c5", name: "Sarah Houldston", text: "🔥🔥 Such a great information guys.", time: "09:12" },
-  ];
-
-  // ====== UI ======
+        // ====== UI ======
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
       {/* Dock cố định giữa bên trái */}
@@ -90,9 +69,23 @@ export default function HomePage() {
 
       {/* Nội dung */}
       <main className="flex-1 p-6 ">
-        <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_360px] gap-6">
+        <div className="mx-auto max-w-7xl grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
           {/* Cột trái */}
-          <LeftColumn groups={groups} friends={friends} />
+          {/* Left column removed to free space for feed */}
+          <aside className="hidden lg:block" style={{ display: 'none' }}>
+            <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+              <h4 className="text-sm font-semibold">Trending keywords</h4>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(() => {
+                  const freq = new Map<string, number>();
+                  mockPost.forEach(p => (p.tags ?? []).forEach(t => freq.set(t, (freq.get(t) ?? 0) + 1)));
+                  return [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0,15).map(([t]) => (
+                    <button key={t} onClick={() => router.push(`/search?mode=tag&tag=${encodeURIComponent(t)}`)} className="px-3 py-1.5 text-xs rounded-full hover:opacity-100" style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>#{t}</button>
+                  ));
+                })()}
+              </div>
+            </div>
+          </aside>
 
           {/* Cột giữa (Stories + Feed) */}
           <section>
@@ -159,10 +152,42 @@ export default function HomePage() {
           </section>
 
           {/* Cột phải (Live) */}
-          <RightLivePanel chats={liveChats} />
+          <aside className="hidden xl:block">
+            <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+              <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                <h4 className="text-sm font-semibold">Trending collections</h4>
+              </div>
+              <div className="p-4 space-y-3">
+                {mockCollection.map(c => (
+                  <a key={c.id} href={`/collections/${c.id}`} className="rounded-xl overflow-hidden ring-1 ring-black/5 block hover:shadow">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={c.coverUrl} alt={c.title} className="w-full h-28 object-cover" />
+                    <div className="px-3 py-2 flex items-center justify-between">
+                      <div className="text-sm font-medium">{c.title}</div>
+                      <div className="text-xs opacity-70">{c.count} photos</div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-2xl p-4 mt-4" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+              <h4 className="text-sm font-semibold">Trending keywords</h4>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(() => {
+                  const freq = new Map<string, number>();
+                  mockPost.forEach(p => (p.tags ?? []).forEach(t => freq.set(t, (freq.get(t) ?? 0) + 1)));
+                  return [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0,15).map(([t]) => (
+                    <button key={t} onClick={() => router.push(`/search?mode=tag&tag=${encodeURIComponent(t)}`)} className="px-3 py-1.5 text-xs rounded-full hover:opacity-100" style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>#{t}</button>
+                  ));
+                })()}
+              </div>
+            </div>
+          </aside>
         </div>
       </main>
     </div>
   );
 }
+
+
 
