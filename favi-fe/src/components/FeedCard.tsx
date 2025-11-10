@@ -3,7 +3,7 @@
 import { Button } from "primereact/button";
 import { Avatar } from "primereact/avatar";
 import { Dialog } from "primereact/dialog";
-import { Share2 } from "lucide-react";
+import { Share2, Smile } from "lucide-react";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import { Link } from "@/i18n/routing";
 import { useState } from "react";
@@ -102,10 +102,14 @@ export default function FeedCard({ f }: { f: Feed }) {
                        onMouseLeave={() => setPickerOpen(false)}
                        onClick={(e) => e.stopPropagation()}>
                     <Button className="p-button-rounded p-button-text" aria-label="React" onClick={(e) => { e.stopPropagation(); chooseReaction('Like'); }}>
-                      <span className={`text-base ${userReaction ? '' : 'opacity-60'}`}>{userReaction ? ({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[userReaction] : '👍'}</span>
+                      {userReaction ? (
+                        <span className="text-base">{({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[userReaction]}</span>
+                      ) : (
+                        <Smile className="h-4 w-4" />
+                      )}
                     </Button>
                     {pickerOpen && (
-                      <div className="absolute z-10 bg-black/70 text-white rounded-full px-2 py-1 flex items-center gap-2" onClick={(e)=>e.stopPropagation()}>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-10 bg-black/70 text-white rounded-full px-2 py-1 flex items-center gap-2" onClick={(e)=>e.stopPropagation()}>
                         {["Like","Love","Haha","Wow","Sad","Angry"].map(r => (
                           <button key={r} className="text-xl hover:scale-110 transition" onClick={() => chooseReaction(r as any)} title={r}>
                             {({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[r]}

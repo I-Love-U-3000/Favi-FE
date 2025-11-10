@@ -14,7 +14,7 @@ import Dock from "@/components/Dock";
 import { Separator } from "@/components/Seperator";
 import { Badge } from "primereact/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/Dropdown-menu";
-import { MessageCircle, Share2, Lock, Users, Globe, Edit, Trash2, MoreHorizontal, ZoomIn, ZoomOut } from "lucide-react";
+import { MessageCircle, Share2, Lock, Users, Globe, Edit, Trash2, MoreHorizontal, ZoomIn, ZoomOut, Smile } from "lucide-react";
 import { mockPost } from "@/lib/mockTest/mockPost";
 import { mockCollection } from "@/lib/mockTest/mockCollection";
 import { Link, useRouter } from "@/i18n/routing";
@@ -117,6 +117,7 @@ export default function PostPage({ params }: PostPageProps) {
   const [shareRecipient, setShareRecipient] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState(false);
   const [lightboxLarge, setLightboxLarge] = useState(false);
+  const [shareCount, setShareCount] = useState<number>(0);
   // comment reactions (per comment)
   const [commentReactions, setCommentReactions] = useState<Record<string, { counts: Record<ReactionType, number>; user?: ReactionType }>>({});
   const [commentPickerFor, setCommentPickerFor] = useState<string | null>(null);
@@ -205,9 +206,13 @@ export default function PostPage({ params }: PostPageProps) {
                 <i className="pi pi-flag" />
               </Button>
               {/* comment reaction */}
-              <div className="relative inline-flex items-center gap-2">
-                <Button className="p-button-text p-button-sm" aria-label="React" onClick={() => setCommentPickerFor(prev => prev===c.id?null:c.id)}>
-                  <span className={`text-base ${!commentReactions[c.id]?.user ? 'opacity-60' : ''}`}>{commentReactions[c.id]?.user ? ({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[commentReactions[c.id]!.user!] : '👍'}</span>
+              <div className="relative inline-flex items-center gap-2" onMouseEnter={() => setCommentPickerFor(c.id)} onMouseLeave={() => setCommentPickerFor(null)}>
+                <Button className="p-button-text p-button-sm" aria-label="React" onClick={() => chooseCommentReaction(c.id, 'Like')}>
+                  {commentReactions[c.id]?.user ? (
+                    <span className="text-base">{({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[commentReactions[c.id]!.user!]}</span>
+                  ) : (
+                    <Smile className="h-3.5 w-3.5" />
+                  )}
                 </Button>
                 {commentPickerFor === c.id && (
                   <div className="absolute z-10 mt-8 bg-black/70 text-white rounded-full px-2 py-1 flex items-center gap-2">
@@ -324,6 +329,18 @@ export default function PostPage({ params }: PostPageProps) {
     ));
   }
 
+  function totalComments(list: CommentItem[]): number {
+    let n = 0;
+    const walk = (arr: CommentItem[] | undefined) => {
+      (arr ?? []).forEach((c) => {
+        n += 1;
+        if (c.replies && c.replies.length) walk(c.replies);
+      });
+    };
+    walk(list);
+    return n;
+  }
+
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: "var(--bg)", color: "var(--text)" }}>
       <div className="fixed left-4 top-1/2 -translate-y-1/2">
@@ -434,7 +451,11 @@ export default function PostPage({ params }: PostPageProps) {
                   <div className="flex items-center gap-2">
                     <div className="relative" onMouseEnter={() => setPickerOpen(true)} onMouseLeave={() => setPickerOpen(false)}>
                       <Button className="p-button-rounded p-button-text" aria-label="React" onClick={() => chooseReaction('Like')}>
-                        <span className={`text-xl ${userReaction ? '' : 'opacity-60'}`}>{userReaction ? ({ Like: "👍", Love: "❤️", Haha: "😂", Wow: "😮", Sad: "😢", Angry: "😡" } as any)[userReaction] : "👍"}</span>
+                        {userReaction ? (
+                          <span className="text-xl">{({ Like: "👍", Love: "❤️", Haha: "😂", Wow: "😮", Sad: "😢", Angry: "😡" } as any)[userReaction]}</span>
+                        ) : (
+                          <Smile className="h-4 w-4" />
+                        )}
                       </Button>
                       {pickerOpen && (
                         <div className="absolute z-10 bg-black/70 text-white rounded-full px-2 py-1 flex items-center gap-2">
@@ -448,10 +469,10 @@ export default function PostPage({ params }: PostPageProps) {
                     </div>
                     <div className="text-sm opacity-70">{Object.values(reactionCounts).reduce((a, b) => a + b, 0)} reactions</div>
                     <Button className="p-button-rounded p-button-text" aria-label="Comment">
-                      <MessageCircle />
+                      <span className="inline-flex items-center gap-1"><MessageCircle /> {totalComments(comments)}</span>
                     </Button>
                     <Button className="p-button-rounded p-button-text" aria-label="Share" onClick={() => setShareOpen(true)}>
-                      <Share2 />
+                      <span className="inline-flex items-center gap-1"><Share2 /> {shareCount}</span>
                     </Button>
                   </div>
                   {/* Download moved into dropdown menu */}
@@ -503,8 +524,8 @@ export default function PostPage({ params }: PostPageProps) {
         </div>}>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <Button label="Share to chat" icon="pi pi-send" onClick={() => { setShareRecipient("elenavoyage"); alert("Shared to chat with @elenavoyage (mock)"); setShareOpen(false); }} />
-              <Button label="Share to profile" icon="pi pi-user" onClick={() => { alert("Shared to your profile (mock)"); setShareOpen(false); }} />
+              <Button label="Share to chat" icon="pi pi-send" onClick={() => { setShareRecipient("elenavoyage"); setShareCount(c=>c+1); alert("Shared to chat with @elenavoyage (mock)"); setShareOpen(false); }} />
+              <Button label="Share to profile" icon="pi pi-user" onClick={() => { setShareCount(c=>c+1); alert("Shared to your profile (mock)"); setShareOpen(false); }} />
             </div>
             {/* Save to collection (mock) */}
             <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
