@@ -14,10 +14,11 @@ import Dock from "@/components/Dock";
 import { Separator } from "@/components/Seperator";
 import { Badge } from "primereact/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/Dropdown-menu";
-import { MessageCircle, Share2, Lock, Users, Globe, Edit, Trash2, MoreHorizontal } from "lucide-react";
+import { MessageCircle, Share2, Lock, Users, Globe, Edit, Trash2, MoreHorizontal, ZoomIn, ZoomOut } from "lucide-react";
 import { mockPost } from "@/lib/mockTest/mockPost";
 import { mockCollection } from "@/lib/mockTest/mockCollection";
-import { useRouter } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
+import ProfileHoverCard from "@/components/ProfileHoverCard";
 
 type PostPageProps = { params: { id: string } };
 type PrivacyType = "public" | "friends" | "private";
@@ -115,6 +116,7 @@ export default function PostPage({ params }: PostPageProps) {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareRecipient, setShareRecipient] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState(false);
+  const [lightboxLarge, setLightboxLarge] = useState(false);
   // comment reactions (per comment)
   const [commentReactions, setCommentReactions] = useState<Record<string, { counts: Record<ReactionType, number>; user?: ReactionType }>>({});
   const [commentPickerFor, setCommentPickerFor] = useState<string | null>(null);
@@ -125,20 +127,29 @@ export default function PostPage({ params }: PostPageProps) {
   function chooseReaction(type: ReactionType) {
     setReactionCounts((prev) => {
       const next = { ...prev } as Record<ReactionType, number>;
+      if (userReaction === type) {
+        next[type] = Math.max(0, (next[type] || 0) - 1);
+        return next;
+      }
       if (userReaction) next[userReaction] = Math.max(0, (next[userReaction] || 0) - 1);
       next[type] = (next[type] || 0) + 1;
       return next;
     });
-    setUserReaction(type);
+    setUserReaction((prev) => (prev === type ? null : type));
     setPickerOpen(false);
   }
   function chooseCommentReaction(id: string, type: ReactionType) {
     setCommentReactions(prev => {
-      const entry = prev[id] ?? { counts: { Like:0, Love:0, Haha:0, Wow:0, Sad:0, Angry:0 } as Record<ReactionType, number> };
-      const next = { ...entry, counts: { ...entry.counts } };
-      if (entry.user) next.counts[entry.user] = Math.max(0, (next.counts[entry.user]||0) - 1);
-      next.counts[type] = (next.counts[type]||0) + 1;
-      next.user = type;
+      const entry = prev[id] ?? { counts: { Like:0, Love:0, Haha:0, Wow:0, Sad:0, Angry:0 } as Record<ReactionType, number>, user: undefined as ReactionType | undefined };
+      const next = { ...entry, counts: { ...entry.counts } } as { counts: Record<ReactionType, number>; user?: ReactionType };
+      if (entry.user === type) {
+        next.counts[type] = Math.max(0, (next.counts[type]||0) - 1);
+        next.user = undefined;
+      } else {
+        if (entry.user) next.counts[entry.user] = Math.max(0, (next.counts[entry.user]||0) - 1);
+        next.counts[type] = (next.counts[type]||0) + 1;
+        next.user = type;
+      }
       return { ...prev, [id]: next };
     });
     setCommentPickerFor(null);
@@ -330,10 +341,16 @@ export default function PostPage({ params }: PostPageProps) {
               <div className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={post.avatar} alt={post.username} className="rounded-full" />
-                    </Avatar>
+                    <ProfileHoverCard
+                      user={{ id: post.username, username: post.username, name: post.username, avatarUrl: post.avatar }}
+                    >
+                      <Link href={`/profile/${post.username}`} className="block">
+                        <Avatar className="h-12 w-12 cursor-pointer">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={post.avatar} alt={post.username} className="rounded-full" />
+                        </Avatar>
+                      </Link>
+                    </ProfileHoverCard>
                     <div>
                       <h2 className="font-semibold text-lg">{post.username}</h2>
                       <p className="text-sm" style={{ color: "var(--text-secondary)" }}>@{post.username}</p>
@@ -416,7 +433,7 @@ export default function PostPage({ params }: PostPageProps) {
                 <div className="flex items-center justify-between" style={{ overflow: 'visible' }}>
                   <div className="flex items-center gap-2">
                     <div className="relative" onMouseEnter={() => setPickerOpen(true)} onMouseLeave={() => setPickerOpen(false)}>
-                      <Button className="p-button-rounded p-button-text" aria-label="React">
+                      <Button className="p-button-rounded p-button-text" aria-label="React" onClick={() => chooseReaction('Like')}>
                         <span className={`text-xl ${userReaction ? '' : 'opacity-60'}`}>{userReaction ? ({ Like: "👍", Love: "❤️", Haha: "😂", Wow: "😮", Sad: "😢", Angry: "😡" } as any)[userReaction] : "👍"}</span>
                       </Button>
                       {pickerOpen && (
@@ -508,9 +525,26 @@ export default function PostPage({ params }: PostPageProps) {
             <div className="text-xs opacity-70">Mock actions only</div>
           </div>
         </Dialog>
-        <Dialog visible={lightbox} onHide={() => setLightbox(false)} style={{ width: '90vw', maxWidth: 1200 }} header={null} closable modal>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={post.image} alt={post.caption} className="w-full h-full object-contain" />
+        <Dialog visible={lightbox} onHide={() => { setLightbox(false); setLightboxLarge(false); }}
+          style={{ width: '80vw', maxWidth: 1100 }}
+          header={null} closable modal>
+          <div className="relative overflow-auto" style={{ maxHeight: '85vh' }}>
+            <button
+              className="absolute top-2 right-2 p-2 rounded-full"
+              style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
+              onClick={() => setLightboxLarge(v => !v)}
+              title={lightboxLarge ? 'Zoom out' : 'Zoom in'}
+            >
+              {lightboxLarge ? <ZoomOut className="h-4 w-4" /> : <ZoomIn className="h-4 w-4" />}
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={post.image}
+              alt={post.caption}
+              className={`mx-auto object-contain transition-transform ${lightboxLarge ? 'scale-110' : 'scale-100'}`}
+              style={{ maxHeight: lightboxLarge ? '85vh' : '70vh', maxWidth: lightboxLarge ? '95vw' : '80vw' }}
+            />
+          </div>
         </Dialog>
       </main>
     </div>
