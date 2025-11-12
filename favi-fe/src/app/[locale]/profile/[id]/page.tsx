@@ -10,7 +10,10 @@ import {useTranslations} from "next-intl";
 import {mockUserProfile} from "@/lib/mockTest/mockUserProfile";
 import {mockPost} from "@/lib/mockTest/mockPost";
 import {mockCollection} from "@/lib/mockTest/mockCollection";
-import type {UserProfile, PhotoPost, Collection} from "@/types";
+import type {UserProfile, PhotoPost, Collection, PostResponse} from "@/types";
+import profileAPI from "@/lib/api/profileAPI";
+import postAPI from "@/lib/api/postAPI";
+import { normalizeProfile } from "@/lib/profileCache";
 import CollectionDialog from "@/components/CollectionDialog";
 import EditProfileDialog, { EditableProfile } from "@/components/EditProfileDialog";
 import ReportDialog from "@/components/ReportDialog";
@@ -74,7 +77,18 @@ function ActionButtons({profile, onEdit}:{profile: UserProfile; onEdit:()=>void}
       <Button
         label={following ? "Following" : "Follow"}
         className={following ? "" : "p-button-rounded"}
-        onClick={() => setFollowing(v => !v)}
+        onClick={async () => {
+          try {
+            if (following) {
+              await profileAPI.unfollow(profile.id);
+            } else {
+              await profileAPI.follow(profile.id);
+            }
+            setFollowing(v => !v);
+          } catch (e:any) {
+            alert(e?.error || e?.message || 'Action failed');
+          }
+        }}
       />
       <Button icon="pi pi-envelope" className="p-button-outlined" />
       <Button icon="pi pi-flag" className="p-button-text" onClick={() => setReportOpen(true)} />
@@ -150,29 +164,43 @@ export default function ProfilePage() {
     return <div className="p-6 text-sm opacity-70">Missing profile id.</div>;
   }
 
-  const baseProfile = useMemo(() => resolveProfile(id), [id]);
-  if (!baseProfile) {
-    // router.replace("/404"); return null;
-    return <div className="p-6 text-sm opacity-70">User not found.</div>;
-  }
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [posts, setPosts] = useState<PhotoPost[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // local editable state with localStorage overlay
-  const [profile, setProfile] = useState<UserProfile>(baseProfile);
   useEffect(() => {
-    try {
-      const key = `profile_overrides_${baseProfile.id}`;
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const ov = JSON.parse(raw);
-        setProfile({ ...baseProfile, ...ov });
-      } else {
-        setProfile(baseProfile);
+    let cancelled = false;
+    (async () => {
+      setLoading(true); setError(null);
+      try {
+        const p = await profileAPI.getById(id);
+        const norm = normalizeProfile(p);
+        if (!cancelled && norm) setProfile(norm);
+        const res = await postAPI.getByProfile(id, 1, 24);
+        const mapped: PhotoPost[] = (res.items || []).map((x: PostResponse) => ({
+          id: x.id,
+          imageUrl: x.medias?.[0]?.thumbnailUrl || x.medias?.[0]?.url || "",
+          alt: x.caption ?? "",
+          width: x.medias?.[0]?.width || 0,
+          height: x.medias?.[0]?.height || 0,
+          createdAtISO: x.createdAt,
+          likeCount: x.reactions?.total ?? 0,
+          commentCount: 0,
+          tags: (x.tags || []).map(t => t.name),
+        }));
+        if (!cancelled) setPosts(mapped);
+        // Collections to be loaded later when endpoint available
+        if (!cancelled) setCollections([]);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.error || e?.message || 'Failed to load profile');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } catch { setProfile(baseProfile); }
-  }, [baseProfile]);
-
-  const posts = useMemo(() => resolvePosts(profile.id), [profile]);
-  const collections = useMemo(() => resolveCollections(profile.id), [profile]);
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
 
   const [editOpen, setEditOpen] = useState(false);
   const onSaveProfile = (p: EditableProfile) => {
@@ -182,6 +210,10 @@ export default function ProfilePage() {
     } catch {}
     setEditOpen(false);
   };
+
+  if (loading) return <div className="p-6 text-sm opacity-70">Loading profile…</div>;
+  if (error) return <div className="p-6 text-sm text-red-500">{error}</div>;
+  if (!profile) return <div className="p-6 text-sm opacity-70">User not found.</div>;
 
   const joined = profile.joinedAtISO ?? undefined;
 
@@ -245,9 +277,9 @@ export default function ProfilePage() {
 
           <div className="flex flex-col items-start md:items-end gap-3">
             <div className="grid grid-cols-3 gap-4">
-              <Stat label="Posts" value={profile.stats.posts} />
-              <Stat label="Followers" value={profile.stats.followers} />
-              <Stat label="Following" value={profile.stats.following} />
+              <Stat label="Posts" value={profile.stats?.posts ?? 0} />
+              <Stat label="Followers" value={profile.stats?.followers ?? 0} />
+              <Stat label="Following" value={profile.stats?.following ?? 0} />
             </div>
             <ActionButtons profile={profile} onEdit={() => setEditOpen(true)} />
           </div>

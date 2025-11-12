@@ -51,10 +51,14 @@ export default function Navbar() {
         <nav className="px-2 py-4 space-y-1 overflow-y-auto h-[calc(100vh-64px-64px)]">
           {(isAuthenticated ? NAV : NAV.filter(i => ["/home","/search"].includes(i.href))).map((item) => {
             const active = pathname?.startsWith(item.href);
+            // Dynamic profile link to current user's profile id
+            const href = item.label === 'Profile' && isAuthenticated && (user as any)?.id
+              ? `/profile/${(user as any).id}`
+              : item.href;
             if (item.label === "Create") {
               return (
                 <button
-                  key={item.href}
+                  key={href}
                   onClick={openPostComposer}
                   className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg transition"
                   style={{
@@ -69,8 +73,8 @@ export default function Navbar() {
             }
             return (
               <Link
-                key={item.href}
-                href={item.href}
+                key={href}
+                href={href}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition"
                 style={{
                   backgroundColor: active ? "rgba(0,0,0,0.05)" : "transparent",

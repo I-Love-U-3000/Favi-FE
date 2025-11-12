@@ -1,77 +1,33 @@
 "use client";
 
-import { notFound } from "next/navigation";
+import { notFound, useParams, useRouter } from "next/navigation";
 import postAPI from "@/lib/api/postAPI";
 import commentAPI, { CommentResponse } from "@/lib/api/commentAPI";
 import useProfile from "@/lib/hooks/useProfile";
 import type { PostResponse, ReactionType } from "@/types";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
-import { Avatar } from "primereact/avatar";
-import { Button } from "primereact/button";
-import { InputText } from "primereact/inputtext";
-import { ScrollPanel } from "primereact/scrollpanel";
-import { Dialog } from "primereact/dialog";
-import ReportDialog from "@/components/ReportDialog";
-import EditPostDialog from "@/components/EditPostDialog";
-import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { readPostReaction, writePostReaction } from "@/lib/postCache";
 import Dock from "@/components/Dock";
-import { Separator } from "@/components/Seperator";
-import { Badge } from "primereact/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/Dropdown-menu";
-import { MessageCircle, Share2, Lock, Users, Globe, Edit, Trash2, MoreHorizontal, ZoomIn, ZoomOut, Smile } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import { mockPost } from "@/lib/mockTest/mockPost";
-import { mockCollection } from "@/lib/mockTest/mockCollection";
-import { Link, useRouter } from "@/i18n/routing";
+import { Button } from "primereact/button";
 
-type PostPageProps = { params: { id: string } };
-type PrivacyType = "public" | "friends" | "private";
-type CommentItem = { id: string; username: string; text: string; time: string; imageUrl?: string; replies?: CommentItem[] };
+export default function PostPage() {
+  const routeParams = useParams() as any;
+  const id = Array.isArray(routeParams?.id) ? routeParams.id[0] : String(routeParams?.id || "");
 
-const seedPosts = [
-  {
-    username: "markpawson",
-    avatar: "https://i.pravatar.cc/150?img=1",
-    image: "https://images.unsplash.com/photo-1592194996308-7b43878e84a6",
-    caption: "A cute puppy playing in a field of flowers.",
-    id: "1",
-    tags: ["animal", "dog", "puppy", "cute", "nature"],
-    likes: 123,
-    comments: [{ id: "c1", username: "elenavoyage", text: "So adorable!", time: "5 hours ago" }],
-    privacy: "public" as PrivacyType,
-  },
-];
-
-const PrivacyIcon = ({ privacy }: { privacy: PrivacyType }) => {
-  const props = { className: "h-4 w-4 mr-2" } as const;
-  switch (privacy) {
-    case "private":
-      return <Lock {...props} />;
-    case "friends":
-      return <Users {...props} />;
-    default:
-      return <Globe {...props} />;
-  }
-};
-
-export default function PostPage({ params }: PostPageProps) {
-  const { id } = params;
-  const router = useRouter();
-  const { requireAuth } = useAuth();
-
-  // Prefer backend data when available; fall back to legacy mock UI otherwise
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dataPost, setDataPost] = useState<PostResponse | null>(null);
+  const [post, setPost] = useState<PostResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true); setError(null);
+      setLoading(true);
+      setError(null);
       try {
         const p = await postAPI.getById(id);
-        if (!cancelled) setDataPost(p);
+        if (!cancelled) setPost(p);
       } catch (e: any) {
         if (!cancelled) {
           if (e?.status === 404) {
@@ -84,580 +40,59 @@ export default function PostPage({ params }: PostPageProps) {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="p-6" style={{ color: 'var(--text)' }}>
-        <div className="text-sm opacity-70">Loading post…</div>
-      </div>
-    );
-  }
-  if (dataPost) {
-    return <PostDetailDataView post={dataPost} />;
-  }
+  if (loading) return <div className="p-6 opacity-70 text-sm">Loading…</div>;
+  if (error) return <div className="p-6 text-red-500 text-sm">{error}</div>;
+  if (!post) notFound();
 
-  let post = seedPosts.find((p) => p.id === id) as any;
-  if (!post) {
-    const fromMock =
-      mockPost.find((mp) => mp.id === id) ?? (() => {
-        const m = id.match(/(\d+)/);
-        const n = m ? Math.max(1, parseInt(m[1], 10)) : 1;
-        return mockPost[(n - 1) % mockPost.length];
-      })();
-    if (fromMock) {
-      post = {
-        username: "mockuser",
-        avatar: "https://i.pravatar.cc/150?img=1",
-        image: fromMock.imageUrl,
-        caption: fromMock.alt ?? "",
-        id,
-        tags: fromMock.tags ?? [],
-        likes: fromMock.likeCount ?? 0,
-        comments: [],
-        privacy: "public" as PrivacyType,
-      };
-    } else {
-      notFound();
-    }
-  }
-
-  const [comments, setComments] = useState<CommentItem[]>(
-    Array.isArray(post.comments)
-      ? (post.comments as any[]).map((c, i) => ({
-          id: c.id ?? `c${i + 1}`,
-          username: c.username,
-          text: c.text,
-          time: c.time,
-          replies: (c.replies as CommentItem[] | undefined) ?? [],
-        }))
-      : []
-  );
-  const [newComment, setNewComment] = useState("");
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editingText, setEditingText] = useState<string>("");
-  const [privacy, setPrivacy] = useState<PrivacyType>(post.privacy);
-  const isAuthor = post.username === "markpawson";
-  const [showReport, setShowReport] = useState(false);
-  const [reportTarget, setReportTarget] = useState<{ type: "post" | "comment" | "user"; name?: string } | null>(null);
-  const [showEditPost, setShowEditPost] = useState(false);
-  const [relatedCount, setRelatedCount] = useState(24);
-  const [replyToId, setReplyToId] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState<string>("");
-  // Reactions (mock)
-  const [reactionCounts, setReactionCounts] = useState<Record<ReactionType, number>>({
-    Like: Math.max(0, Number(post.likes) || 0),
-    Love: 0,
-    Haha: 0,
-    Wow: 0,
-    Sad: 0,
-    Angry: 0,
-  });
-  const [userReaction, setUserReaction] = useState<ReactionType | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
-  const [shareRecipient, setShareRecipient] = useState<string | null>(null);
-  const [lightbox, setLightbox] = useState(false);
-  const [lightboxLarge, setLightboxLarge] = useState(false);
-  const [shareCount, setShareCount] = useState<number>(0);
-  // comment reactions (per comment)
-  const [commentReactions, setCommentReactions] = useState<Record<string, { counts: Record<ReactionType, number>; user?: ReactionType }>>({});
-  const [commentPickerFor, setCommentPickerFor] = useState<string | null>(null);
-  const [newCommentImage, setNewCommentImage] = useState<string | null>(null);
-  const [replyImage, setReplyImage] = useState<string | null>(null);
-  const lastCommentRef = useRef<HTMLDivElement>(null);
-
-  function chooseReaction(type: ReactionType) {
-    if (!requireAuth()) return;
-    setReactionCounts((prev) => {
-      const next = { ...prev } as Record<ReactionType, number>;
-      if (userReaction === type) {
-        next[type] = Math.max(0, (next[type] || 0) - 1);
-        return next;
-      }
-      if (userReaction) next[userReaction] = Math.max(0, (next[userReaction] || 0) - 1);
-      next[type] = (next[type] || 0) + 1;
-      return next;
-    });
-    setUserReaction((prev) => (prev === type ? null : type));
-    setPickerOpen(false);
-  }
-  function chooseCommentReaction(id: string, type: ReactionType) {
-    if (!requireAuth()) return;
-    setCommentReactions(prev => {
-      const entry = prev[id] ?? { counts: { Like:0, Love:0, Haha:0, Wow:0, Sad:0, Angry:0 } as Record<ReactionType, number>, user: undefined as ReactionType | undefined };
-      const next = { ...entry, counts: { ...entry.counts } } as { counts: Record<ReactionType, number>; user?: ReactionType };
-      if (entry.user === type) {
-        next.counts[type] = Math.max(0, (next.counts[type]||0) - 1);
-        next.user = undefined;
-      } else {
-        if (entry.user) next.counts[entry.user] = Math.max(0, (next.counts[entry.user]||0) - 1);
-        next.counts[type] = (next.counts[type]||0) + 1;
-        next.user = type;
-      }
-      return { ...prev, [id]: next };
-    });
-    setCommentPickerFor(null);
-  }
-
-  function handleAddComment() {
-    if (!requireAuth()) return;
-    const txt = newComment.trim();
-    if (!txt) return;
-    const updated: CommentItem[] = [
-      ...comments,
-      { id: `c-${Date.now()}`, username: "current_user", text: txt, time: "just now", imageUrl: newCommentImage ?? undefined, replies: [] },
-    ];
-    setComments(updated);
-    setNewComment("");
-    setNewCommentImage(null);
-    setTimeout(() => {
-      lastCommentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 0);
-  }
-
-  // recursive thread (cap depth at 3)
-  const sp = useSearchParams();
-  const highlightId = sp.get('comment');
-  useEffect(() => {
-    if (!highlightId) return;
-    const el = document.getElementById(`comment-${highlightId}`);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [highlightId]);
-
-  // track expanded replies per comment id
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  function renderThread(list: CommentItem[], depth = 1) {
-    return list.map((c, idx) => (
-      <div key={c.id} id={`comment-${c.id}`} ref={depth === 1 && idx === list.length - 1 ? lastCommentRef : undefined} className="mb-3" style={highlightId===c.id?{ backgroundColor:'rgba(255,223,99,0.15)', borderRadius:8 }:undefined}>
-        <div className="flex items-start">
-          <Avatar className="h-10 w-10 mr-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`https://i.pravatar.cc/150?u=${c.username}`} alt={c.username} className="rounded-full" />
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <div className="font-semibold">{c.username}</div>
-              <div className="text-[12px] opacity-70">{c.time}</div>
-            </div>
-            <p className="mt-1 break-words">{c.text}</p>
-            {c.imageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={c.imageUrl} alt="attachment" className="mt-2 max-h-60 rounded-lg object-contain" />
-            )}
-            <div className="mt-1 flex items-center gap-2">
-              <Button className="p-button-text p-button-sm" onClick={() => setReplyToId(c.id)}>Reply</Button>
-              <Button className="p-button-text p-button-sm" onClick={() => { setReportTarget({ type: "comment" }); setShowReport(true); }}>
-                <i className="pi pi-flag" />
-              </Button>
-              {/* comment reaction */}
-              <div className="relative inline-flex items-center gap-2" onMouseEnter={() => setCommentPickerFor(c.id)} onMouseLeave={() => setCommentPickerFor(null)}>
-                <Button className="p-button-text p-button-sm" aria-label="React" onClick={() => { const cur = commentReactions[c.id]?.user as ReactionType | undefined; if (cur) { chooseCommentReaction(c.id, cur); } else { setCommentPickerFor(c.id); } }}>
-                  {commentReactions[c.id]?.user ? (
-                    <span className="text-base">{EMOJI[commentReactions[c.id]!.user!]}</span>
-                  ) : (
-                    <Smile className="h-3.5 w-3.5" />
-                  )}
-                </Button>
-                {commentPickerFor === c.id && (
-                  <div className="absolute z-10 mt-8 bg-black/70 text-white rounded-full px-2 py-1 flex items-center gap-2">
-                    {["Like","Love","Haha","Wow","Sad","Angry"].map(r => (
-                      <button key={r} className="text-xl hover:scale-110 transition" onClick={() => chooseCommentReaction(c.id, r as ReactionType)}>{EMOJI[r as ReactionType]}</button>
-                    ))}
-                  </div>
-                )}
-                <span className="text-xs opacity-70">
-                  {Object.values(commentReactions[c.id]?.counts ?? {}).reduce((a,b)=>a+b,0) || 0}
-                </span>
-              </div>
-            </div>
-            {replyToId === c.id && (
-              <div className="mt-2 flex items-center gap-2 flex-wrap" style={{ overflow: 'visible' }}>
-                <InputText value={replyText} onChange={(e) => setReplyText(e.target.value)} className="flex-1" placeholder="Write a reply" />
-                <label className="p-2 rounded-lg cursor-pointer text-xs" title="Attach image" style={{ border: '1px solid var(--border)' }}>
-                  <i className="pi pi-image" />
-                  <input type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(!f) return; setReplyImage(URL.createObjectURL(f)); }} />
-                </label>
-                {replyImage && (
-                  <div className="flex items-center gap-2">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={replyImage} alt="preview" className="h-16 max-w-[120px] rounded-lg object-cover" />
-                    <Button className="p-button-text p-button-sm" label="Remove" onClick={() => setReplyImage(null)} />
-                  </div>
-                )}
-                <Button className="p-button-sm" label="Reply" onClick={() => { if (!requireAuth()) return;
-                  const t = replyText.trim(); if (!t) return;
-                  const next = structuredClone(comments) as CommentItem[];
-                  // Attach to root-level thread (only one child layer)
-                  function containsId(arr: CommentItem[]|undefined, id: string): boolean {
-                    if (!arr) return false; for (const x of arr){ if (x.id===id) return true; if (containsId(x.replies, id)) return true; } return false;
-                  }
-                  for (const root of next) {
-                    if (root.id === c.id || containsId(root.replies, c.id)) {
-                      root.replies = root.replies ?? [];
-                      root.replies.push({ id: `r-${Date.now()}`, username: 'current_user', text: t, time: 'just now', imageUrl: replyImage ?? undefined, replies: [] });
-                      break;
-                    }
-                  }
-                  setComments(next); setReplyToId(null); setReplyText("");
-                  setReplyImage(null);
-                }} />
-                <Button className="p-button-text p-button-sm" label="Cancel" onClick={() => { setReplyToId(null); setReplyText(""); setReplyImage(null); }} />
-              </div>
-            )}
-          </div>
-        </div>
-        {c.replies && c.replies.length > 0 && (
-          <div className="ml-8 mt-2 border-l pl-3">
-            {(() => {
-              // Flatten any nested to one level
-              const gather = (arr: CommentItem[]|undefined, out: CommentItem[] = []) => { (arr??[]).forEach(x=>{ out.push({ ...x, replies: [] }); gather(x.replies, out); }); return out; };
-              const flat = gather(c.replies);
-              const open = !!expanded[c.id];
-              const slice = open ? flat : flat.slice(0,2);
-              return <>
-                {slice.map((r) => (
-                  <div key={r.id} className="mb-2">
-                    <div className="flex items-start">
-                      <Avatar className="h-8 w-8 mr-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={`https://i.pravatar.cc/150?u=${r.username}`} alt={r.username} className="rounded-full" />
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <div className="font-semibold text-sm">{r.username}</div>
-                          <div className="text-gray-400 text-xs">{r.time}</div>
-                        </div>
-                        <p className="text-sm break-words">{r.text}</p>
-                        {r.imageUrl && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={r.imageUrl} alt="attachment" className="mt-1 max-h-52 rounded-lg object-contain" />
-                        )}
-                        <div className="mt-1 inline-flex items-center gap-2">
-                          <Button className="p-button-text p-button-sm" onClick={() => setReplyToId(r.id)}>Reply</Button>
-                          <div className="relative inline-flex items-center gap-1" onMouseEnter={() => setCommentPickerFor(r.id)} onMouseLeave={() => setCommentPickerFor(null)}>
-                            <Button className="p-button-text p-button-sm" aria-label="React" onClick={() => { const cur = commentReactions[r.id]?.user as ReactionType | undefined; if (cur) { chooseCommentReaction(r.id, cur); } else { setCommentPickerFor(prev => prev===r.id?null:r.id); } }}>
-                              {renderCommentReactionIcon(commentReactions[r.id]?.user as ReactionType | undefined)}
-                            </Button>
-                            {commentPickerFor === r.id && (
-                              <div className="absolute z-10 mt-8 bg-black/70 text-white rounded-full px-2 py-1 flex items-center gap-2">
-                                {["Like","Love","Haha","Wow","Sad","Angry"].map(x => (
-                                  <button key={x} className="text-xl hover:scale-110 transition" onClick={() => chooseCommentReaction(r.id, x as ReactionType)}>{EMOJI[x as ReactionType]}</button>
-                                ))}
-                              </div>
-                            )}
-                            <span className="text-xs opacity-70">{Object.values(commentReactions[r.id]?.counts ?? {}).reduce((a,b)=>a+b,0) || 0}</span>
-                          </div>
-                        </div>
-                        {replyToId === r.id && (
-                          <div className="mt-2 flex items-center gap-2 flex-wrap" style={{ overflow: 'visible' }}>
-                            <InputText value={replyText} onChange={(e) => setReplyText(e.target.value)} className="flex-1" placeholder="Write a reply" />
-                            <label className="p-2 rounded-lg cursor-pointer text-xs" title="Attach image" style={{ border: '1px solid var(--border)' }}>
-                              <i className="pi pi-image" />
-                              <input type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(!f) return; setReplyImage(URL.createObjectURL(f)); }} />
-                            </label>
-                            {replyImage && (
-                              <div className="flex items-center gap-2">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={replyImage} alt="preview" className="h-16 max-w-[120px] rounded-lg object-cover" />
-                                <Button className="p-button-text p-button-sm" label="Remove" onClick={() => setReplyImage(null)} />
-                              </div>
-                            )}
-                            <Button className="p-button-sm" label="Reply" onClick={() => { if (!requireAuth()) return;
-                              const t = replyText.trim(); if (!t) return;
-                              const next = structuredClone(comments) as CommentItem[];
-                              function attachToRoot(arr: CommentItem[], rootId: string, child: CommentItem){ for (const root of arr){ if (root.id===rootId || (root.replies ?? []).some(x=>x.id===rootId) || (root.replies ?? []).some(x=> (x.replies??[]).some(y=>y.id===rootId))){ root.replies = root.replies ?? []; root.replies.push(child); return true;} } return false; }
-                              attachToRoot(next, r.id, { id: `r-${Date.now()}`, username: 'current_user', text: t, time: 'just now', imageUrl: replyImage ?? undefined, replies: [] });
-                              setComments(next); setReplyToId(null); setReplyText(""); setReplyImage(null);
-                            }} />
-                            <Button className="p-button-text p-button-sm" label="Cancel" onClick={() => { setReplyToId(null); setReplyText(""); setReplyImage(null); }} />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {flat.length > 2 && (
-                  <button className="text-xs opacity-70 hover:opacity-100" onClick={() => setExpanded(m => ({ ...m, [c.id]: !open }))}>{open ? 'Show less' : `View more replies (${flat.length - 2})`}</button>
-                )}
-              </>;
-            })()}
-          </div>
-        )}
-      </div>
-    ));
-  }
-
-  function totalComments(list: CommentItem[]): number {
-    let n = 0;
-    const walk = (arr: CommentItem[] | undefined) => {
-      (arr ?? []).forEach((c) => {
-        n += 1;
-        if (c.replies && c.replies.length) walk(c.replies);
-      });
-    };
-    walk(list);
-    return n;
-  }
-
-  const EMOJI: Record<ReactionType, string> = {
-    Like: "👍",
-    Love: "❤️",
-    Haha: "😂",
-    Wow: "😮",
-    Sad: "😢",
-    Angry: "😡",
-  };
-
-  function renderCommentReactionIcon(rt?: ReactionType | null) {
-    return rt ? (
-      <span className="text-base">{EMOJI[rt]}</span>
-    ) : (
-      <Smile className="h-3.5 w-3.5 opacity-60" />
-    );
-  }
-  return (
-    <div className="flex min-h-screen" style={{ backgroundColor: "var(--bg)", color: "var(--text)" }}>
-      <div className="fixed left-4 top-1/2 -translate-y-1/2">
-        <Dock />
-      </div>
-      <main className="flex-1 p-6">
-        <div className="mx-auto max-w-6xl">
-          {/* Top block: image + details */}
-          <div className="grid md:grid-cols-[1fr_420px] gap-4">
-            <div className="bg-black/5 rounded-xl p-4 grid place-items-center min-h-[400px]" style={{ overflow: 'visible' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={post.image} alt={post.caption} className="rounded-lg object-contain w-full h-full max-h-[80vh] shadow-lg cursor-zoom-in" onClick={() => setLightbox(true)} />
-            </div>
-            <div className="rounded-xl" style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
-              <div className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <ProfileHoverCard
-                      user={{ id: post.username, username: post.username, name: post.username, avatarUrl: post.avatar }}
-                    >
-                      <Link href={`/profile/${post.username}`} className="block">
-                        <Avatar className="h-12 w-12 cursor-pointer">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={post.avatar} alt={post.username} className="rounded-full" />
-                        </Avatar>
-                      </Link>
-                    </ProfileHoverCard>
-                    <div>
-                      <h2 className="font-semibold text-lg">{post.username}</h2>
-                      <p className="text-sm" style={{ color: "var(--text-secondary)" }}>@{post.username}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {!isAuthor && <Button label="Follow" size="small" severity="secondary" />}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button className="p-button-rounded p-button-text">
-                          <MoreHorizontal />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-gray-700 text-white">
-                        {isAuthor && (
-                          <DropdownMenuItem onClick={() => setShowEditPost(true)} className="hover:bg-gray-600 transition-colors">
-                            <Edit className="mr-2 h-4 w-4" /> Edit post
-                          </DropdownMenuItem>
-                        )}
-                        {!isAuthor && (
-                          <DropdownMenuItem onClick={() => { setReportTarget({ type: "post" }); setShowReport(true); }} className="hover:bg-gray-600 transition-colors">
-                            <i className="pi pi-flag mr-2" /> Report post
-                          </DropdownMenuItem>
-                        )}
-                        {!isAuthor && (
-                          <DropdownMenuItem onClick={() => { setReportTarget({ type: "user", name: post.username }); setShowReport(true); }} className="hover:bg-gray-600 transition-colors">
-                            <i className="pi pi-user-minus mr-2" /> Report user
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onClick={() => setPrivacy("public")} className="hover:bg-gray-600 transition-colors">
-                          <Globe className="mr-2 h-4 w-4" /> Set to Public
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setPrivacy("friends")} className="hover:bg-gray-600 transition-colors">
-                          <Users className="mr-2 h-4 w-4" /> Set to Friends
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setPrivacy("private")} className="hover:bg-gray-600 transition-colors">
-                          <Lock className="mr-2 h-4 w-4" /> Set to Private
-                        </DropdownMenuItem>
-                        {isAuthor && (
-                          <DropdownMenuItem className="text-red-500 hover:bg-gray-600 transition-colors">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onClick={() => {
-                          const url = typeof window !== 'undefined' ? window.location.origin + `/posts/${post.id}` : `/posts/${post.id}`;
-                          navigator.clipboard?.writeText?.(url);
-                          alert('Link copied to clipboard');
-                        }} className="hover:bg-gray-600 transition-colors">
-                          <i className="pi pi-link mr-2" /> Copy link
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          const link = document.createElement('a');
-                          link.href = post.image;
-                          link.download = post.caption || 'image.jpg';
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        }} className="hover:bg-gray-600 transition-colors">
-                          <i className="pi pi-download mr-2" /> Download image
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-6 pt-0 space-y-4">
-                <p>{post.caption}</p>
-                <div className="flex flex-wrap gap-2">
-                  {post.tags.map((tag: string) => (
-                    <Badge key={tag} value={tag} severity="info" className="bg-blue-600 text-white p-1 cursor-pointer" onClick={() => router.push(`/search?mode=tag&tag=${encodeURIComponent(tag)}`)} />
-                  ))}
-                </div>
-                <Separator />
-                <ScrollPanel style={{ height: "400px" }}>{renderThread(comments)}</ScrollPanel>
-                <Separator />
-              </div>
-
-              <div className="p-4">
-                <div className="flex items-center justify-between" style={{ overflow: 'visible' }}>
-                  <div className="flex items-center gap-2">
-                    <div className="relative" onMouseEnter={() => setPickerOpen(true)} onMouseLeave={() => setPickerOpen(false)}>
-                      <Button className="p-button-rounded p-button-text" aria-label="React" onClick={() => chooseReaction('Like')}>
-                        {userReaction ? (
-                          <span className="text-xl">{({ Like: "👍", Love: "❤️", Haha: "😂", Wow: "😮", Sad: "😢", Angry: "😡" } as any)[userReaction]}</span>
-                        ) : (
-                          <Smile className="h-4 w-4" />
-                        )}
-                      </Button>
-                      {pickerOpen && (
-                        <div className="absolute z-10 bg-black/70 text-white rounded-full px-2 py-1 flex items-center gap-2">
-                          {(["Like", "Love", "Haha", "Wow", "Sad", "Angry"] as ReactionType[]).map((r) => (
-                            <button key={r} className="text-xl hover:scale-110 transition" onClick={() => chooseReaction(r)} title={r}>
-                              {({ Like: "👍", Love: "❤️", Haha: "😂", Wow: "😮", Sad: "😢", Angry: "😡" } as any)[r]}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-sm opacity-70">{Object.values(reactionCounts).reduce((a, b) => a + b, 0)} reactions</div>
-                    <Button className="p-button-rounded p-button-text" aria-label="Comment">
-                      <span className="inline-flex items-center gap-1"><MessageCircle /> {totalComments(comments)}</span>
-                    </Button>
-                    <Button className="p-button-rounded p-button-text" aria-label="Share" onClick={() => setShareOpen(true)}>
-                      <span className="inline-flex items-center gap-1"><Share2 /> {shareCount}</span>
-                    </Button>
-                  </div>
-                  {/* Download moved into dropdown menu */}
-                </div>
-                <div className="flex items-center mt-4">
-                  <InputText value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Add a comment..." className="flex-1" />
-                  <label className="ml-2 p-2 rounded-lg cursor-pointer" title="Attach image" style={{ border: '1px solid var(--border)' }}>
-                    <i className="pi pi-image" />
-                    <input type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(!f) return; setNewCommentImage(URL.createObjectURL(f)); }} />
-                  </label>
-                  <Button type="button" severity="info" onClick={handleAddComment} className="ml-2 p-button-sm">Post</Button>
-                </div>
-                {newCommentImage && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={newCommentImage} alt="attachment" className="mt-2 max-h-60 rounded-lg object-contain" />
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Related grid BELOW */}
-          <div className="mt-10">
-            <h3 className="text-lg font-semibold mb-4">Related photos</h3>
-            <div className="columns-2 sm:columns-3 md:columns-4 gap-3 [column-fill:_balance]">
-              {Array.from({ length: relatedCount }).map((_, i) => {
-                const p = mockPost[i % mockPost.length];
-                return (
-                  <a key={`rel-${i}`} href={`/posts/${p.id}`} className="mb-3 block break-inside-avoid rounded-xl overflow-hidden ring-1 ring-black/5">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.imageUrl} alt={p.alt ?? ""} className="w-full h-auto block" />
-                  </a>
-                );
-              })}
-            </div>
-            <div className="mt-4 flex justify-center">
-              <Button label="Load more" onClick={() => setRelatedCount((n) => n + mockPost.length)} />
-            </div>
-          </div>
-        </div>
-
-        {/* Dialogs */}
-        <ReportDialog visible={showReport} onHide={() => setShowReport(false)} targetType={(reportTarget?.type ?? "post") as any} targetName={reportTarget?.name} />
-        <EditPostDialog visible={showEditPost} onHide={() => setShowEditPost(false)} initialCaption={post.caption} initialTags={post.tags} initialPrivacy={privacy} />
-        <Dialog header="Share post" visible={shareOpen} onHide={() => setShareOpen(false)} style={{ width: 520 }} footer={<div className="flex justify-between w-full">
-          <div />
-          <div className="flex gap-2">
-            <Button label="Close" className="p-button-text" onClick={() => setShareOpen(false)} />
-          </div>
-        </div>}>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <Button label="Share to chat" icon="pi pi-send" onClick={() => { setShareRecipient("elenavoyage"); setShareCount(c=>c+1); alert("Shared to chat with @elenavoyage (mock)"); setShareOpen(false); }} />
-              <Button label="Share to profile" icon="pi pi-user" onClick={() => { setShareCount(c=>c+1); alert("Shared to your profile (mock)"); setShareOpen(false); }} />
-            </div>
-            {/* Save to collection (mock) */}
-            <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-              <div className="text-sm font-medium mb-2">Save to one of your collections</div>
-              <div className="grid grid-cols-2 gap-2 max-h-44 overflow-auto">
-                {mockCollection.map(c => (
-                  <button key={c.id} onClick={() => { alert(`Saved to collection "${c.title}" (mock)`); setShareOpen(false); }} className="flex items-center gap-2 p-2 rounded-lg hover:opacity-100" style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={c.coverUrl} alt={c.title} className="w-10 h-10 object-cover rounded" />
-                    <div className="text-left">
-                      <div className="text-sm">{c.title}</div>
-                      <div className="text-xs opacity-70">{c.count} photos</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="text-xs opacity-70">Mock actions only</div>
-          </div>
-        </Dialog>
-        <Dialog visible={lightbox} onHide={() => { setLightbox(false); setLightboxLarge(false); }}
-          style={{ width: '80vw', maxWidth: 1100 }}
-          header={null} closable modal>
-          <div className="relative overflow-auto" style={{ maxHeight: '85vh' }}>
-            <button
-              className="absolute top-2 right-2 p-2 rounded-full"
-              style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
-              onClick={() => setLightboxLarge(v => !v)}
-              title={lightboxLarge ? 'Zoom out' : 'Zoom in'}
-            >
-              {lightboxLarge ? <ZoomOut className="h-4 w-4" /> : <ZoomIn className="h-4 w-4" />}
-            </button>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={post.image}
-              alt={post.caption}
-              className={`mx-auto object-contain transition-transform ${lightboxLarge ? 'scale-110' : 'scale-100'}`}
-              style={{ maxHeight: lightboxLarge ? '85vh' : '70vh', maxWidth: lightboxLarge ? '95vw' : '80vw' }}
-            />
-          </div>
-        </Dialog>
-      </main>
-    </div>
-  );
+  return <PostDetailDataView post={post!} />;
 }
 
 function PostDetailDataView({ post }: { post: PostResponse }) {
   const { requireAuth } = useAuth();
+  const router = useRouter();
+
   const author = useProfile(post.authorProfileId);
   const avatar = author.profile?.avatarUrl || "/avatar-default.svg";
-  const display = author.profile?.displayName || author.profile?.username || "User";
+  const display = author.profile?.displayName || author.profile?.username || "";
   const username = author.profile?.username;
+
   const medias = post.medias || [];
   const [idx, setIdx] = useState(0);
-  useEffect(() => { if (idx >= medias.length) setIdx(0); }, [medias.length]);
-  // Image viewer overlay like feed
+  useEffect(() => {
+    if (idx >= medias.length) setIdx(0);
+  }, [medias.length]);
+
+  // reactions (kept as-is; call your API)
+  const cached = readPostReaction(post.id);
+  const [byType, setByType] = useState<Record<ReactionType, number>>(
+    cached?.byType ?? {
+      Like: post.reactions?.byType?.Like ?? 0,
+      Love: post.reactions?.byType?.Love ?? 0,
+      Haha: post.reactions?.byType?.Haha ?? 0,
+      Wow: post.reactions?.byType?.Wow ?? 0,
+      Sad: post.reactions?.byType?.Sad ?? 0,
+      Angry: post.reactions?.byType?.Angry ?? 0,
+    }
+  );
+  const [userReaction, setUserReaction] = useState<ReactionType | null>(
+    (cached?.currentUserReaction ?? post.reactions?.currentUserReaction ?? null) as any
+  );
+  const totalReacts = Object.values(byType).reduce((a, b) => a + b, 0);
+  const [commentCount, setCommentCount] = useState<number>(0);
+  const [shareCount, setShareCount] = useState<number>((post as any).shareCount ?? (post as any).shares ?? 0);
+  const [shareOpen, setShareOpen] = useState(false);
+  // reaction picker like feed
+  const [pickerOpen, setPickerOpen] = useState(false);
+  let pickerTimer: number | null = null as any;
+  const openPicker = () => { if (pickerTimer) { window.clearTimeout(pickerTimer); pickerTimer = null as any; } setPickerOpen(true); };
+  const closePickerWithDelay = (ms = 140) => { if (pickerTimer) window.clearTimeout(pickerTimer); pickerTimer = window.setTimeout(() => setPickerOpen(false), ms) as unknown as number; };
+
+  // image viewer overlay
   const [viewerOpen, setViewerOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   useEffect(() => {
@@ -667,92 +102,159 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
     return () => { document.body.style.overflow = prev; };
   }, [viewerOpen]);
 
-  const [byType, setByType] = useState<Record<ReactionType, number>>({
-    Like: post.reactions?.byType?.Like ?? 0,
-    Love: post.reactions?.byType?.Love ?? 0,
-    Haha: post.reactions?.byType?.Haha ?? 0,
-    Wow:  post.reactions?.byType?.Wow  ?? 0,
-    Sad:  post.reactions?.byType?.Sad  ?? 0,
-    Angry:post.reactions?.byType?.Angry?? 0,
-  });
-  const [userReaction, setUserReaction] = useState<ReactionType | null>(post.reactions?.currentUserReaction ?? null as any);
-  const totalReacts = Object.values(byType).reduce((a,b)=>a+b,0);
-
   const toggleReact = async (type: ReactionType) => {
     if (!requireAuth()) return;
     try {
       const prev = userReaction;
-      setByType(prevCounts => {
+      setByType((prevCounts) => {
         const next = { ...prevCounts };
         if (prev && next[prev] > 0) next[prev] -= 1;
         if (prev !== type) next[type] = (next[type] || 0) + 1;
         return next;
       });
       setUserReaction(prev === type ? null : type);
-      const res = await postAPI.toggleReaction(post.id, type);
-      if (res && res.removed) setUserReaction(null);
+      await postAPI.toggleReaction(post.id, type);
+      // persist to cache for feed sync
+      const snapshot = { ...byType } as Record<ReactionType, number>;
+      if (prev && snapshot[prev] > 0) snapshot[prev] -= 1;
+      if (prev !== type) snapshot[type] = (snapshot[type] || 0) + 1;
+      writePostReaction(post.id, { byType: snapshot, currentUserReaction: prev === type ? null : type });
     } catch {}
   };
 
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
+    <div className="flex min-h-screen" style={{ backgroundColor: "var(--bg)", color: "var(--text)" }}>
       <div className="fixed left-4 top-1/2 -translate-y-1/2 z-20">
         <Dock />
       </div>
+
       <main className="flex-1 p-6">
         <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
           {/* Media + caption */}
-          <section className="rounded-2xl overflow-hidden ring-1 ring-black/5" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+          <section
+            className="rounded-2xl overflow-hidden ring-1 ring-black/5"
+            style={{ backgroundColor: "var(--bg-secondary)" }}
+          >
             <div className="px-4 py-3 flex items-center gap-3">
               <ProfileHoverCard
-                user={{ id: author.profile?.id || post.authorProfileId, username: username || 'user', name: display, avatarUrl: avatar, followersCount: author.profile?.stats?.followers, followingCount: author.profile?.stats?.following }}
+                user={{
+                  id: author.profile?.id || post.authorProfileId,
+                  username: username || "",
+                  name: display || username || "",
+                  avatarUrl: avatar,
+                }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={avatar} alt={username || display} className="w-10 h-10 rounded-full border cursor-pointer" />
+                <img
+                  src={avatar}
+                  alt={username || display || ""}
+                  className="w-10 h-10 rounded-full border cursor-pointer"
+                  onClick={() => router.push(`/profile/${author.profile?.id || post.authorProfileId}`)}
+                />
               </ProfileHoverCard>
               <div className="min-w-0">
-                <div className="text-sm font-medium">{display}</div>
-                <div className="text-xs opacity-70">{username ? `@${username}` : ''}</div>
+                <div className="text-sm font-medium">{display || username}</div>
+                {username && <div className="text-xs opacity-70">@{username}</div>}
               </div>
             </div>
-            {medias.length > 0 && (
+
+            {medias[0]?.url && (
               <div className="relative" onClick={(e)=>e.stopPropagation()}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={medias[idx]?.url} alt={post.caption ?? ''} className="w-full max-h-[70vh] object-cover cursor-zoom-in" onClick={()=>{ setViewerOpen(true); setZoom(1); }} />
+                <img src={medias[idx]?.url} alt={post.caption ?? ""} className="w-full h-[60vh] max-h-[640px] object-cover cursor-zoom-in" onClick={()=>{ setViewerOpen(true); setZoom(1); }} />
                 {medias.length > 1 && (
                   <>
-                    <button className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full w-8 h-8 grid place-items-center" onClick={()=>setIdx(i=>(i-1+medias.length)%medias.length)} aria-label="Prev">‹</button>
-                    <button className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full w-8 h-8 grid place-items-center" onClick={()=>setIdx(i=>(i+1)%medias.length)} aria-label="Next">›</button>
-                    <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">{idx+1}/{medias.length}</div>
+                    <button
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full w-8 h-8 grid place-items-center"
+                      onClick={() => setIdx((i) => (i - 1 + medias.length) % medias.length)}
+                      aria-label="Prev"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full w-8 h-8 grid place-items-center"
+                      onClick={() => setIdx((i) => (i + 1) % medias.length)}
+                      aria-label="Next"
+                    >
+                      ›
+                    </button>
+                    <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
+                      {idx + 1}/{medias.length}
+                    </div>
                   </>
                 )}
               </div>
             )}
+
             <div className="px-4 py-3 space-y-2">
-              {post.caption && <div className="text-sm">{post.caption}</div>}
-              {(post.tags||[]).length>0 && (
-                <div className="flex flex-wrap gap-2">
-                  {post.tags.map(t => <span key={t.id} className="px-2 py-1 text-xs rounded-full" style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>#{t.name}</span>)}
+              {post.caption && (
+                <div
+                  className="text-sm"
+                  style={{
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  } as any}
+                >
+                  {post.caption}
                 </div>
               )}
-              <div className="flex items-center justify-between text-sm opacity-80">
-                <button className="px-2 py-1 rounded hover:bg-black/5" onClick={()=> toggleReact(userReaction || 'Like' as any)} aria-label="React">
-                  {userReaction ? (({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[userReaction]) : 'React'}
-                </button>
-                <div className="flex items-center gap-4">
-                  <span>{totalReacts} reactions</span>
-                  <button className="inline-flex items-center gap-1 hover:opacity-100" title="Share" onClick={()=> alert('Share options (todo): chat / profile / copy link')}>
-                    <i className="pi pi-share-alt" /> Share
+              {(post.tags || []).length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {post.tags.map((t) => (
+                    <span
+                      key={t.id}
+                      className="px-2 py-1 text-xs rounded-full"
+                      style={{ backgroundColor: "var(--bg)", border: "1px solid var(--border)" }}
+                    >
+                      #{t.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center justify-between text-sm opacity-80 relative">
+                <div className="relative inline-flex items-center gap-2" onMouseEnter={openPicker} onMouseLeave={() => closePickerWithDelay(140)}>
+                  <button
+                    className="px-2 py-1 rounded hover:bg-black/5"
+                    onClick={() => toggleReact((userReaction || "Like") as ReactionType)}
+                    aria-label="React"
+                  >
+                    {userReaction ? ({ Like: "👍", Love: "❤️", Haha: "😂", Wow: "😮", Sad: "😢", Angry: "😡" } as any)[userReaction] : "React"}
                   </button>
+                  {pickerOpen && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-10 bg-black/75 text-white rounded-full px-1.5 py-1 flex items-center gap-1.5 shadow-lg" onMouseEnter={openPicker} onMouseLeave={() => closePickerWithDelay(120)}>
+                      {["Like","Love","Haha","Wow","Sad","Angry"].map(r => (
+                        <button key={r} className="w-8 h-8 grid place-items-center text-xl hover:scale-110 transition" onClick={() => toggleReact(r as ReactionType)} title={r}>
+                          {({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[r]}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="inline-flex items-center gap-1"><i className="pi pi-megaphone" style={{ opacity: .6 }} /> {totalReacts}</span>
+                  <span className="inline-flex items-center gap-1"><i className="pi pi-comments" /> {commentCount}</span>
+                  <div className="relative">
+                    <button className="inline-flex items-center gap-1 hover:opacity-100" title="Share" onClick={()=> setShareOpen(v=>!v)}>
+                      <i className="pi pi-share-alt" /> {shareCount}
+                    </button>
+                    {shareOpen && (
+                      <div className="absolute right-0 mt-2 z-10 bg-white dark:bg-neutral-900 border rounded-lg shadow p-2 flex flex-col text-sm">
+                        <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{ alert('Share to chat (todo)'); setShareOpen(false); setShareCount(c=>c+1); }}>Share to chat</button>
+                        <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{ alert('Share to your profile (todo)'); setShareOpen(false); setShareCount(c=>c+1); }}>Share to profile</button>
+                        <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{ navigator.clipboard?.writeText(window.location.origin + `/posts/${post.id}`); setShareOpen(false); setShareCount(c=>c+1); }}>Copy link</button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Right rail: comments + related */}
-          <aside className="hidden lg:block space-y-4">
-            <CommentsPanel postId={post.id} />
-            <RelatedPosts excludeId={post.id} />
+          {/* Right rail: comments (bật hiển thị ở mọi size để test) */}
+          <aside className="block space-y-4">
+            <CommentsPanel postId={post.id} onCountChange={setCommentCount} />
           </aside>
         </div>
       </main>
@@ -796,19 +298,66 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
   );
 }
 
-function CommentsPanel({ postId }: { postId: string }) {
+/** =========================
+ *  Comments Panel
+ *  ========================= */
+
+// Helpers chuẩn hóa id/parentId để tránh sai khác do field naming / whitespace
+/** Helpers chuẩn hóa id/parentId (đặt ngoài component) */
+const norm = (v: unknown) => (v == null ? "" : String(v).trim());
+
+const getId = (c: any): string =>
+  norm(c?.id ?? c?.commentId ?? c?.comment_id);
+
+const getParentId = (c: any): string | undefined => {
+  const pid =
+    c?.parentCommentId ??
+    c?.parentId ??
+    c?.replyToCommentId ??
+    c?.parent_comment_id;
+  const p = norm(pid);
+  return p ? p : undefined;
+};
+
+/** Flatten dữ liệu dạng cây từ API (root có field replies: CommentResponse[]) */
+const flattenFromApi = (roots: any[]): CommentResponse[] => {
+  const out: CommentResponse[] = [];
+  const walk = (node: any) => {
+    if (!node) return;
+    const { replies, ...rest } = node;
+    out.push(rest as CommentResponse);
+    (replies ?? []).forEach(walk);
+  };
+  (roots ?? []).forEach(walk);
+  return out;
+};
+
+function CommentsPanel({ postId, onCountChange }: { postId: string; onCountChange?: (n:number)=>void }) {
+  const { requireAuth, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<CommentResponse[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [replyToId, setReplyToId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [expandedRoots, setExpandedRoots] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true); setError(null);
+      setLoading(true);
+      setError(null);
       try {
-        const res = await commentAPI.getByPost(postId, 1, 20);
-        if (!cancelled) setItems(res.items || []);
+        const res = await commentAPI.getByPost(postId, 1, 200);
+        if (!cancelled) {
+          // 🔧 QUAN TRỌNG: flatten dữ liệu từ API trước khi render
+          const flat = flattenFromApi(res.items || []);
+          setItems(flat);
+          if (onCountChange) onCountChange(Number(res.totalCount ?? flat.length));
+        }
       } catch (e: any) {
-        if (!cancelled) setError(e?.error || e?.message || 'Failed to load comments');
+        if (!cancelled) setError(e?.error || e?.message || "Failed to load comments");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -816,60 +365,255 @@ function CommentsPanel({ postId }: { postId: string }) {
     return () => { cancelled = true; };
   }, [postId]);
 
+  // Build maps
+  const byId = new Map(items.map(c => [getId(c), c] as const));
+  const childrenMap = new Map<string, CommentResponse[]>();
+  for (const c of items) {
+    const pid = getParentId(c);
+    if (pid) {
+      if (!childrenMap.has(pid)) childrenMap.set(pid, []);
+      childrenMap.get(pid)!.push(c);
+    }
+  }
+
+  // Root = comment không có parent (vì đã flatten đầy đủ)
+  const roots = items.filter(c => !getParentId(c));
+
+  // Gom mọi tầng reply dưới 1 root
+  const gatherAllDescendants = (rootId: string): CommentResponse[] => {
+    const out: CommentResponse[] = [];
+    const stack = [...(childrenMap.get(rootId) || [])];
+    while (stack.length) {
+      const cur = stack.shift()!;
+      out.push(cur);
+      const kids = childrenMap.get(getId(cur)) || [];
+      stack.push(...kids);
+    }
+    return out;
+  };
+
+  const submit = async () => {
+    const content = newComment.trim();
+    if (!content) return;
+    if (!requireAuth()) return;
+    try {
+      setPosting(true);
+      const created = await commentAPI.create({ postId, content });
+      // back-end trả 1 item phẳng (không có replies), OK
+      setItems(prev => { const next=[created,...prev]; if (onCountChange) onCountChange(next.length); return next; });
+      setNewComment("");
+    } catch (e: any) {
+      alert(e?.error || e?.message || "Failed to comment");
+    } finally { setPosting(false); }
+  };
+
+  const submitReply = async (parentId: string) => {
+    const content = replyText.trim();
+    if (!content) return;
+    if (!requireAuth()) return;
+    try {
+      setPosting(true);
+      const created = await commentAPI.create({ postId, content, parentCommentId: parentId });
+      setItems(prev => { const next=[created,...prev]; if (onCountChange) onCountChange(next.length); return next; }); // có parentCommentId -> render sẽ đặt đúng
+      setReplyToId(null);
+      setReplyText("");
+    } catch (e: any) {
+      alert(e?.error || e?.message || "Failed to reply");
+    } finally { setPosting(false); }
+  };
+
   return (
-    <div className="rounded-2xl overflow-hidden ring-1 ring-black/5" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-      <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+    <div className="rounded-2xl overflow-hidden ring-1 ring-black/5" style={{ backgroundColor: "var(--bg-secondary)" }}>
+      <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
         <div className="text-sm font-semibold">Comments</div>
       </div>
-      <div className="max-h-[70vh] overflow-auto p-3 space-y-3">
+
+      <div className="max-h-[58vh] overflow-auto p-3">
         {loading && <div className="text-xs opacity-70">Loading…</div>}
         {error && <div className="text-xs text-red-500">{error}</div>}
-        {items.map((c) => (
-          <div key={c.id} className="flex items-start gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={c.authorAvatarUrl || '/avatar-default.svg'} alt={c.authorUsername || 'user'} className="w-8 h-8 rounded-full border" />
-            <div className="min-w-0">
-              <div className="text-xs"><span className="font-medium">{c.authorDisplayName || c.authorUsername || 'User'}</span> <span className="opacity-60">· {new Date(c.createdAt).toLocaleString()}</span></div>
-              <div className="text-sm" style={{ color: 'var(--text)' }}>{c.content}</div>
-            </div>
-          </div>
-        ))}
-        {!loading && items.length === 0 && <div className="text-xs opacity-70">No comments.</div>}
+        {!loading && roots.length === 0 && <div className="text-xs opacity-70">No comments.</div>}
+
+        <div className="space-y-4">
+          {roots.map(root => {
+            const rootId = getId(root);
+            const repliesFlat = gatherAllDescendants(rootId);
+            const expanded = !!expandedRoots[rootId];
+            const visible = expanded ? repliesFlat : repliesFlat.slice(0, 2);
+            const remaining = Math.max(0, repliesFlat.length - visible.length);
+
+            return (
+              <div key={rootId}>
+                <CommentRow
+                  c={root}
+                  onReply={() => { setReplyToId(rootId); setReplyText(""); }}
+                  replying={replyToId === rootId}
+                  replyText={replyText}
+                  setReplyText={setReplyText}
+                  submitReply={() => submitReply(rootId)}
+                  posting={posting}
+                />
+
+                {visible.length > 0 && (
+                  <div className="mt-2 ml-8 space-y-3">
+                    {visible.map(r => {
+                      const rid = getId(r);
+                      return (
+                        <CommentRow
+                          key={rid}
+                          c={r}
+                          onReply={() => { setReplyToId(rid); setReplyText(""); }}
+                          replying={replyToId === rid}
+                          replyText={replyText}
+                          setReplyText={setReplyText}
+                          submitReply={() => submitReply(rid)}
+                          posting={posting}
+                        />
+                      );
+                    })}
+
+                    {repliesFlat.length > 2 && (
+                      <button
+                        className="text-xs opacity-80 hover:opacity-100"
+                        onClick={() => setExpandedRoots(prev => ({ ...prev, [rootId]: !expanded }))}
+                      >
+                        {expanded ? "Ẩn bớt" : `Hiển thị thêm (${remaining})`}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Composer */}
+      <div className="p-3" style={{ borderTop: "1px solid var(--border)" }}>
+        <div className="flex items-center gap-2">
+          <input
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            onKeyDown={(e: any) => {
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
+            }}
+            placeholder={isAuthenticated ? "Write a comment…" : "Login to comment"}
+            className="flex-1 px-3 py-2 rounded-lg border"
+            style={{ backgroundColor: "var(--input-bg)", color: "var(--text)", borderColor: "var(--input-border)" }}
+          />
+          <button
+            className="px-3 py-2 rounded-lg text-sm"
+            style={{ backgroundColor: "var(--primary)", color: "white", opacity: newComment.trim() && !posting ? 1 : 0.6 }}
+            onClick={submit}
+            disabled={!newComment.trim() || posting}
+          >
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-function RelatedPosts({ excludeId }: { excludeId: string }) {
-  const [items, setItems] = useState<PostResponse[]>([] as any);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await postAPI.getLatest(1, 8);
-        const filtered = (res.items || []).filter(p => p.id !== excludeId);
-        if (!cancelled) setItems(filtered);
-      } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, [excludeId]);
-  if (items.length === 0) return null;
+/** =========================
+ *  Single Comment Row
+ *  ========================= */
+function CommentRow({
+  c,
+  onReply,
+  replying,
+  replyText,
+  setReplyText,
+  submitReply,
+  posting,
+}: {
+  c: CommentResponse;
+  onReply: () => void;
+  replying: boolean;
+  replyText: string;
+  setReplyText: (v: string) => void;
+  submitReply: () => void;
+  posting: boolean;
+}) {
+  const router = useRouter();
+  const prof = useProfile((c as any).authorProfileId);
+
+  // Không fallback "User" nữa
+  const username = prof.profile?.username || (c as any).authorUsername || "";
+  const displayName = prof.profile?.displayName || (c as any).authorDisplayName || username;
+  const avatar = prof.profile?.avatarUrl || (c as any).authorAvatarUrl || "/avatar-default.svg";
+
   return (
-    <div className="rounded-2xl overflow-hidden ring-1 ring-black/5" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-      <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
-        <div className="text-sm font-semibold">Related posts</div>
-      </div>
-      <div className="p-3 grid grid-cols-2 gap-2">
-        {items.map(p => (
-          <Link key={p.id} href={`/posts/${p.id}`} className="block rounded overflow-hidden ring-1 ring-black/5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {p.medias?.[0]?.url && <img src={p.medias[0].thumbnailUrl || p.medias[0].url} alt={p.caption ?? ''} className="w-full h-28 object-cover" />}
-          </Link>
-        ))}
+    <div className="flex items-start gap-2">
+      <ProfileHoverCard
+        user={{
+          id: prof.profile?.id || (c as any).authorProfileId || (c as any).id,
+          username: username || "",
+          name: displayName || username || "",
+          avatarUrl: avatar,
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={avatar}
+          alt={username || displayName || ""}
+          className="w-8 h-8 rounded-full border cursor-pointer"
+          onClick={() => router.push(`/profile/${prof.profile?.id || (c as any).authorProfileId || (c as any).id}`)}
+        />
+      </ProfileHoverCard>
+
+      <div className="min-w-0 flex-1">
+        <div className="text-xs">
+          <span className="font-medium">{displayName}</span>
+          {username && username !== displayName && <span className="opacity-70"> @{username}</span>}
+          <span className="opacity-60"> · {new Date((c as any).createdAt).toLocaleString()}</span>
+        </div>
+
+        <div className="text-sm" style={{ color: "var(--text)" }}>
+          {(c as any).content}
+        </div>
+
+        <div className="mt-1">
+          <button className="text-xs opacity-80 hover:opacity-100" onClick={onReply}>
+            Trả lời
+          </button>
+        </div>
+
+        {replying && (
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              onKeyDown={(e: any) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  submitReply();
+                }
+              }}
+              placeholder="Viết phản hồi…"
+              className="flex-1 px-3 py-1.5 rounded-lg border text-sm"
+              style={{ backgroundColor: "var(--input-bg)", color: "var(--text)", borderColor: "var(--input-border)" }}
+            />
+            <Button
+              className="px-3 py-1.5 rounded-lg text-xs"
+              style={{ backgroundColor: "var(--primary)", color: "white", opacity: replyText.trim() ? 1 : 0.6 }}
+              disabled={!replyText.trim() || posting}
+              onClick={submitReply}
+            >
+              Gửi
+            </Button>
+            <button
+              className="px-2 py-1.5 rounded-lg text-xs"
+              onClick={() => {
+                setReplyText("");
+                onReply();
+              }}
+              style={{ border: "1px solid var(--border)" }}
+            >
+              Hủy
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-
-

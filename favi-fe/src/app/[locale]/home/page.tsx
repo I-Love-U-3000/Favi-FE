@@ -11,6 +11,7 @@ import { useRouter, Link } from "@/i18n/routing";
 import postAPI from "@/lib/api/postAPI";
 import type { PostResponse, ReactionType } from "@/types";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
+import { readPostReaction, writePostReaction } from "@/lib/postCache";
 
 export default function HomePage() {
   const { isAuthenticated, user } = useAuth();
@@ -164,15 +165,20 @@ function PostListItem({ post }: { post: PostResponse }) {
   const time = new Date(post.createdAt).toLocaleString();
   const tags = (post.tags || []).map(t => t.name);
 
-  const [byType, setByType] = useState<Record<ReactionType, number>>({
-    Like: post.reactions?.byType?.Like ?? 0,
-    Love: post.reactions?.byType?.Love ?? 0,
-    Haha: post.reactions?.byType?.Haha ?? 0,
-    Wow:  post.reactions?.byType?.Wow  ?? 0,
-    Sad:  post.reactions?.byType?.Sad  ?? 0,
-    Angry:post.reactions?.byType?.Angry?? 0,
-  });
-  const [userReaction, setUserReaction] = useState<ReactionType | null>(post.reactions?.currentUserReaction ?? null as any);
+  const cached = readPostReaction(post.id);
+  const [byType, setByType] = useState<Record<ReactionType, number>>(
+    cached?.byType ?? {
+      Like: post.reactions?.byType?.Like ?? 0,
+      Love: post.reactions?.byType?.Love ?? 0,
+      Haha: post.reactions?.byType?.Haha ?? 0,
+      Wow:  post.reactions?.byType?.Wow  ?? 0,
+      Sad:  post.reactions?.byType?.Sad  ?? 0,
+      Angry:post.reactions?.byType?.Angry?? 0,
+    }
+  );
+  const [userReaction, setUserReaction] = useState<ReactionType | null>(
+    (cached?.currentUserReaction ?? post.reactions?.currentUserReaction ?? null) as any
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
   const hoverTimer = useRef<number | null>(null);
   const openPicker = () => {
@@ -214,12 +220,30 @@ function PostListItem({ post }: { post: PostResponse }) {
       if (res && res.removed) {
         setUserReaction(null);
       }
+      // persist latest reaction snapshot for cross-view consistency
+      const snapshot = { ...byType } as Record<ReactionType, number>;
+      if (prev && snapshot[prev] > 0) snapshot[prev] -= 1;
+      if (prev !== type) snapshot[type] = (snapshot[type] || 0) + 1;
+      writePostReaction(post.id, { byType: snapshot, currentUserReaction: prev === type ? null : type });
     } catch (e) {
       // on error, reload from server next time; for now, ignore
     } finally {
       setPickerOpen(false);
     }
   };
+
+  // Sync from other views (detail page) via localStorage version key
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      const key = `post_cache:${post.id}`;
+      if (!e || !e.key || (e.key !== key && e.key !== `${key}:v`)) return;
+      const c = readPostReaction(post.id);
+      if (c?.byType) setByType(c.byType as any);
+      if (typeof c?.currentUserReaction !== 'undefined') setUserReaction(c.currentUserReaction ?? null);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [post.id]);
 
   return (
     <article
@@ -256,7 +280,7 @@ function PostListItem({ post }: { post: PostResponse }) {
           <img
             src={medias[mediaIdx]?.url}
             alt={post.caption ?? ''}
-            className="w-full max-h-[520px] object-cover cursor-zoom-in"
+            className="w-full h-72 md:h-80 object-cover cursor-zoom-in"
             onClick={() => { setImageViewerOpen(true); setZoomScale(1); }}
           />
           {medias.length > 1 && (
@@ -352,7 +376,20 @@ function PostListItem({ post }: { post: PostResponse }) {
 
       {/* Body */}
       <div className="px-4 py-3 space-y-3">
-        {post.caption && <div className="text-sm" style={{ color: 'var(--text)' }}>{post.caption}</div>}
+        {post.caption && (
+          <div
+            className="text-sm"
+            style={{
+              color: 'var(--text)',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            } as any}
+          >
+            {post.caption}
+          </div>
+        )}
         {tags.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {tags.map((t) => (
