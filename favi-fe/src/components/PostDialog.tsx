@@ -45,6 +45,9 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
   const [aspect, setAspect] = useState<number>(1);
   const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(null); // State mới cho vị trí
   const fileInputRef = useRef<HTMLInputElement>(null); // Add ref for file input
+  const fileIntentRef = useRef<"replace" | "append">("replace");
+  const stagedBeforeCropRef = useRef<File[] | null>(null); // hold existing media when appending
+  const returnToStepRef = useRef<number | null>(null); // remember step to return after append crop
   const MIN_SIZE = 320;
 
   useEffect(() => {
@@ -57,25 +60,46 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
     return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, [selectedFiles]);
 
+  const validateAndFilterFiles = async (files: FileList | File[]): Promise<File[]> => {
+    const arr = Array.from(files);
+    const validationPromises = arr.map(
+      (file: File) =>
+        new Promise<boolean>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(img.width >= MIN_SIZE && img.height >= MIN_SIZE);
+          img.onerror = () => resolve(false);
+          img.src = URL.createObjectURL(file);
+        })
+    );
+    const results = await Promise.all(validationPromises);
+    return arr.filter((_, index) => results[index]);
+  };
+
+  const startAppendFlow = (newFiles: File[], returnToStep?: number) => {
+    stagedBeforeCropRef.current = media.slice();
+    returnToStepRef.current = returnToStep ?? null;
+    setSelectedFiles(newFiles);
+    setCroppedImages(new Array(newFiles.length).fill(null));
+    setCurrentIndex(0);
+    setCropMode(true);
+    if (step !== 1) setStep(1);
+  };
+
   const onFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
-      const validationPromises = [...files].map(
-        (file: File) =>
-          new Promise<boolean>((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve(img.width >= MIN_SIZE && img.height >= MIN_SIZE);
-            img.onerror = () => resolve(false);
-            img.src = URL.createObjectURL(file);
-          })
-      );
-      const results = await Promise.all(validationPromises);
-      const newFiles = [...files].filter((_, index) => results[index]);
+      const newFiles = await validateAndFilterFiles(files);
       if (newFiles.length > 0) {
-        setSelectedFiles(newFiles);
-        setCroppedImages(new Array(newFiles.length).fill(null));
-        setCurrentIndex(0);
-        setCropMode(true);
+        if (fileIntentRef.current === "append" && media.length > 0 && !cropMode) {
+          startAppendFlow(newFiles, step);
+        } else {
+          setSelectedFiles(newFiles);
+          setCroppedImages(new Array(newFiles.length).fill(null));
+          setCurrentIndex(0);
+          setCropMode(true);
+          stagedBeforeCropRef.current = null;
+          returnToStepRef.current = null;
+        }
       } else {
         alert('Vui lòng chọn ảnh có kích thước tối thiểu 320x320 pixel!');
       }
@@ -92,22 +116,18 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
     e.stopPropagation();
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      const validationPromises = [...files].map(
-        (file: File) =>
-          new Promise<boolean>((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve(img.width >= MIN_SIZE && img.height >= MIN_SIZE);
-            img.onerror = () => resolve(false);
-            img.src = URL.createObjectURL(file);
-          })
-      );
-      const results = await Promise.all(validationPromises);
-      const newFiles = [...files].filter((_, index) => results[index]);
+      const newFiles = await validateAndFilterFiles(files);
       if (newFiles.length > 0) {
-        setSelectedFiles(newFiles);
-        setCroppedImages(new Array(newFiles.length).fill(null));
-        setCurrentIndex(0);
-        setCropMode(true);
+        if (media.length > 0 && !cropMode) {
+          startAppendFlow(newFiles, step);
+        } else {
+          setSelectedFiles(newFiles);
+          setCroppedImages(new Array(newFiles.length).fill(null));
+          setCurrentIndex(0);
+          setCropMode(true);
+          stagedBeforeCropRef.current = null;
+          returnToStepRef.current = null;
+        }
       } else {
         alert('Vui lòng chọn ảnh có kích thước tối thiểu 320x320 pixel!');
       }
@@ -129,10 +149,21 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
             ? new File([img], selectedFiles[idx].name.replace(/\.[^/.]+$/, `_cropped.jpg`), { type: 'image/jpeg' })
             : selectedFiles[idx]
         );
-        setMedia(croppedMedia);
+        // Merge with pre-existing media if we're in append flow
+        if (stagedBeforeCropRef.current && stagedBeforeCropRef.current.length > 0) {
+          setMedia([...(stagedBeforeCropRef.current || []), ...croppedMedia]);
+        } else {
+          setMedia(croppedMedia);
+        }
         setCropMode(false);
         setSelectedFiles([]);
         setCroppedImages([]);
+        // return to step if requested
+        if (returnToStepRef.current) {
+          setStep(returnToStepRef.current);
+        }
+        stagedBeforeCropRef.current = null;
+        returnToStepRef.current = null;
       }
     },
     [currentIndex, selectedFiles, croppedImages]
@@ -170,6 +201,20 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
 
   const handleNext = () => {
     if (media.length > 0) setStep(2);
+  };
+
+  const triggerChooseReplace = () => {
+    fileIntentRef.current = "replace";
+    fileInputRef.current?.click();
+  };
+
+  const triggerChooseAppend = () => {
+    fileIntentRef.current = "append";
+    fileInputRef.current?.click();
+  };
+
+  const removeMediaAt = (idx: number) => {
+    setMedia((prev) => prev.filter((_, i) => i !== idx));
   };
 
   // Actual API-backed share
@@ -266,6 +311,8 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
     if (fileInputRef.current) {
       fileInputRef.current.value = ''; // Reset file input
     }
+    stagedBeforeCropRef.current = null;
+    returnToStepRef.current = null;
   };
 
   const renderFooter = () => (
@@ -275,7 +322,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
           <Button
             label="Choose"
             icon="pi pi-plus"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={triggerChooseReplace}
             className="p-button-raised p-button-info"
           />
           <Button
@@ -355,11 +402,13 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
         if (fileInputRef.current) {
           fileInputRef.current.value = ''; // Reset file input
         }
+        stagedBeforeCropRef.current = null;
+        returnToStepRef.current = null;
         onHide();
       }}
       style={{ width: '90vw', maxWidth: '1000px', height: '90vh', maxHeight: '800px' }}
       footer={renderFooter()}
-      className="rounded-lg sm:w-full sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw]"
+      className="rounded-lg sm:w-full sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] share-sheet"
       headerClassName="!py-2 !px-3 text-lg"
       contentClassName="!p-4"
       pt={{
@@ -413,6 +462,9 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
                   alt="icon"
                 />
                 <p className="font-medium">Kéo thả hoặc chọn ảnh/video</p>
+                <div className="mt-3 flex gap-2">
+                  <Button label="Chọn ảnh" icon="pi pi-plus" onClick={triggerChooseReplace} />
+                </div>
               </div>
             </div>
           )}
@@ -429,6 +481,26 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
                   style={{ maxHeight: '400px', maxWidth: '700px' }}
                   className="w-full"
                 />
+                {/* Thumbnails with remove buttons */}
+                <div className="mt-3 grid grid-cols-4 sm:grid-cols-6 gap-2">
+                  {media.map((f, idx) => (
+                    <div key={idx} className="relative group border rounded overflow-hidden">
+                      <img src={URL.createObjectURL(f)} alt={f.name} className="w-full h-20 object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeMediaAt(idx)}
+                        className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-6 h-6 opacity-0 group-hover:opacity-100 flex items-center justify-center"
+                        title="Xóa ảnh"
+                      >
+                        <i className="pi pi-times text-xs" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 flex gap-2 justify-end">
+                  <Button label="Thêm ảnh" icon="pi pi-plus" onClick={triggerChooseAppend} />
+                  <Button label="Xóa tất cả" icon="pi pi-trash" className="p-button-danger p-button-text" onClick={() => setMedia([])} />
+                </div>
               </div>
             </div>
           )}
@@ -505,7 +577,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
               </div>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap items-center">
             <Button
               label="Thêm hashtag"
               icon="pi pi-hashtag"
@@ -514,6 +586,8 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
             />
             <Button label="Thẻ người" icon="pi pi-user" className="p-button-text" />
             <Button label="Thêm vị trí" icon="pi pi-map-marker" className="p-button-text" />
+            <span className="flex-1" />
+            <Button label="Thêm ảnh" icon="pi pi-plus" className="p-button-text" onClick={() => { fileIntentRef.current = "append"; fileInputRef.current?.click(); }} />
           </div>
         </div>
       )}

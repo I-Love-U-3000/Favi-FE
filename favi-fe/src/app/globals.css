@@ -145,3 +145,15 @@ html, body {
 
 /* Ensure links inherit text color by default */
 a { color: inherit; }
+
+/* Share-sheet style for post composer */
+.p-dialog.share-sheet .p-dialog-content {
+  border-radius: 16px;
+}
+.p-dialog.share-sheet {
+  animation: sheet-in 160ms ease-out;
+}
+@keyframes sheet-in {
+  from { transform: translateY(8px); opacity: 0.96; }
+  to { transform: translateY(0); opacity: 1; }
+}

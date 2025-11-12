@@ -3,7 +3,17 @@ import { fetchWrapper } from "@/lib/fetchWrapper";
 export const profileAPI = {
   getById: (id: string) => fetchWrapper.get<any>(`/profiles/${id}`, false),
 
-  update: (payload: any) => fetchWrapper.put<any>("/profiles", payload, true),
+  update: async (payload: any) => {
+    // Perform update, then try to update local cache if possible
+    const res = await fetchWrapper.put<any>("/profiles", payload, true);
+    try {
+      // Best-effort: normalize and cache if response includes profile
+      const { normalizeProfile, writeCachedProfile } = await import("@/lib/profileCache");
+      const norm = normalizeProfile(res);
+      if (norm?.id) writeCachedProfile(norm.id, norm);
+    } catch {}
+    return res;
+  },
 
   follow: (targetId: string) => fetchWrapper.post<any>(`/profiles/follow/${targetId}`, undefined, true),
 

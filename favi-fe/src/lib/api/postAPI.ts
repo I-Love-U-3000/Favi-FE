@@ -29,7 +29,7 @@ function camelize<T = any>(input: any): T {
 // ---------- media upload with manual refresh ----------
 async function uploadFiles(postId: string, files: File[]): Promise<PostMediaResponse[]> {
   if (!baseUrl) throw new Error("Missing NEXT_PUBLIC_API_URL");
-  const url = `${baseUrl}/posts/${postId}/media`;
+  const url = `${baseUrl}/Posts/${postId}/media`;
   const form = new FormData();
   for (const f of files) form.append("files", f);
 
@@ -83,45 +83,45 @@ async function uploadFiles(postId: string, files: File[]): Promise<PostMediaResp
 export const postAPI = {
   // Reads
   getById: async (id: string) =>
-    camelize<PostResponse>(await fetchWrapper.get<any>(`/posts/${id}`)),
+    camelize<PostResponse>(await fetchWrapper.get<any>(`/Posts/${id}`)),
 
   getByProfile: async (profileId: string, page = 1, pageSize = 20) =>
     camelize<PagedResult<PostResponse>>(
-      await fetchWrapper.get<any>(`/posts/profile/${profileId}?page=${page}&pageSize=${pageSize}`)
+      await fetchWrapper.get<any>(`/Posts/profile/${profileId}?page=${page}&pageSize=${pageSize}`)
     ),
 
   getFeed: async (page = 1, pageSize = 20) =>
     camelize<PagedResult<PostResponse>>(
-      await fetchWrapper.get<any>(`/posts/feed?page=${page}&pageSize=${pageSize}`, true)
+      await fetchWrapper.get<any>(`/Posts/feed?page=${page}&pageSize=${pageSize}`, true)
     ),
 
   getExplore: async (page = 1, pageSize = 20) =>
     camelize<PagedResult<PostResponse>>(
-      await fetchWrapper.get<any>(`/posts/explore?page=${page}&pageSize=${pageSize}`, true)
+      await fetchWrapper.get<any>(`/Posts/explore?page=${page}&pageSize=${pageSize}`, true)
     ),
 
   getLatest: async (page = 1, pageSize = 20) =>
     camelize<PagedResult<PostResponse>>(
-      await fetchWrapper.get<any>(`/posts/latest?page=${page}&pageSize=${pageSize}`)
+      await fetchWrapper.get<any>(`/Posts/latest?page=${page}&pageSize=${pageSize}`, false)
     ),
 
   getByTag: async (tagId: string, page = 1, pageSize = 20) =>
     camelize<PagedResult<PostResponse>>(
-      await fetchWrapper.get<any>(`/posts/tag/${tagId}?page=${page}&pageSize=${pageSize}`)
+      await fetchWrapper.get<any>(`/Posts/tag/${tagId}?page=${page}&pageSize=${pageSize}`)
     ),
 
   // Mutations
   create: async (payload: CreatePostRequest) =>
-    camelize<PostResponse>(await fetchWrapper.post<any>("/posts", payload, true)),
+    camelize<PostResponse>(await fetchWrapper.post<any>("/Posts", payload, true)),
   update: (id: string, payload: UpdatePostRequest) =>
-    fetchWrapper.put<any>(`/posts/${id}`, payload, true),
+    fetchWrapper.put<any>(`/Posts/${id}`, payload, true),
   delete: (id: string) =>
-    fetchWrapper.del<any>(`/posts/${id}`, undefined, true),
+    fetchWrapper.del<any>(`/Posts/${id}`, undefined, true),
 
   uploadMedia: (postId: string, files: File[]) => uploadFiles(postId, files),
 
   toggleReaction: (postId: string, type: ReactionType) =>
-    fetchWrapper.post<any>(`/posts/${postId}/reactions?type=${encodeURIComponent(type)}`, undefined, true),
+    fetchWrapper.post<any>(`/Posts/${postId}/reactions?type=${encodeURIComponent(type)}`, undefined, true),
 };
 
 export default postAPI;

@@ -4,7 +4,9 @@ import { Link } from "@/i18n/routing";
 import { usePathname } from "next/navigation";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useAuth } from "@/components/AuthProvider";
+import useProfile from "@/lib/hooks/useProfile";
 import ThemeSwitcher from "./ThemeSwitcher";
+import { useOverlay } from "@/components/RootProvider";
 
 type Item = { label: string; href: string; icon: string };
 
@@ -22,6 +24,8 @@ const NAV: Item[] = [
 export default function Navbar() {
   const pathname = usePathname();
   const { isAuthenticated, isGuest, user, logout } = useAuth();
+  const me = useProfile(user?.id);
+  const { openPostComposer } = useOverlay();
 
   // Outer spacer preserves layout width; inner is fixed so it never scrolls away
   return (
@@ -47,6 +51,22 @@ export default function Navbar() {
         <nav className="px-2 py-4 space-y-1 overflow-y-auto h-[calc(100vh-64px-64px)]">
           {(isAuthenticated ? NAV : NAV.filter(i => ["/home","/search"].includes(i.href))).map((item) => {
             const active = pathname?.startsWith(item.href);
+            if (item.label === "Create") {
+              return (
+                <button
+                  key={item.href}
+                  onClick={openPostComposer}
+                  className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg transition"
+                  style={{
+                    backgroundColor: active ? "rgba(0,0,0,0.05)" : "transparent",
+                    color: "var(--text)",
+                  }}
+                >
+                  <i className={`${item.icon} text-lg`} />
+                  <span className="text-sm font-medium">{item.label}</span>
+                </button>
+              );
+            }
             return (
               <Link
                 key={item.href}
@@ -70,11 +90,18 @@ export default function Navbar() {
               <div className="flex items-center gap-2 min-w-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={`https://i.pravatar.cc/40?u=${encodeURIComponent((user?.id || (user as any)?.email || "me") as string)}`}
-                  alt="me"
+                  src={me.profile?.avatarUrl || "/avatar-default.svg"}
+                  alt={me.profile?.username || "avatar"}
                   className="w-8 h-8 rounded-full border"
                 />
-                <div className="text-xs truncate" title={(user as any)?.email || user?.id}>Logged in</div>
+                <div className="min-w-0">
+                  <div className="text-xs font-medium truncate" style={{ color: "var(--text)" }}>
+                    {me.profile?.displayName || (user as any)?.email || "User"}
+                  </div>
+                  {me.profile?.username && (
+                    <div className="text-[11px] opacity-70 truncate">@{me.profile.username}</div>
+                  )}
+                </div>
               </div>
               <button
                 className="px-3 py-1 rounded-md text-xs"

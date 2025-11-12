@@ -1,6 +1,11 @@
 "use client";
 
 import { notFound } from "next/navigation";
+import postAPI from "@/lib/api/postAPI";
+import commentAPI, { CommentResponse } from "@/lib/api/commentAPI";
+import useProfile from "@/lib/hooks/useProfile";
+import type { PostResponse, ReactionType } from "@/types";
+import ProfileHoverCard from "@/components/ProfileHoverCard";
 import { Avatar } from "primereact/avatar";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
@@ -19,11 +24,9 @@ import { useAuth } from "@/components/AuthProvider";
 import { mockPost } from "@/lib/mockTest/mockPost";
 import { mockCollection } from "@/lib/mockTest/mockCollection";
 import { Link, useRouter } from "@/i18n/routing";
-import ProfileHoverCard from "@/components/ProfileHoverCard";
 
 type PostPageProps = { params: { id: string } };
 type PrivacyType = "public" | "friends" | "private";
-type ReactionType = "Like" | "Love" | "Haha" | "Wow" | "Sad" | "Angry";
 type CommentItem = { id: string; username: string; text: string; time: string; imageUrl?: string; replies?: CommentItem[] };
 
 const seedPosts = [
@@ -56,6 +59,44 @@ export default function PostPage({ params }: PostPageProps) {
   const { id } = params;
   const router = useRouter();
   const { requireAuth } = useAuth();
+
+  // Prefer backend data when available; fall back to legacy mock UI otherwise
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dataPost, setDataPost] = useState<PostResponse | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true); setError(null);
+      try {
+        const p = await postAPI.getById(id);
+        if (!cancelled) setDataPost(p);
+      } catch (e: any) {
+        if (!cancelled) {
+          if (e?.status === 404) {
+            notFound();
+            return;
+          }
+          setError(e?.error || e?.message || "Failed to load post");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="p-6" style={{ color: 'var(--text)' }}>
+        <div className="text-sm opacity-70">Loading post…</div>
+      </div>
+    );
+  }
+  if (dataPost) {
+    return <PostDetailDataView post={dataPost} />;
+  }
 
   let post = seedPosts.find((p) => p.id === id) as any;
   if (!post) {
@@ -603,6 +644,229 @@ export default function PostPage({ params }: PostPageProps) {
           </div>
         </Dialog>
       </main>
+    </div>
+  );
+}
+
+function PostDetailDataView({ post }: { post: PostResponse }) {
+  const { requireAuth } = useAuth();
+  const author = useProfile(post.authorProfileId);
+  const avatar = author.profile?.avatarUrl || "/avatar-default.svg";
+  const display = author.profile?.displayName || author.profile?.username || "User";
+  const username = author.profile?.username;
+  const medias = post.medias || [];
+  const [idx, setIdx] = useState(0);
+  useEffect(() => { if (idx >= medias.length) setIdx(0); }, [medias.length]);
+  // Image viewer overlay like feed
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  useEffect(() => {
+    if (!viewerOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [viewerOpen]);
+
+  const [byType, setByType] = useState<Record<ReactionType, number>>({
+    Like: post.reactions?.byType?.Like ?? 0,
+    Love: post.reactions?.byType?.Love ?? 0,
+    Haha: post.reactions?.byType?.Haha ?? 0,
+    Wow:  post.reactions?.byType?.Wow  ?? 0,
+    Sad:  post.reactions?.byType?.Sad  ?? 0,
+    Angry:post.reactions?.byType?.Angry?? 0,
+  });
+  const [userReaction, setUserReaction] = useState<ReactionType | null>(post.reactions?.currentUserReaction ?? null as any);
+  const totalReacts = Object.values(byType).reduce((a,b)=>a+b,0);
+
+  const toggleReact = async (type: ReactionType) => {
+    if (!requireAuth()) return;
+    try {
+      const prev = userReaction;
+      setByType(prevCounts => {
+        const next = { ...prevCounts };
+        if (prev && next[prev] > 0) next[prev] -= 1;
+        if (prev !== type) next[type] = (next[type] || 0) + 1;
+        return next;
+      });
+      setUserReaction(prev === type ? null : type);
+      const res = await postAPI.toggleReaction(post.id, type);
+      if (res && res.removed) setUserReaction(null);
+    } catch {}
+  };
+
+  return (
+    <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
+      <div className="fixed left-4 top-1/2 -translate-y-1/2 z-20">
+        <Dock />
+      </div>
+      <main className="flex-1 p-6">
+        <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
+          {/* Media + caption */}
+          <section className="rounded-2xl overflow-hidden ring-1 ring-black/5" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+            <div className="px-4 py-3 flex items-center gap-3">
+              <ProfileHoverCard
+                user={{ id: author.profile?.id || post.authorProfileId, username: username || 'user', name: display, avatarUrl: avatar, followersCount: author.profile?.stats?.followers, followingCount: author.profile?.stats?.following }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={avatar} alt={username || display} className="w-10 h-10 rounded-full border cursor-pointer" />
+              </ProfileHoverCard>
+              <div className="min-w-0">
+                <div className="text-sm font-medium">{display}</div>
+                <div className="text-xs opacity-70">{username ? `@${username}` : ''}</div>
+              </div>
+            </div>
+            {medias.length > 0 && (
+              <div className="relative" onClick={(e)=>e.stopPropagation()}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={medias[idx]?.url} alt={post.caption ?? ''} className="w-full max-h-[70vh] object-cover cursor-zoom-in" onClick={()=>{ setViewerOpen(true); setZoom(1); }} />
+                {medias.length > 1 && (
+                  <>
+                    <button className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full w-8 h-8 grid place-items-center" onClick={()=>setIdx(i=>(i-1+medias.length)%medias.length)} aria-label="Prev">‹</button>
+                    <button className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full w-8 h-8 grid place-items-center" onClick={()=>setIdx(i=>(i+1)%medias.length)} aria-label="Next">›</button>
+                    <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">{idx+1}/{medias.length}</div>
+                  </>
+                )}
+              </div>
+            )}
+            <div className="px-4 py-3 space-y-2">
+              {post.caption && <div className="text-sm">{post.caption}</div>}
+              {(post.tags||[]).length>0 && (
+                <div className="flex flex-wrap gap-2">
+                  {post.tags.map(t => <span key={t.id} className="px-2 py-1 text-xs rounded-full" style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>#{t.name}</span>)}
+                </div>
+              )}
+              <div className="flex items-center justify-between text-sm opacity-80">
+                <button className="px-2 py-1 rounded hover:bg-black/5" onClick={()=> toggleReact(userReaction || 'Like' as any)} aria-label="React">
+                  {userReaction ? (({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[userReaction]) : 'React'}
+                </button>
+                <div className="flex items-center gap-4">
+                  <span>{totalReacts} reactions</span>
+                  <button className="inline-flex items-center gap-1 hover:opacity-100" title="Share" onClick={()=> alert('Share options (todo): chat / profile / copy link')}>
+                    <i className="pi pi-share-alt" /> Share
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Right rail: comments + related */}
+          <aside className="hidden lg:block space-y-4">
+            <CommentsPanel postId={post.id} />
+            <RelatedPosts excludeId={post.id} />
+          </aside>
+        </div>
+      </main>
+
+      {/* Image Viewer Overlay */}
+      {viewerOpen && (
+        <div
+          className="fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center"
+          onClick={(e)=>{ e.stopPropagation(); if (e.target === e.currentTarget) setViewerOpen(false); }}
+          onWheel={(e)=>{ e.preventDefault(); }}
+        >
+          <div className="absolute top-3 right-3">
+            <button className="w-9 h-9 grid place-items-center rounded-full bg-white/20 text-white hover:bg-white/30" onClick={(e)=>{ e.stopPropagation(); setViewerOpen(false); }} aria-label="Close">
+              <i className="pi pi-times" />
+            </button>
+          </div>
+          {medias.length > 1 && (
+            <>
+              <button className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 grid place-items-center rounded-full bg-white/20 text-white hover:bg-white/30" onClick={(e)=>{ e.stopPropagation(); setIdx(i=> (i-1+medias.length)%medias.length); setZoom(1); }} aria-label="Previous"><i className="pi pi-chevron-left" /></button>
+              <button className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 grid place-items-center rounded-full bg-white/20 text-white hover:bg-white/30" onClick={(e)=>{ e.stopPropagation(); setIdx(i=> (i+1)%medias.length); setZoom(1); }} aria-label="Next"><i className="pi pi-chevron-right" /></button>
+            </>
+          )}
+          <div
+            className="relative max-w-[90vw] max-h-[85vh]"
+            onClick={(e)=>e.stopPropagation()}
+            onWheel={(e)=>{ e.preventDefault(); setZoom(z => Number(Math.max(1, Math.min(2.5, z + (e.deltaY < 0 ? 0.15 : -0.15)) ).toFixed(2))); }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={medias[idx]?.url}
+              alt={post.caption ?? ''}
+              className="mx-auto"
+              style={{ maxHeight: '85vh', maxWidth: '90vw', objectFit: 'contain', transform: `scale(${zoom})`, transition: 'transform 140ms ease', cursor: zoom>1? 'zoom-out' : 'zoom-in' }}
+              onClick={()=> setZoom(z => (z > 1 ? 1 : 1.7))}
+            />
+            <div className="absolute bottom-3 left-3 text-white text-xs bg-black/40 px-2 py-1 rounded-full">{idx + 1}/{medias.length}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CommentsPanel({ postId }: { postId: string }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [items, setItems] = useState<CommentResponse[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true); setError(null);
+      try {
+        const res = await commentAPI.getByPost(postId, 1, 20);
+        if (!cancelled) setItems(res.items || []);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.error || e?.message || 'Failed to load comments');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [postId]);
+
+  return (
+    <div className="rounded-2xl overflow-hidden ring-1 ring-black/5" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+      <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div className="text-sm font-semibold">Comments</div>
+      </div>
+      <div className="max-h-[70vh] overflow-auto p-3 space-y-3">
+        {loading && <div className="text-xs opacity-70">Loading…</div>}
+        {error && <div className="text-xs text-red-500">{error}</div>}
+        {items.map((c) => (
+          <div key={c.id} className="flex items-start gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={c.authorAvatarUrl || '/avatar-default.svg'} alt={c.authorUsername || 'user'} className="w-8 h-8 rounded-full border" />
+            <div className="min-w-0">
+              <div className="text-xs"><span className="font-medium">{c.authorDisplayName || c.authorUsername || 'User'}</span> <span className="opacity-60">· {new Date(c.createdAt).toLocaleString()}</span></div>
+              <div className="text-sm" style={{ color: 'var(--text)' }}>{c.content}</div>
+            </div>
+          </div>
+        ))}
+        {!loading && items.length === 0 && <div className="text-xs opacity-70">No comments.</div>}
+      </div>
+    </div>
+  );
+}
+
+function RelatedPosts({ excludeId }: { excludeId: string }) {
+  const [items, setItems] = useState<PostResponse[]>([] as any);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await postAPI.getLatest(1, 8);
+        const filtered = (res.items || []).filter(p => p.id !== excludeId);
+        if (!cancelled) setItems(filtered);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [excludeId]);
+  if (items.length === 0) return null;
+  return (
+    <div className="rounded-2xl overflow-hidden ring-1 ring-black/5" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+      <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div className="text-sm font-semibold">Related posts</div>
+      </div>
+      <div className="p-3 grid grid-cols-2 gap-2">
+        {items.map(p => (
+          <Link key={p.id} href={`/posts/${p.id}`} className="block rounded overflow-hidden ring-1 ring-black/5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {p.medias?.[0]?.url && <img src={p.medias[0].thumbnailUrl || p.medias[0].url} alt={p.caption ?? ''} className="w-full h-28 object-cover" />}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,65 +1,53 @@
 "use client";
 
 import Dock from "@/components/Dock";
-import StoriesStrip from "@/components/StoriesStrip";
-import FeedCard, {Feed} from "@/components/FeedCard";
+// StoriesStrip and mock FeedCard removed in favor of real data
 
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { mockPost } from "@/lib/mockTest/mockPost";
-import { mockCollection } from "@/lib/mockTest/mockCollection";
+import useProfile from "@/lib/hooks/useProfile";
 import { useRouter, Link } from "@/i18n/routing";
+import postAPI from "@/lib/api/postAPI";
+import type { PostResponse, ReactionType } from "@/types";
+import ProfileHoverCard from "@/components/ProfileHoverCard";
 
 export default function HomePage() {
   const { isAuthenticated, user } = useAuth();
+  const me = useProfile(user?.id);
   const [view, setView] = useState<"list" | "grid">("list");
   const router = useRouter();
   const [quickQ, setQuickQ] = useState("");
-  // ===== Mock data (bạn có thể thay bằng dữ liệu thật sau) =====
-  const stories = [
-    { id: "s1", name: "Quinn",    avatar: "https://i.pravatar.cc/80?img=11", isOnline: true },
-    { id: "s2", name: "Alex",     avatar: "https://i.pravatar.cc/80?img=12", isOnline: true },
-    { id: "s3", name: "Sarah",    avatar: "https://i.pravatar.cc/80?img=13" },
-    { id: "s4", name: "Sebastian",avatar: "https://i.pravatar.cc/80?img=14", isOnline: true },
-    { id: "s5", name: "Stevy",    avatar: "https://i.pravatar.cc/80?img=15" },
-    { id: "s6", name: "Jose",     avatar: "https://i.pravatar.cc/80?img=16", isOnline: true },
-    { id: "s7", name: "Alina",    avatar: "https://i.pravatar.cc/80?img=17" },
-    { id: "s8", name: "Andrew",   avatar: "https://i.pravatar.cc/80?img=18" },
-  ];
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [posts, setPosts] = useState<PostResponse[]>([]);
 
-  const feeds: Feed[] = [
-    {
-      id: "f1",
-      date: { mon: "MAY", day: "08" },
-      cover:
-        "https://images.unsplash.com/photo-1579353977828-2a4eab540b9a?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c2FtcGxlfGVufDB8fDB8fHww&fm=jpg&q=60&w=3000",
-      title: "How To Manage Your Time & Get More Done",
-      desc:
-        "It may not be possible to squeeze more time in the day without sacrificing sleep. So, how do you achieve more?",
-      host: {
-        name: "Valentino Del More",
-        role: "Product Manager • PayPal",
-        avatar: "https://i.pravatar.cc/80?img=21",
-      },
-      stats: { comments: 12, likes: 30, saves: 20 },
-    },
-    {
-      id: "f2",
-      date: { mon: "MAY", day: "09" },
-      cover:
-        "https://images.all-free-download.com/images/graphiclarge/iphone_6_sample_photo_566464.jpg",
-      title: "How to Learn Anything! For Creatives & Self Learners",
-      desc:
-        "What are the 3 essential skills that are critical in the 21st century? School cancelled or home school?",
-      host: {
-        name: "Angelina Joly",
-        role: "Creative Director • Google",
-        avatar: "https://i.pravatar.cc/80?img=22",
-      },
-      stats: { comments: 32, likes: 120, saves: 30 },
-    },
-  ];
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        if (!isAuthenticated) {
+          if (!cancelled) {
+            setPosts([]);
+            setError("Vui lòng đăng nhập để xem bảng feed của bạn.");
+          }
+        } else {
+          const res = await postAPI.getFeed(1, 24);
+          if (!cancelled) setPosts(res.items || []);
+        }
+      } catch (e: any) {
+        if (!cancelled) setError(e?.error || e?.message || "Failed to load feed");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
+
+  const gridPosts = useMemo(() => posts.filter(p => (p.medias || []).length > 0), [posts]);
 
         // ====== UI ======
   return (
@@ -72,44 +60,20 @@ export default function HomePage() {
       {/* Nội dung */}
       <main className="flex-1 p-6 ">
         <div className="mx-auto max-w-7xl grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
-          {/* Cột trái */}
-          {/* Left column removed to free space for feed */}
-          <aside className="hidden lg:block" style={{ display: 'none' }}>
-            <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-              <h4 className="text-sm font-semibold">Trending keywords</h4>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(() => {
-                  const freq = new Map<string, number>();
-                  mockPost.forEach(p => (p.tags ?? []).forEach(t => freq.set(t, (freq.get(t) ?? 0) + 1)));
-                  return [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0,15).map(([t]) => (
-                    <button key={t} onClick={() => router.push(`/search?mode=tag&tag=${encodeURIComponent(t)}`)} className="px-3 py-1.5 text-xs rounded-full hover:opacity-100" style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>#{t}</button>
-                  ));
-                })()}
-              </div>
-            </div>
-          </aside>
+          {/* Cột trái (ẩn mock) */}
+          <aside className="hidden lg:block" style={{ display: 'none' }} />
 
-          {/* Cột giữa (Stories + Feed) */}
+          {/* Cột giữa (Feed) */}
           <section>
-                {isAuthenticated && (
-                  <div className="shrink-0" title={user?.email || (user?.id ?? '')}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={`https://i.pravatar.cc/40?u=${encodeURIComponent((user?.id || user?.email || 'me') as string)}`}
-                      alt="me"
-                      className="w-9 h-9 rounded-full border"
-                    />
-                  </div>
-                )}
             {/* Top search bar (sticky) */}
             <div className="sticky top-0 z-30 -mt-6 pt-6 pb-3" style={{ background: "linear-gradient(var(--bg),var(--bg))", borderBottom: "1px solid var(--border)" }}>
               <div className="flex items-center gap-2">
                 {isAuthenticated && (
-                  <div className="shrink-0" title={user?.email || (user?.id ?? '')}>
+                  <div className="shrink-0 flex items-center gap-2" title={user?.email || (user?.id ?? '')}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={`https://i.pravatar.cc/40?u=${encodeURIComponent((user?.id || user?.email || 'me') as string)}`}
-                      alt="me"
+                      src={me.profile?.avatarUrl || "/avatar-default.svg"}
+                      alt={me.profile?.username || "avatar"}
                       className="w-9 h-9 rounded-full border"
                     />
                   </div>
@@ -138,10 +102,13 @@ export default function HomePage() {
                 </button>
               </div>
             </div>
-            {/* Stories */}
-            <div className="rounded-2xl shadow-sm px-4" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-              <StoriesStrip stories={stories} />
-            </div>
+            {/* Feed from database */}
+            {loading && (
+              <div className="mt-6 text-sm opacity-70">Loading posts…</div>
+            )}
+            {error && (
+              <div className="mt-6 text-sm text-red-500">{error}</div>
+            )}
 
             {/* Feed controls */}
             <div className="mt-6 flex items-center justify-between">
@@ -154,18 +121,19 @@ export default function HomePage() {
 
             {view === "list" ? (
               <div className="mt-4 space-y-6">
-                {feeds.map((f, idx) => (
-                  <div key={f.id} className="cursor-pointer" onClick={()=>router.push(`/posts/${f.id}`)}>
-                    <FeedCard f={f} />
-                  </div>
+                {posts.map((p) => (
+                  <PostListItem key={p.id} post={p} />
                 ))}
+                {!loading && posts.length === 0 && (
+                  <div className="mt-8 text-center text-sm opacity-70">No posts yet.</div>
+                )}
               </div>
             ) : (
               <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {mockPost.map((p) => (
+                {gridPosts.map((p) => (
                   <Link key={p.id} href={`/posts/${p.id}`} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.imageUrl} alt={p.alt ?? ""} className="h-44 w-full object-cover transition-transform group-hover:scale-105" />
+                    <img src={p.medias![0].thumbnailUrl || p.medias![0].url} alt={p.caption ?? ""} className="h-44 w-full object-cover transition-transform group-hover:scale-105" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   </Link>
                 ))}
@@ -173,43 +141,279 @@ export default function HomePage() {
             )}
           </section>
 
-          {/* Cột phải (Live) */}
-          <aside className="hidden xl:block">
-            <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-              <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
-                <h4 className="text-sm font-semibold">Trending collections</h4>
-              </div>
-              <div className="p-4 space-y-3">
-                {mockCollection.map(c => (
-                  <a key={c.id} href={`/collections/${c.id}`} className="rounded-xl overflow-hidden ring-1 ring-black/5 block hover:shadow">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={c.coverUrl} alt={c.title} className="w-full h-28 object-cover" />
-                    <div className="px-3 py-2 flex items-center justify-between">
-                      <div className="text-sm font-medium">{c.title}</div>
-                      <div className="text-xs opacity-70">{c.count} photos</div>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </div>
-            <div className="rounded-2xl p-4 mt-4" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-              <h4 className="text-sm font-semibold">Trending keywords</h4>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(() => {
-                  const freq = new Map<string, number>();
-                  mockPost.forEach(p => (p.tags ?? []).forEach(t => freq.set(t, (freq.get(t) ?? 0) + 1)));
-                  return [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0,15).map(([t]) => (
-                    <button key={t} onClick={() => router.push(`/search?mode=tag&tag=${encodeURIComponent(t)}`)} className="px-3 py-1.5 text-xs rounded-full hover:opacity-100" style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>#{t}</button>
-                  ));
-                })()}
-              </div>
-            </div>
-          </aside>
+          {/* Cột phải (ẩn mock) */}
+          <aside className="hidden xl:block" />
         </div>
       </main>
     </div>
   );
 }
 
+function PostListItem({ post }: { post: PostResponse }) {
+  const { requireAuth } = useAuth();
+  const router = useRouter();
+  const author = useProfile(post.authorProfileId);
+  const avatar = author.profile?.avatarUrl || "/avatar-default.svg";
+  const display = author.profile?.displayName || author.profile?.username || "User";
+  const username = author.profile?.username;
+  const medias = post.medias || [];
+  const [mediaIdx, setMediaIdx] = useState(0);
+  useEffect(() => {
+    if (mediaIdx >= medias.length) setMediaIdx(0);
+  }, [medias.length]);
+  const time = new Date(post.createdAt).toLocaleString();
+  const tags = (post.tags || []).map(t => t.name);
 
+  const [byType, setByType] = useState<Record<ReactionType, number>>({
+    Like: post.reactions?.byType?.Like ?? 0,
+    Love: post.reactions?.byType?.Love ?? 0,
+    Haha: post.reactions?.byType?.Haha ?? 0,
+    Wow:  post.reactions?.byType?.Wow  ?? 0,
+    Sad:  post.reactions?.byType?.Sad  ?? 0,
+    Angry:post.reactions?.byType?.Angry?? 0,
+  });
+  const [userReaction, setUserReaction] = useState<ReactionType | null>(post.reactions?.currentUserReaction ?? null as any);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const hoverTimer = useRef<number | null>(null);
+  const openPicker = () => {
+    if (hoverTimer.current) { window.clearTimeout(hoverTimer.current); hoverTimer.current = null; }
+    setPickerOpen(true);
+  };
+  const closePickerWithDelay = (ms = 120) => {
+    if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
+    hoverTimer.current = window.setTimeout(() => setPickerOpen(false), ms) as unknown as number;
+  };
+  const totalReacts = Object.values(byType).reduce((a,b)=>a+b,0);
+  const [shareOpen, setShareOpen] = useState(false);
+  const commentCount = (post as any).commentCount ?? (post as any).comments ?? 0;
+  const shareCount = (post as any).shareCount ?? (post as any).shares ?? 0;
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [zoomScale, setZoomScale] = useState(1);
+  // Lock body scroll while viewer is open
+  useEffect(() => {
+    if (!imageViewerOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [imageViewerOpen]);
 
+  const chooseReaction = async (type: ReactionType) => {
+    if (!requireAuth()) return;
+    try {
+      const prev = userReaction;
+      // optimistic update
+      setByType(prevCounts => {
+        const next = { ...prevCounts };
+        if (prev && next[prev] > 0) next[prev] -= 1;
+        if (prev !== type) next[type] = (next[type] || 0) + 1;
+        return next;
+      });
+      setUserReaction(prev === type ? null : type);
+      const res = await postAPI.toggleReaction(post.id, type);
+      // res may be { removed: true } or { type: "Like" }
+      if (res && res.removed) {
+        setUserReaction(null);
+      }
+    } catch (e) {
+      // on error, reload from server next time; for now, ignore
+    } finally {
+      setPickerOpen(false);
+    }
+  };
+
+  return (
+    <article
+      className="rounded-2xl overflow-hidden ring-1 ring-black/5 cursor-pointer"
+      style={{ backgroundColor: 'var(--bg-secondary)' }}
+      onClick={() => router.push(`/posts/${post.id}`)}
+    >
+      {/* Header: author with hover card */}
+      <div className="px-4 py-3 flex items-center gap-3">
+        <ProfileHoverCard
+          user={{
+            id: author.profile?.id || post.authorProfileId,
+            username: username || "user",
+            name: display,
+            avatarUrl: avatar,
+            bio: author.profile?.bio || undefined,
+            followersCount: author.profile?.stats?.followers,
+            followingCount: author.profile?.stats?.following,
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={avatar} alt={username || display} className="w-9 h-9 rounded-full border cursor-pointer" />
+        </ProfileHoverCard>
+        <div className="min-w-0">
+          <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>{display}</div>
+          <div className="text-xs opacity-70 truncate">{username ? `@${username}` : ''} {username && '•'} {time}</div>
+        </div>
+      </div>
+
+      {/* Media (slider) */}
+      {medias.length > 0 && (
+        <div className="relative" onClick={(e)=>e.stopPropagation()}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={medias[mediaIdx]?.url}
+            alt={post.caption ?? ''}
+            className="w-full max-h-[520px] object-cover cursor-zoom-in"
+            onClick={() => { setImageViewerOpen(true); setZoomScale(1); }}
+          />
+          {medias.length > 1 && (
+            <>
+              <button
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                onClick={(e)=>{ e.stopPropagation(); setMediaIdx(i=> (i-1+medias.length)%medias.length); }}
+                aria-label="Previous"
+              >
+                ‹
+              </button>
+              <button
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                onClick={(e)=>{ e.stopPropagation(); setMediaIdx(i=> (i+1)%medias.length); }}
+                aria-label="Next"
+              >
+                ›
+              </button>
+              <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
+                {mediaIdx + 1}/{medias.length}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      {/* Image Viewer Overlay */}
+      {imageViewerOpen && (
+        <div
+          className="fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center"
+          onClick={(e)=>{ e.stopPropagation(); if (e.target === e.currentTarget) setImageViewerOpen(false); }}
+          onWheel={(e)=>{ e.preventDefault(); }}
+        >
+          <div className="absolute top-3 right-3">
+            <button
+              className="w-9 h-9 grid place-items-center rounded-full bg-white/20 text-white hover:bg-white/30"
+              onClick={(e)=>{ e.stopPropagation(); setImageViewerOpen(false); }}
+              aria-label="Close"
+            >
+              <i className="pi pi-times" />
+            </button>
+          </div>
+          {/* Prev/Next in viewer */}
+          {medias.length > 1 && (
+            <>
+              <button
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 grid place-items-center rounded-full bg-white/20 text-white hover:bg-white/30"
+                onClick={(e)=>{ e.stopPropagation(); setMediaIdx(i=> (i-1+medias.length)%medias.length); setZoomScale(1); }}
+                aria-label="Previous"
+              >
+                <i className="pi pi-chevron-left" />
+              </button>
+              <button
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 grid place-items-center rounded-full bg-white/20 text-white hover:bg-white/30"
+                onClick={(e)=>{ e.stopPropagation(); setMediaIdx(i=> (i+1)%medias.length); setZoomScale(1); }}
+                aria-label="Next"
+              >
+                <i className="pi pi-chevron-right" />
+              </button>
+            </>
+          )}
+          <div
+            className="relative max-w-[90vw] max-h-[85vh]"
+            onClick={(e)=>e.stopPropagation()}
+            onWheel={(e)=>{
+              e.preventDefault();
+              const delta = e.deltaY;
+              setZoomScale(prev => {
+                const next = Math.max(1, Math.min(2.5, prev + (delta < 0 ? 0.15 : -0.15)));
+                return Number(next.toFixed(2));
+              });
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={medias[mediaIdx]?.url}
+              alt={post.caption ?? ''}
+              className="mx-auto"
+              style={{
+                maxHeight: '85vh',
+                maxWidth: '90vw',
+                objectFit: 'contain',
+                transform: `scale(${zoomScale})`,
+                transition: 'transform 140ms ease',
+                cursor: zoomScale > 1 ? 'zoom-out' : 'zoom-in',
+              }}
+              onClick={()=> setZoomScale(z => (z > 1 ? 1 : 1.7))}
+            />
+            {/* Removed magnify button; use mouse wheel or click to toggle */}
+            <div className="absolute bottom-3 left-3 text-white text-xs bg-black/40 px-2 py-1 rounded-full">{mediaIdx + 1}/{medias.length}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Body */}
+      <div className="px-4 py-3 space-y-3">
+        {post.caption && <div className="text-sm" style={{ color: 'var(--text)' }}>{post.caption}</div>}
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {tags.map((t) => (
+              <span key={t} className="px-2 py-1 text-xs rounded-full" style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}>#{t}</span>
+            ))}
+          </div>
+        )}
+        {/* Reactions + counts + share */}
+        <div className="flex items-center justify-between">
+          <div
+            className="relative inline-flex items-center gap-2"
+            onMouseEnter={openPicker}
+            onMouseLeave={() => closePickerWithDelay(140)}
+            onClick={(e)=>e.stopPropagation()}
+          >
+            <button
+              className="px-2 py-1 rounded hover:bg-black/5"
+              onClick={(e) => { e.stopPropagation(); userReaction ? chooseReaction(userReaction) : chooseReaction('Like' as any); }}
+              aria-label="React"
+            >
+              {userReaction ? (
+                <span className="text-base">{({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[userReaction]}</span>
+              ) : (
+                <span className="text-sm opacity-80">React</span>
+              )}
+            </button>
+            {pickerOpen && (
+              <div
+                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-10 bg-black/75 text-white rounded-full px-1.5 py-1 flex items-center gap-1.5 shadow-lg"
+                onMouseEnter={openPicker}
+                onMouseLeave={() => closePickerWithDelay(120)}
+              >
+                {["Like","Love","Haha","Wow","Sad","Angry"].map(r => (
+                  <button
+                    key={r}
+                    className="w-8 h-8 grid place-items-center text-xl hover:scale-110 transition"
+                    onClick={() => chooseReaction(r as ReactionType)}
+                    title={r}
+                  >
+                    {({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[r]}
+                  </button>
+                ))}
+              </div>
+            )}
+            <span className="text-xs opacity-70">{totalReacts}</span>
+          </div>
+          <div className="flex items-center gap-4 text-sm opacity-80" onClick={(e)=>e.stopPropagation()}>
+            <span className="inline-flex items-center gap-1" title="Comments"><i className="pi pi-comments" /> {commentCount}</span>
+            <button className="inline-flex items-center gap-1 hover:opacity-100" title="Share" onClick={()=>setShareOpen(v=>!v)}>
+              <i className="pi pi-share-alt" /> {shareCount}
+            </button>
+            {shareOpen && (
+              <div className="absolute translate-y-10 right-4 z-10 bg-white dark:bg-neutral-900 border rounded-lg shadow p-2 flex flex-col text-sm">
+                <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{alert('Share to chat (todo)'); setShareOpen(false);}}>Share to chat</button>
+                <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{alert('Share to your profile (todo)'); setShareOpen(false);}}>Share to profile</button>
+                <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{navigator.clipboard?.writeText(window.location.origin + `/posts/${post.id}`); alert('Link copied'); setShareOpen(false);}}>Copy link</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}

@@ -3,16 +3,14 @@
 import { useState } from "react";
 import { Dock as PrimeDock } from "primereact/dock";
 import { useOverlay } from "./RootProvider";
-import InstagramPostDialog from "./PostDialog";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "primereact/sidebar";
 import { ScrollPanel } from "primereact/scrollpanel";
 import { Avatar } from "primereact/avatar";
 
 function Dock() {
-  const { showToast, confirm } = useOverlay();
+  const { showToast, confirm, openPostComposer } = useOverlay();
   const [active, setActive] = useState<string>("");
-  const [dialogVisible, setDialogVisible] = useState(false);
   const router = useRouter();
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
@@ -87,7 +85,7 @@ function Dock() {
       ),
       command: () => {
         setActive("New Post");
-        setDialogVisible(true);
+        openPostComposer();
       },
     },
     {
@@ -151,10 +149,7 @@ function Dock() {
       <div className="h-[68px]" />
 
       {/* Dialog tạo bài post */}
-      <InstagramPostDialog
-        visible={dialogVisible}
-        onHide={() => setDialogVisible(false)}
-      />
+      {/* Post composer handled globally in RootProvider */}
 
       {/* Sidebar tin nhắn */}
       <Sidebar
