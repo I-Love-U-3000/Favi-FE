@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import postAPI from "@/lib/api/postAPI";
+import { useAuth } from "@/components/AuthProvider";
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { Galleria } from 'primereact/galleria';
@@ -30,6 +32,7 @@ interface InstagramPostDialogProps {
 }
 
 const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHide }) => {
+  const { requireAuth } = useAuth();
   const [step, setStep] = useState(1);
   const [media, setMedia] = useState<File[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -169,6 +172,66 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
     if (media.length > 0) setStep(2);
   };
 
+  // Actual API-backed share
+  const sharePost = async () => {
+    if (!requireAuth()) return;
+    if (uploading) return;
+    try {
+      setUploading(true);
+      const created = await postAPI.create({ caption, tags });
+      if (media.length > 0) {
+        await postAPI.uploadMedia(created.id, media);
+      }
+      setStep(1);
+      setMedia([]);
+      setCaption('');
+      setTags([]);
+      setSelectedFiles([]);
+      setCropMode(false);
+      setCroppedImages([]);
+      setSelectedPlace(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      onHide();
+      alert('Bài viết đã được đăng!');
+    } catch (e: any) {
+      alert(e?.error || e?.message || 'Đăng bài thất bại');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Safer flow: create then upload, rollback on failure
+  const sharePostSafe = async () => {
+    if (!requireAuth()) return;
+    if (uploading) return;
+    let created: { id: string } | null = null;
+    try {
+      setUploading(true);
+      created = await postAPI.create({ caption, tags });
+      if (media.length > 0) {
+        await postAPI.uploadMedia(created.id, media);
+      }
+      setStep(1);
+      setMedia([]);
+      setCaption('');
+      setTags([]);
+      setSelectedFiles([]);
+      setCropMode(false);
+      setCroppedImages([]);
+      setSelectedPlace(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      onHide();
+      alert('Bài viết đã được đăng!');
+    } catch (e: any) {
+      if (created?.id) {
+        try { await postAPI.delete(created.id); } catch {}
+      }
+      alert(e?.error || e?.message || 'Đăng bài thất bại');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleShare = () => {
     setUploading(true);
     setTimeout(() => {
@@ -249,7 +312,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
           <Button
             label="Chia sẻ"
             icon="pi pi-check"
-            onClick={handleShare}
+            onClick={sharePostSafe}
             disabled={uploading}
             className="p-button-raised p-button-success"
           />

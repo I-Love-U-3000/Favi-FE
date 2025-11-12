@@ -1,7 +1,6 @@
 "use client";
 
 import authAPI from "@/lib/api/authAPI";
-import { profileAPI } from "@/lib/api/profileAPI";
 import { useState, useRef, useCallback, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -36,7 +35,6 @@ type RegisterForm = {
   password: string;
 };
 
-// nhận t qua tham số để không dùng hook ngoài component
 const validateLocalUsername = (
   username: string,
   t: (key: string) => string
@@ -45,12 +43,11 @@ const validateLocalUsername = (
   if (s.length < 3 || s.length > 32) return t("UsernameLength");
   if (/\s/.test(s)) return t("UsernameNoSpaces");
   if (!/^[a-zA-Z0-9_.]+$/.test(s)) return t("UsernameInvalidChars");
-  if (/[À-ỹ]/.test(s)) return t("UsernameNoVietnamese");
   return "";
 };
 
 export default function RegisterPage() {
-  const t = useTranslations("RegisterPage"); // <-- di chuyển vào đây
+  const t = useTranslations("RegisterPage");
   const router = useRouter();
   const toastRef = useRef<Toast | null>(null);
 
@@ -105,13 +102,6 @@ export default function RegisterPage() {
 
       setLoading(true);
       try {
-        const check = await profileAPI.checkUsername(values.username.trim());
-        if (!check.valid) {
-          showToast("warn", t("UsernameExists"), check.message);
-          setLoading(false);
-          return;
-        }
-
         const payload = {
           username: values.username.trim(),
           email: values.email.trim(),
@@ -123,13 +113,15 @@ export default function RegisterPage() {
         showToast("info", t("EmailVerification"), t("EmailVerificationDetail"));
         router.push("/auth/verify-notion");
       } catch (err: any) {
-        const code = err?.response?.data?.code;
-        const msg = err?.response?.data?.message || "Đã xảy ra lỗi";
+        const code = err?.response?.data?.code ?? err?.code ?? err?.status;
+        const msg = err?.response?.data?.message ?? err?.error ?? err?.message ?? t("UnknownError");
 
-        if (code === "EMAIL_EXISTS") {
+        if (code === "USERNAME_EXISTS") {
+          showToast("warn", t("UsernameExists"), msg);
+        } else if (code === "EMAIL_EXISTS") {
           showToast("warn", t("EmailExists"), msg);
-        } else if (code === "PROFILE_EXISTS") {
-          showToast("warn", t("ProfileExists"), msg);
+        } else if (code === "REGISTRATION_FAILED") {
+          showToast("error", t("RegisterFailed"), msg);
         } else {
           showToast("error", t("RegisterFailed"), msg);
         }
@@ -258,7 +250,7 @@ export default function RegisterPage() {
                 type={showPassword ? "text" : "password"}
                 value={values.password}
                 onChange={(e) => onChange("password", e.target.value)}
-                placeholder="●●●●●●●●"
+                placeholder="�-?�-?�-?�-?�-?�-?�-?�-?"
                 className="w-full !h-12 !text-base"
                 required
               />

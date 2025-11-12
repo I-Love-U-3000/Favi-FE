@@ -15,6 +15,7 @@ import { Separator } from "@/components/Seperator";
 import { Badge } from "primereact/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/Dropdown-menu";
 import { MessageCircle, Share2, Lock, Users, Globe, Edit, Trash2, MoreHorizontal, ZoomIn, ZoomOut, Smile } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 import { mockPost } from "@/lib/mockTest/mockPost";
 import { mockCollection } from "@/lib/mockTest/mockCollection";
 import { Link, useRouter } from "@/i18n/routing";
@@ -54,6 +55,7 @@ const PrivacyIcon = ({ privacy }: { privacy: PrivacyType }) => {
 export default function PostPage({ params }: PostPageProps) {
   const { id } = params;
   const router = useRouter();
+  const { requireAuth } = useAuth();
 
   let post = seedPosts.find((p) => p.id === id) as any;
   if (!post) {
@@ -126,6 +128,7 @@ export default function PostPage({ params }: PostPageProps) {
   const lastCommentRef = useRef<HTMLDivElement>(null);
 
   function chooseReaction(type: ReactionType) {
+    if (!requireAuth()) return;
     setReactionCounts((prev) => {
       const next = { ...prev } as Record<ReactionType, number>;
       if (userReaction === type) {
@@ -140,6 +143,7 @@ export default function PostPage({ params }: PostPageProps) {
     setPickerOpen(false);
   }
   function chooseCommentReaction(id: string, type: ReactionType) {
+    if (!requireAuth()) return;
     setCommentReactions(prev => {
       const entry = prev[id] ?? { counts: { Like:0, Love:0, Haha:0, Wow:0, Sad:0, Angry:0 } as Record<ReactionType, number>, user: undefined as ReactionType | undefined };
       const next = { ...entry, counts: { ...entry.counts } } as { counts: Record<ReactionType, number>; user?: ReactionType };
@@ -157,6 +161,7 @@ export default function PostPage({ params }: PostPageProps) {
   }
 
   function handleAddComment() {
+    if (!requireAuth()) return;
     const txt = newComment.trim();
     if (!txt) return;
     const updated: CommentItem[] = [
@@ -207,9 +212,9 @@ export default function PostPage({ params }: PostPageProps) {
               </Button>
               {/* comment reaction */}
               <div className="relative inline-flex items-center gap-2" onMouseEnter={() => setCommentPickerFor(c.id)} onMouseLeave={() => setCommentPickerFor(null)}>
-                <Button className="p-button-text p-button-sm" aria-label="React" onClick={() => chooseCommentReaction(c.id, 'Like')}>
+                <Button className="p-button-text p-button-sm" aria-label="React" onClick={() => { const cur = commentReactions[c.id]?.user as ReactionType | undefined; if (cur) { chooseCommentReaction(c.id, cur); } else { setCommentPickerFor(c.id); } }}>
                   {commentReactions[c.id]?.user ? (
-                    <span className="text-base">{({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[commentReactions[c.id]!.user!]}</span>
+                    <span className="text-base">{EMOJI[commentReactions[c.id]!.user!]}</span>
                   ) : (
                     <Smile className="h-3.5 w-3.5" />
                   )}
@@ -217,7 +222,7 @@ export default function PostPage({ params }: PostPageProps) {
                 {commentPickerFor === c.id && (
                   <div className="absolute z-10 mt-8 bg-black/70 text-white rounded-full px-2 py-1 flex items-center gap-2">
                     {["Like","Love","Haha","Wow","Sad","Angry"].map(r => (
-                      <button key={r} className="text-xl hover:scale-110 transition" onClick={() => chooseCommentReaction(c.id, r as ReactionType)}>{({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[r]}</button>
+                      <button key={r} className="text-xl hover:scale-110 transition" onClick={() => chooseCommentReaction(c.id, r as ReactionType)}>{EMOJI[r as ReactionType]}</button>
                     ))}
                   </div>
                 )}
@@ -233,7 +238,14 @@ export default function PostPage({ params }: PostPageProps) {
                   <i className="pi pi-image" />
                   <input type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(!f) return; setReplyImage(URL.createObjectURL(f)); }} />
                 </label>
-                <Button className="p-button-sm" label="Reply" onClick={() => {
+                {replyImage && (
+                  <div className="flex items-center gap-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={replyImage} alt="preview" className="h-16 max-w-[120px] rounded-lg object-cover" />
+                    <Button className="p-button-text p-button-sm" label="Remove" onClick={() => setReplyImage(null)} />
+                  </div>
+                )}
+                <Button className="p-button-sm" label="Reply" onClick={() => { if (!requireAuth()) return;
                   const t = replyText.trim(); if (!t) return;
                   const next = structuredClone(comments) as CommentItem[];
                   // Attach to root-level thread (only one child layer)
@@ -250,7 +262,7 @@ export default function PostPage({ params }: PostPageProps) {
                   setComments(next); setReplyToId(null); setReplyText("");
                   setReplyImage(null);
                 }} />
-                <Button className="p-button-text p-button-sm" label="Cancel" onClick={() => { setReplyToId(null); setReplyText(""); }} />
+                <Button className="p-button-text p-button-sm" label="Cancel" onClick={() => { setReplyToId(null); setReplyText(""); setReplyImage(null); }} />
               </div>
             )}
           </div>
@@ -283,14 +295,14 @@ export default function PostPage({ params }: PostPageProps) {
                         )}
                         <div className="mt-1 inline-flex items-center gap-2">
                           <Button className="p-button-text p-button-sm" onClick={() => setReplyToId(r.id)}>Reply</Button>
-                          <div className="relative inline-flex items-center gap-1">
-                            <Button className="p-button-text p-button-sm" aria-label="React" onClick={() => setCommentPickerFor(prev => prev===r.id?null:r.id)}>
-                              <span className={`text-base ${!commentReactions[r.id]?.user ? 'opacity-60' : ''}`}>{commentReactions[r.id]?.user ? ({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[commentReactions[r.id]!.user!] : '👍'}</span>
+                          <div className="relative inline-flex items-center gap-1" onMouseEnter={() => setCommentPickerFor(r.id)} onMouseLeave={() => setCommentPickerFor(null)}>
+                            <Button className="p-button-text p-button-sm" aria-label="React" onClick={() => { const cur = commentReactions[r.id]?.user as ReactionType | undefined; if (cur) { chooseCommentReaction(r.id, cur); } else { setCommentPickerFor(prev => prev===r.id?null:r.id); } }}>
+                              {renderCommentReactionIcon(commentReactions[r.id]?.user as ReactionType | undefined)}
                             </Button>
                             {commentPickerFor === r.id && (
                               <div className="absolute z-10 mt-8 bg-black/70 text-white rounded-full px-2 py-1 flex items-center gap-2">
                                 {["Like","Love","Haha","Wow","Sad","Angry"].map(x => (
-                                  <button key={x} className="text-xl hover:scale-110 transition" onClick={() => chooseCommentReaction(r.id, x as ReactionType)}>{({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[x]}</button>
+                                  <button key={x} className="text-xl hover:scale-110 transition" onClick={() => chooseCommentReaction(r.id, x as ReactionType)}>{EMOJI[x as ReactionType]}</button>
                                 ))}
                               </div>
                             )}
@@ -304,7 +316,14 @@ export default function PostPage({ params }: PostPageProps) {
                               <i className="pi pi-image" />
                               <input type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(!f) return; setReplyImage(URL.createObjectURL(f)); }} />
                             </label>
-                            <Button className="p-button-sm" label="Reply" onClick={() => {
+                            {replyImage && (
+                              <div className="flex items-center gap-2">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={replyImage} alt="preview" className="h-16 max-w-[120px] rounded-lg object-cover" />
+                                <Button className="p-button-text p-button-sm" label="Remove" onClick={() => setReplyImage(null)} />
+                              </div>
+                            )}
+                            <Button className="p-button-sm" label="Reply" onClick={() => { if (!requireAuth()) return;
                               const t = replyText.trim(); if (!t) return;
                               const next = structuredClone(comments) as CommentItem[];
                               function attachToRoot(arr: CommentItem[], rootId: string, child: CommentItem){ for (const root of arr){ if (root.id===rootId || (root.replies ?? []).some(x=>x.id===rootId) || (root.replies ?? []).some(x=> (x.replies??[]).some(y=>y.id===rootId))){ root.replies = root.replies ?? []; root.replies.push(child); return true;} } return false; }
@@ -341,6 +360,22 @@ export default function PostPage({ params }: PostPageProps) {
     return n;
   }
 
+  const EMOJI: Record<ReactionType, string> = {
+    Like: "👍",
+    Love: "❤️",
+    Haha: "😂",
+    Wow: "😮",
+    Sad: "😢",
+    Angry: "😡",
+  };
+
+  function renderCommentReactionIcon(rt?: ReactionType | null) {
+    return rt ? (
+      <span className="text-base">{EMOJI[rt]}</span>
+    ) : (
+      <Smile className="h-3.5 w-3.5 opacity-60" />
+    );
+  }
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: "var(--bg)", color: "var(--text)" }}>
       <div className="fixed left-4 top-1/2 -translate-y-1/2">
@@ -571,3 +606,6 @@ export default function PostPage({ params }: PostPageProps) {
     </div>
   );
 }
+
+
+

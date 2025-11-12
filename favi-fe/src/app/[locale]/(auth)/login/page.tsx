@@ -4,7 +4,7 @@ import authAPI from "@/lib/api/authAPI";
 import { LoginRequest } from "@/types";
 import { useState, useRef, useCallback, FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/routing";
 import { Card } from "primereact/card";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
@@ -14,6 +14,7 @@ import { Toast } from "primereact/toast";
 import LoginBackdrop from "@/components/LoginRegisterBackground";
 import { supabase } from "@/app/supabase-client";
 import { useTranslations } from "next-intl";
+import { useAuth } from "@/components/AuthProvider";
 
 async function loginWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
@@ -34,6 +35,7 @@ export default function LoginPage() {
   const t = useTranslations("LoginPage");
   const router = useRouter();
   const toastRef = useRef<Toast | null>(null);
+  const { setGuestMode } = useAuth();
 
   const [values, setValues] = useState<LoginRequest>({
     identifier: "",
@@ -62,6 +64,8 @@ export default function LoginPage() {
     []
   );
 
+  const { refresh } = useAuth();
+
   const handleLogin = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
@@ -78,14 +82,10 @@ export default function LoginPage() {
         }
 
         await authAPI.loginWithIdentifier(id, pwd);
-
-        // (Khuyến nghị) Lấy profile chuẩn từ server rồi điều hướng
-        // Nếu bạn đã có profileAPI:
-        // const prof = await getMyProfile();
-        // router.push(prof?.username ? "/home" : "/onboarding");
-
+        setGuestMode(false);
         showToast("success", "Đăng nhập thành công");
-        router.push("/home"); // tạm thời điều hướng thẳng, tùy flow của bạn
+        refresh();
+        router.replace("/home");
       } catch (err: any) {
         // fetchWrapper nên trả lỗi có message; nếu không, fallback
         const msg = err?.message ?? "Unknown error";
@@ -109,6 +109,13 @@ export default function LoginPage() {
       setGoogleLoading(false);
     }
   }, [googleLoading, showToast]);
+
+  const handleGuest = useCallback(() => {
+    try {
+      setGuestMode(true);
+      router.push("/home");
+    } catch {}
+  }, [setGuestMode, router]);
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0ea5e9]/10 via-[#a78bfa]/10 to-[#22c55e]/10 flex flex-col items-center justify-center p-6">
@@ -235,6 +242,14 @@ export default function LoginPage() {
             className="w-full p-button-outlined !h-12 !text-base !font-semibold"
             disabled={googleLoading}
             aria-busy={googleLoading}
+          />
+
+          <Button
+            type="button"
+            onClick={handleGuest}
+            label="Tiếp tục ở chế độ khách"
+            icon="pi pi-user"
+            className="w-full p-button-text !h-12 !text-base"
           />
         </form>
       </Card>

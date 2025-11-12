@@ -6,11 +6,13 @@ import FeedCard, {Feed} from "@/components/FeedCard";
 
 
 import { useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { mockPost } from "@/lib/mockTest/mockPost";
 import { mockCollection } from "@/lib/mockTest/mockCollection";
 import { useRouter, Link } from "@/i18n/routing";
 
 export default function HomePage() {
+  const { isAuthenticated, user } = useAuth();
   const [view, setView] = useState<"list" | "grid">("list");
   const router = useRouter();
   const [quickQ, setQuickQ] = useState("");
@@ -89,9 +91,29 @@ export default function HomePage() {
 
           {/* Cột giữa (Stories + Feed) */}
           <section>
+                {isAuthenticated && (
+                  <div className="shrink-0" title={user?.email || (user?.id ?? '')}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`https://i.pravatar.cc/40?u=${encodeURIComponent((user?.id || user?.email || 'me') as string)}`}
+                      alt="me"
+                      className="w-9 h-9 rounded-full border"
+                    />
+                  </div>
+                )}
             {/* Top search bar (sticky) */}
             <div className="sticky top-0 z-30 -mt-6 pt-6 pb-3" style={{ background: "linear-gradient(var(--bg),var(--bg))", borderBottom: "1px solid var(--border)" }}>
               <div className="flex items-center gap-2">
+                {isAuthenticated && (
+                  <div className="shrink-0" title={user?.email || (user?.id ?? '')}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`https://i.pravatar.cc/40?u=${encodeURIComponent((user?.id || user?.email || 'me') as string)}`}
+                      alt="me"
+                      className="w-9 h-9 rounded-full border"
+                    />
+                  </div>
+                )}
                 <span className="p-input-icon-left w-full">
                   <i className="pi pi-search" />
                   <input

@@ -73,3 +73,69 @@ export type Collection = {
   coverUrl: string;
   count: number;
 };
+
+// ============
+// Post DTOs (align with backend)
+// ============
+
+// Use a numeric alias for PrivacyLevel to match typical .NET enum JSON (number)
+export type PrivacyLevel = number;
+
+export type ReactionType =
+  | "Like"
+  | "Love"
+  | "Haha"
+  | "Wow"
+  | "Sad"
+  | "Angry";
+
+export type CreatePostRequest = {
+  caption?: string | null;
+  tags?: string[] | null;
+};
+
+export type UpdatePostRequest = {
+  caption?: string | null;
+};
+
+export type TagDto = {
+  id: string; // Guid
+  name: string;
+};
+
+export type PostMediaResponse = {
+  id: string; // Guid
+  postId: string; // Guid
+  url: string;
+  publicId: string;
+  width: number;
+  height: number;
+  format: string;
+  position: number;
+  thumbnailUrl?: string | null;
+};
+
+export type ReactionSummaryDto = {
+  total: number;
+  byType: Record<ReactionType, number>;
+  currentUserReaction?: ReactionType | null;
+};
+
+export type PostResponse = {
+  id: string; // Guid
+  authorProfileId: string; // Guid
+  caption?: string | null;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+  privacyLevel: PrivacyLevel;
+  medias: PostMediaResponse[];
+  tags: TagDto[];
+  reactions: ReactionSummaryDto;
+};
+
+export type PagedResult<T> = {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+};

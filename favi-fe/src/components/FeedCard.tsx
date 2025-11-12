@@ -7,6 +7,7 @@ import { Share2, Smile } from "lucide-react";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import { Link } from "@/i18n/routing";
 import { useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { mockCollection } from "@/lib/mockTest/mockCollection";
 export type Feed = {
   id: string;
@@ -19,6 +20,7 @@ export type Feed = {
 };
 
 export default function FeedCard({ f }: { f: Feed }) {
+  const { requireAuth } = useAuth();
   const [reactionCounts, setReactionCounts] = useState<{ Like: number; Love: number; Haha: number; Wow: number; Sad: number; Angry: number }>({
     Like: f.stats?.likes ?? 0,
     Love: 0,
@@ -34,6 +36,7 @@ export default function FeedCard({ f }: { f: Feed }) {
 
   const totalReactions = Object.values(reactionCounts).reduce((a, b) => a + b, 0);
   const chooseReaction = (type: keyof typeof reactionCounts) => {
+    if (!requireAuth()) return;
     setReactionCounts(prev => {
       const next = { ...prev };
       if (userReaction === type) {
@@ -79,7 +82,7 @@ export default function FeedCard({ f }: { f: Feed }) {
                     <Link
                       href={`/profile/${(f.host.name || "").toLowerCase().replace(/\s+/g, "")}`}
                       className="block"
-                      onClick={(e) => { e.stopPropagation(); }}
+                      onClick={(e) => { e.stopPropagation(); if (!requireAuth()) { e.preventDefault(); } }}
                     >
                       <Avatar className="h-8 w-8 cursor-pointer">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
