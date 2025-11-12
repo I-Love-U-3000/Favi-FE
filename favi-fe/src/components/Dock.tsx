@@ -143,19 +143,7 @@ function Dock() {
           </div>
 
           {/* Search hoặc Avatar bên phải */}
-          <div className="flex items-center gap-3">
-            <input
-              type="text"
-              placeholder="Search..."
-              className="hidden md:block border border-gray-200 rounded-full px-4 py-1.5 text-sm focus:ring-2 focus:ring-sky-300 outline-none"
-            />
-            <Avatar
-              image="https://i.pravatar.cc/100?img=10"
-              shape="circle"
-              className="cursor-pointer border border-gray-300"
-              onClick={() => router.push("/profile")}
-            />
-          </div>
+          <div className="flex items-center gap-3"></div>
         </div>
       </header>
 
@@ -224,3 +212,5 @@ function Dock() {
 }
 
 export default Dock;
+
+

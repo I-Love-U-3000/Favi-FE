@@ -1,8 +1,10 @@
 interface Message {
   id: number;
   sender: string;
-  text: string;
+  text?: string;
   timestamp: string;
+  imageUrl?: string;
+  stickerUrl?: string; // gif/sticker
 }
 
 interface MessageItemProps {
@@ -22,7 +24,15 @@ export default function MessageItem({ message, isSent }: MessageItemProps) {
             : "bg-gray-700 text-white hover:bg-gray-600"
         } transition-colors`}
       >
-        <p className="break-words">{message.text}</p>
+        {message.text && <p className="break-words">{message.text}</p>}
+        {message.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={message.imageUrl} alt="attachment" className="mt-1 max-h-64 rounded-lg object-contain" />
+        )}
+        {message.stickerUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={message.stickerUrl} alt="sticker" className="mt-1 h-24 w-24 object-contain" />
+        )}
         <div className="text-xs text-gray-400 mt-1">{message.timestamp}</div>
       </div>
     </div>

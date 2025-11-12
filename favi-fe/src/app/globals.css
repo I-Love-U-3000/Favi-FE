@@ -136,3 +136,12 @@ html.oceanic {
 .font-fulcher {
   font-family: "Fulcher";
 }
+
+/* Apply theme variables to page base */
+html, body {
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+/* Ensure links inherit text color by default */
+a { color: inherit; }

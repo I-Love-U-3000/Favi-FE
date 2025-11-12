@@ -3,10 +3,17 @@
 import Dock from "@/components/Dock";
 import StoriesStrip from "@/components/StoriesStrip";
 import FeedCard, {Feed} from "@/components/FeedCard";
-import LeftColumn from "@/components/LeftColumn";
-import RightLivePanel from "@/components/RightLivePanel";
+
+
+import { useState } from "react";
+import { mockPost } from "@/lib/mockTest/mockPost";
+import { mockCollection } from "@/lib/mockTest/mockCollection";
+import { useRouter, Link } from "@/i18n/routing";
 
 export default function HomePage() {
+  const [view, setView] = useState<"list" | "grid">("list");
+  const router = useRouter();
+  const [quickQ, setQuickQ] = useState("");
   // ===== Mock data (bạn có thể thay bằng dữ liệu thật sau) =====
   const stories = [
     { id: "s1", name: "Quinn",    avatar: "https://i.pravatar.cc/80?img=11", isOnline: true },
@@ -24,7 +31,7 @@ export default function HomePage() {
       id: "f1",
       date: { mon: "MAY", day: "08" },
       cover:
-        "https://images.unsplash.com/photo-1520975922284-9bcd70a4b1a9?q=80&w=1200&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1579353977828-2a4eab540b9a?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c2FtcGxlfGVufDB8fDB8fHww&fm=jpg&q=60&w=3000",
       title: "How To Manage Your Time & Get More Done",
       desc:
         "It may not be possible to squeeze more time in the day without sacrificing sleep. So, how do you achieve more?",
@@ -39,7 +46,7 @@ export default function HomePage() {
       id: "f2",
       date: { mon: "MAY", day: "09" },
       cover:
-        "https://images.unsplash.com/photo-1503342217505-b0a15cf70489?q=80&w=1200&auto=format&fit=crop",
+        "https://images.all-free-download.com/images/graphiclarge/iphone_6_sample_photo_566464.jpg",
       title: "How to Learn Anything! For Creatives & Self Learners",
       desc:
         "What are the 3 essential skills that are critical in the 21st century? School cancelled or home school?",
@@ -52,61 +59,135 @@ export default function HomePage() {
     },
   ];
 
-  const groups = [
-    { id: "g1", name: "Figma Community" },
-    { id: "g2", name: "Sketch Community" },
-  ];
-
-  const friends = [
-    { id: "u1", name: "Eleanor Pena",  avatar: "https://i.pravatar.cc/80?img=31", activeAgo: "11 min", online: true },
-    { id: "u2", name: "Leslie Alexander", avatar: "https://i.pravatar.cc/80?img=32", activeAgo: "11 min" },
-    { id: "u3", name: "Brooklyn Simmons", avatar: "https://i.pravatar.cc/80?img=33", activeAgo: "11 min", online: true },
-    { id: "u4", name: "Arlene McCoy", avatar: "https://i.pravatar.cc/80?img=34", activeAgo: "11 min" },
-    { id: "u5", name: "Jerome Bell", avatar: "https://i.pravatar.cc/80?img=35", activeAgo: "9 min" },
-    { id: "u6", name: "Darlene Robertson", avatar: "https://i.pravatar.cc/80?img=36", activeAgo: "9 min", online: true },
-  ];
-
-  const liveChats = [
-    { id: "c1", name: "Suny Suka", text: "Wow! Keep it up dude 🔥", time: "09:00" },
-    { id: "c2", name: "Arman Albreg", text: "Awesome 👍", time: "09:02" },
-    { id: "c3", name: "John Doe", text: "Can you link my comment here? 😅", time: "09:04" },
-    { id: "c4", name: "Stevany Pearl", text: "Great work team, thanks guys.", time: "09:07" },
-    { id: "c5", name: "Sarah Houldston", text: "🔥🔥 Such a great information guys.", time: "09:12" },
-  ];
-
-  // ====== UI ======
+        // ====== UI ======
   return (
-    <div className="flex bg-gray-100 min-h-screen">
+    <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
       {/* Dock cố định giữa bên trái */}
       <div className="fixed left-4 top-1/2 -translate-y-1/2 z-20">
         <Dock />
       </div>
 
       {/* Nội dung */}
-      <main className="flex-1 p-6 ml-24">
-        <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_360px] gap-6">
+      <main className="flex-1 p-6 ">
+        <div className="mx-auto max-w-7xl grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
           {/* Cột trái */}
-          <LeftColumn groups={groups} friends={friends} />
+          {/* Left column removed to free space for feed */}
+          <aside className="hidden lg:block" style={{ display: 'none' }}>
+            <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+              <h4 className="text-sm font-semibold">Trending keywords</h4>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(() => {
+                  const freq = new Map<string, number>();
+                  mockPost.forEach(p => (p.tags ?? []).forEach(t => freq.set(t, (freq.get(t) ?? 0) + 1)));
+                  return [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0,15).map(([t]) => (
+                    <button key={t} onClick={() => router.push(`/search?mode=tag&tag=${encodeURIComponent(t)}`)} className="px-3 py-1.5 text-xs rounded-full hover:opacity-100" style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>#{t}</button>
+                  ));
+                })()}
+              </div>
+            </div>
+          </aside>
 
           {/* Cột giữa (Stories + Feed) */}
           <section>
+            {/* Top search bar (sticky) */}
+            <div className="sticky top-0 z-30 -mt-6 pt-6 pb-3" style={{ background: "linear-gradient(var(--bg),var(--bg))", borderBottom: "1px solid var(--border)" }}>
+              <div className="flex items-center gap-2">
+                <span className="p-input-icon-left w-full">
+                  <i className="pi pi-search" />
+                  <input
+                    value={quickQ}
+                    onChange={(e) => setQuickQ(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e as any).key === "Enter") {
+                        router.push(`/search?mode=keyword&q=${encodeURIComponent(quickQ)}`);
+                      }
+                    }}
+                    placeholder="Search photos, captions, tags…"
+                    className="w-full px-4 py-2 rounded-xl border"
+                    style={{ backgroundColor: "var(--input-bg)", color: "var(--text)", borderColor: "var(--input-border)" }}
+                  />
+                </span>
+                <button
+                  onClick={() => router.push(`/search?mode=keyword&q=${encodeURIComponent(quickQ)}`)}
+                  className="px-4 py-2 rounded-xl"
+                  style={{ backgroundColor: "var(--primary)", color: "white" }}
+                >
+                  Search
+                </button>
+              </div>
+            </div>
             {/* Stories */}
-            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm px-4">
+            <div className="rounded-2xl shadow-sm px-4" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
               <StoriesStrip stories={stories} />
             </div>
 
-            {/* Feed */}
-            <div className="mt-6 space-y-6">
-              {feeds.map((f) => (
-                <FeedCard key={f.id} f={f} />
-              ))}
+            {/* Feed controls */}
+            <div className="mt-6 flex items-center justify-between">
+              <div className="text-sm opacity-70">Your feed</div>
+              <div className="inline-flex rounded-full p-1 bg-black/5">
+                <button onClick={() => setView("list")} className={`px-3 py-1.5 text-xs rounded-full ${view==="list"?"bg-white shadow ring-1 ring-black/10":"opacity-70 hover:opacity-100"}`}>List</button>
+                <button onClick={() => setView("grid")} className={`px-3 py-1.5 text-xs rounded-full ${view==="grid"?"bg-white shadow ring-1 ring-black/10":"opacity-70 hover:opacity-100"}`}>Grid</button>
+              </div>
             </div>
+
+            {view === "list" ? (
+              <div className="mt-4 space-y-6">
+                {feeds.map((f, idx) => (
+                  <div key={f.id} className="cursor-pointer" onClick={()=>router.push(`/posts/${f.id}`)}>
+                    <FeedCard f={f} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {mockPost.map((p) => (
+                  <Link key={p.id} href={`/posts/${p.id}`} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.imageUrl} alt={p.alt ?? ""} className="h-44 w-full object-cover transition-transform group-hover:scale-105" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </Link>
+                ))}
+              </div>
+            )}
           </section>
 
           {/* Cột phải (Live) */}
-          <RightLivePanel chats={liveChats} />
+          <aside className="hidden xl:block">
+            <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+              <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                <h4 className="text-sm font-semibold">Trending collections</h4>
+              </div>
+              <div className="p-4 space-y-3">
+                {mockCollection.map(c => (
+                  <a key={c.id} href={`/collections/${c.id}`} className="rounded-xl overflow-hidden ring-1 ring-black/5 block hover:shadow">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={c.coverUrl} alt={c.title} className="w-full h-28 object-cover" />
+                    <div className="px-3 py-2 flex items-center justify-between">
+                      <div className="text-sm font-medium">{c.title}</div>
+                      <div className="text-xs opacity-70">{c.count} photos</div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-2xl p-4 mt-4" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+              <h4 className="text-sm font-semibold">Trending keywords</h4>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(() => {
+                  const freq = new Map<string, number>();
+                  mockPost.forEach(p => (p.tags ?? []).forEach(t => freq.set(t, (freq.get(t) ?? 0) + 1)));
+                  return [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0,15).map(([t]) => (
+                    <button key={t} onClick={() => router.push(`/search?mode=tag&tag=${encodeURIComponent(t)}`)} className="px-3 py-1.5 text-xs rounded-full hover:opacity-100" style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>#{t}</button>
+                  ));
+                })()}
+              </div>
+            </div>
+          </aside>
         </div>
       </main>
     </div>
   );
 }
+
+
+

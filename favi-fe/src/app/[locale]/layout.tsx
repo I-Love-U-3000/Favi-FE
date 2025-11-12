@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/theme/ThemeProvider";
 import { Toast } from "primereact/toast";
 import { RootProvider } from "@/components/RootProvider";
 import { NextIntlClientProvider } from "next-intl";
+import Navbar from "@/components/Navbar";
 
 export const metadata: Metadata = {
   title: "Favi",
@@ -22,7 +23,10 @@ export default function RootLayout({
           <ThemeProvider>
             <Toast />
             <RootProvider>
-              {children}
+              <div className="min-h-screen flex">
+                <Navbar />
+                <main className="flex-1">{children}</main>
+              </div>
             </RootProvider>
           </ThemeProvider>
         </NextIntlClientProvider>

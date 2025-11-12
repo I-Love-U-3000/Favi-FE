@@ -14,7 +14,7 @@ import {mockPost} from "@/lib/mockTest/mockPost";
 import type {PhotoPost} from "@/types";
 
 /* ==================== Utils & Mock helpers ==================== */
-type Mode = "keyword" | "tag" | "color" | "ai" | "trending";
+type Mode = "keyword" | "tag" | "color" | "ai" | "trending" | "combined";
 
 function asArray<T>(x: T | T[] | undefined | null): T[] {
   if (!x) return [];
@@ -41,20 +41,36 @@ function topTags(posts: PhotoPost[], limit = 12) {
 }
 
 /* ==================== Small UI bits ==================== */
+import { Link } from "@/i18n/routing";
+
+// Simple mock reaction breakdown from likeCount
+function reactionBreakdown(n: number) {
+  const like = Math.max(0, Math.round(n * 0.55));
+  const love = Math.max(0, Math.round(n * 0.2));
+  const haha = Math.max(0, Math.round(n * 0.1));
+  const wow = Math.max(0, Math.round(n * 0.08));
+  const sad = Math.max(0, Math.round(n * 0.04));
+  const angry = Math.max(0, Math.round(n * 0.03));
+  return { like, love, haha, wow, sad, angry };
+}
+
 function ResultCard({p}: {p: PhotoPost}) {
+  const r = reactionBreakdown(p.likeCount ?? 0);
   return (
-    <article className="group relative overflow-hidden rounded-2xl ring-1 ring-black/5 dark:ring-white/10 bg-white/70 dark:bg-neutral-900/60 shadow-sm hover:shadow-md transition-shadow">
+    <Link href={`/posts/${p.id}`} className="group relative overflow-hidden rounded-2xl ring-1 ring-black/5 bg-white/70 shadow-sm hover:shadow-md transition-shadow" style={{ color: 'inherit', borderColor: 'var(--border)' }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={p.imageUrl}
-        alt={p.alt ?? ""}
-        className="h-56 w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-        loading="lazy"
-      />
+      <img src={p.imageUrl} alt={p.alt ?? ""} className="h-56 w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" loading="lazy" />
       <div className="absolute inset-x-0 bottom-0 p-3 text-xs bg-gradient-to-t from-black/60 to-transparent text-white">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1"><i className="pi pi-heart" /> {p.likeCount}</span>
+          <div className="flex items-center gap-2">
+            <span title="reactions" className="inline-flex items-center gap-2">
+              <span className="inline-flex items-center gap-1"><span>👍</span> {r.like}</span>
+              <span className="inline-flex items-center gap-1"><span>❤️</span> {r.love}</span>
+              <span className="inline-flex items-center gap-1"><span>😂</span> {r.haha}</span>
+              <span className="inline-flex items-center gap-1"><span>😮</span> {r.wow}</span>
+              <span className="inline-flex items-center gap-1"><span>😢</span> {r.sad}</span>
+              <span className="inline-flex items-center gap-1"><span>😡</span> {r.angry}</span>
+            </span>
             <span className="inline-flex items-center gap-1"><i className="pi pi-comments" /> {p.commentCount}</span>
           </div>
           <div className="flex gap-1">
@@ -64,7 +80,7 @@ function ResultCard({p}: {p: PhotoPost}) {
           </div>
         </div>
       </div>
-    </article>
+    </Link>
   );
 }
 
@@ -102,6 +118,9 @@ export default function SearchPage() {
   const [aiPrompt, setAiPrompt] = useState(sp.get("prompt") ?? "");
   const [strictColor, setStrictColor] = useState(sp.get("strict") === "1");
   const [colorTolerance, setColorTolerance] = useState(Number(sp.get("tol") ?? 100));
+  // Combined mode extras
+  const [tagsMulti, setTagsMulti] = useState<string[]>([]);
+  const [matchAllTags, setMatchAllTags] = useState<boolean>(true);
 
   // Sync URL when inputs change
   useEffect(() => {
@@ -175,6 +194,40 @@ const haystackOf = (p: PhotoPost) => {
     return [...posts].sort((a,b)=> (b.likeCount ?? 0) - (a.likeCount ?? 0)).slice(0, 24);
   }, [posts]);
 
+  // Combined results (AND across non-empty controls)
+  const combinedResults = useMemo(() => {
+    return posts.filter(p => {
+      // keyword
+      if (q.trim()) {
+        if (!haystackOf(p).includes(q.toLowerCase())) return false;
+      }
+      // tags
+      if (tagsMulti.length) {
+        const ptags = (p.tags ?? []).map(t => t.toLowerCase());
+        const lower = tagsMulti.map(t => t.toLowerCase().trim()).filter(Boolean);
+        if (lower.length) {
+          if (matchAllTags) {
+            if (!lower.every(t => ptags.includes(t))) return false;
+          } else {
+            if (!lower.some(t => ptags.includes(t))) return false;
+          }
+        }
+      }
+      // color
+      if (color) {
+        const col = String((p as any).dominantColor ?? "#999999").toLowerCase();
+        const dist = colorDistance(color.toLowerCase(), col);
+        if (strictColor ? dist >= 5 : dist > colorTolerance) return false;
+      }
+      // ai prompt
+      if (aiPrompt.trim()) {
+        const words = aiPrompt.toLowerCase().split(/\s+/).filter(Boolean);
+        if (words.length && !words.every(w => haystackOf(p).includes(w))) return false;
+      }
+      return true;
+    });
+  }, [posts, q, tagsMulti, matchAllTags, color, strictColor, colorTolerance, aiPrompt]);
+
   // Active result
   const results = useMemo(() => {
     switch (mode) {
@@ -183,8 +236,9 @@ const haystackOf = (p: PhotoPost) => {
       case "color": return colorResults;
       case "ai": return aiResults;
       case "trending": return trendingResults;
+      case "combined": return combinedResults;
     }
-  }, [mode, keywordResults, tagResults, colorResults, aiResults, trendingResults]);
+  }, [mode, keywordResults, tagResults, colorResults, aiResults, trendingResults, combinedResults]);
 
   // Quick apply tag/color from chips
   const applyTag = (t: string) => {
@@ -196,7 +250,7 @@ const haystackOf = (p: PhotoPost) => {
   return (
     <div className="min-h-screen pb-24">
       {/* Hero / Sticky filter bar */}
-      <div className="sticky top-[64px] z-40 backdrop-blur-md bg-[var(--surface-ground,transparent)]/70 border-b border-black/5 dark:border-white/10">
+      <div className="sticky top-0 z-40 backdrop-blur-md bg-[var(--surface-ground,transparent)]/70 border-b border-black/5 dark:border-white/10">
         <div className="mx-auto max-w-6xl px-6 py-4">
           <div className="flex items-center justify-between gap-3">
             <div className="text-xl font-semibold flex items-center gap-2">
@@ -211,9 +265,9 @@ const haystackOf = (p: PhotoPost) => {
           <div className="mt-3">
             <TabView
               activeIndex={["keyword","tag","color","ai","trending"].indexOf(mode)}
-              onTabChange={(e) => setMode(["keyword","tag","color","ai","trending"][e.index] as Mode)}
+              onTabChange={(e) => setMode(["keyword","tag","color","ai","trending","combined"][e.index] as Mode)}
               pt={{
-    navContainer: { className: "sticky top-[64px] z-40 bg-[var(--surface-ground,transparent)]/80 backdrop-blur-md rounded-t-2xl" },
+    navContainer: { className: "sticky top-0 z-40 bg-[var(--surface-ground,transparent)]/80 backdrop-blur-md rounded-t-2xl" },
     panelContainer: { className: "rounded-b-2xl" },
     inkbar: { className: "bg-red-500 h-[3px]" }
   }}
@@ -225,7 +279,7 @@ const haystackOf = (p: PhotoPost) => {
                     <InputText
                       value={q}
                       onChange={(e) => setQ(e.target.value)}
-                      placeholder="Search photos, captions, tags…"
+                      placeholder="     Search photos, captions, tags…"
                       className="w-full"
                     />
                   </span>
@@ -314,7 +368,63 @@ const haystackOf = (p: PhotoPost) => {
               <TabPanel header={<span className="inline-flex items-center gap-2"><i className="pi pi-chart-line" />Trending</span>}>
                 <div className="text-sm opacity-70">Top photos right now • Based on likes in mock data</div>
               </TabPanel>
-            </TabView>
+                          <TabPanel header={<span className="inline-flex items-center gap-2"><i className="pi pi-sliders-h" />Combined</span>}>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Keyword */}
+                  <div className="flex items-center gap-2">
+                    <span className="p-input-icon-left w-full">
+                      <i className="pi pi-search" />
+                      <InputText value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Keywords" className="w-full" />
+                    </span>
+                  </div>
+
+                  {/* Tags (multi) */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm opacity-70 min-w-[56px]">Tags</span>
+                    <input
+                      className="flex-1 p-2 rounded-lg border border-black/10 dark:border-white/10 bg-transparent"
+                      placeholder="portrait, travel, street"
+                      value={tagsMulti.join(", ")}
+                      onChange={(e)=> setTagsMulti(e.target.value.split(",").map(s=>s.trim()).filter(Boolean))}
+                    />
+                    <div className="flex items-center gap-2 ml-2">
+                      <Checkbox inputId="alltags" checked={matchAllTags} onChange={(e)=>setMatchAllTags(!!e.checked)} />
+                      <label htmlFor="alltags" className="text-sm">Match all</label>
+                    </div>
+                  </div>
+
+                  {/* Color */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm opacity-70">Color</span>
+                      <InputText value={color} onChange={(e)=>setColor(e.target.value)} className="w-32" />
+                      <div className="w-6 h-6 rounded-full border border-black/10 dark:border-white/10" style={{ backgroundColor: color }} />
+                    </div>
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Checkbox inputId="allcolor" checked={strictColor} onChange={(e)=>setStrictColor(!!e.checked)} />
+                      <label htmlFor="allcolor" className="text-sm">Strict</label>
+                      {!strictColor && (
+                        <>
+                          <span className="text-xs opacity-70">Tol</span>
+                          <Slider value={colorTolerance} onChange={(e:any)=>setColorTolerance(e.value)} min={20} max={300} className="w-40" />
+                          <span className="text-xs w-8 text-right">{colorTolerance}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* AI prompt */}
+                  <div className="flex items-center gap-2 lg:col-span-2">
+                    <textarea
+                      value={aiPrompt}
+                      onChange={(e)=>setAiPrompt(e.target.value)}
+                      placeholder="Describe the photo you want"
+                      className="w-full min-h-12 p-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-neutral-900/60 outline-none"
+                    />
+                    <Button label="Apply" icon="pi pi-filter" onClick={()=>setMode("combined")} />
+                  </div>
+                </div>
+              </TabPanel></TabView>
           </div>
         </div>
       </div>
@@ -328,3 +438,5 @@ const haystackOf = (p: PhotoPost) => {
     </div>
   );
 }
+
+

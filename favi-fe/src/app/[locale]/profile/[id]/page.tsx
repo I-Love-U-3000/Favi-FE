@@ -1,6 +1,6 @@
 "use client";
 
-import {useMemo, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {useParams, useRouter} from "next/navigation";
 import {Button} from "primereact/button";
 import {TabView, TabPanel} from "primereact/tabview";
@@ -11,6 +11,9 @@ import {mockUserProfile} from "@/lib/mockTest/mockUserProfile";
 import {mockPost} from "@/lib/mockTest/mockPost";
 import {mockCollection} from "@/lib/mockTest/mockCollection";
 import type {UserProfile, PhotoPost, Collection} from "@/types";
+import CollectionDialog from "@/components/CollectionDialog";
+import EditProfileDialog, { EditableProfile } from "@/components/EditProfileDialog";
+import ReportDialog from "@/components/ReportDialog";
 
 /* ========== Helpers ========== */
 function asArray<T>(x: T | T[] | undefined | null): T[] {
@@ -50,35 +53,44 @@ function Stat({label, value}: {label: string; value: number | string}) {
   );
 }
 
-function ActionButtons({profile}: {profile: UserProfile}) {
+function ActionButtons({profile, onEdit}:{profile: UserProfile; onEdit:()=>void}) {
   const [following, setFollowing] = useState(!!profile.isFollowing);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [newCollectionOpen, setNewCollectionOpen] = useState(false);
+
   if (profile.isMe) {
     return (
-      <div className="flex gap-2">
-        <Button label="Edit profile" className="p-button-outlined" />
+      <div className="flex gap-2 items-center">
+        <Button label="Edit profile" className="p-button-outlined" onClick={onEdit} />
+        <Button label="New collection" icon="pi pi-images" onClick={() => setNewCollectionOpen(true)} />
         <Button icon="pi pi-share-alt" className="p-button-text" />
         <Button icon="pi pi-ellipsis-h" className="p-button-text" />
+        <CollectionDialog visible={newCollectionOpen} onHide={() => setNewCollectionOpen(false)} />
       </div>
     );
   }
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 items-center">
       <Button
         label={following ? "Following" : "Follow"}
         className={following ? "" : "p-button-rounded"}
         onClick={() => setFollowing(v => !v)}
       />
       <Button icon="pi pi-envelope" className="p-button-outlined" />
+      <Button icon="pi pi-flag" className="p-button-text" onClick={() => setReportOpen(true)} />
       <Button icon="pi pi-ellipsis-h" className="p-button-text" />
+      <ReportDialog visible={reportOpen} onHide={() => setReportOpen(false)} targetType="user" targetName={profile.username} />
     </div>
   );
 }
+
+import { Link } from "@/i18n/routing";
 
 function PhotoGrid({items}: {items: PhotoPost[]}) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
       {items.map(p => (
-        <div key={p.id} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10">
+        <Link key={p.id} href={`/posts/${p.id}`} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={p.imageUrl}
@@ -98,7 +110,7 @@ function PhotoGrid({items}: {items: PhotoPost[]}) {
               ))}
             </div>
           </div>
-        </div>
+        </Link>
       ))}
     </div>
   );
@@ -138,14 +150,38 @@ export default function ProfilePage() {
     return <div className="p-6 text-sm opacity-70">Missing profile id.</div>;
   }
 
-  const profile = useMemo(() => resolveProfile(id), [id]);
-  if (!profile) {
+  const baseProfile = useMemo(() => resolveProfile(id), [id]);
+  if (!baseProfile) {
     // router.replace("/404"); return null;
     return <div className="p-6 text-sm opacity-70">User not found.</div>;
   }
 
+  // local editable state with localStorage overlay
+  const [profile, setProfile] = useState<UserProfile>(baseProfile);
+  useEffect(() => {
+    try {
+      const key = `profile_overrides_${baseProfile.id}`;
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const ov = JSON.parse(raw);
+        setProfile({ ...baseProfile, ...ov });
+      } else {
+        setProfile(baseProfile);
+      }
+    } catch { setProfile(baseProfile); }
+  }, [baseProfile]);
+
   const posts = useMemo(() => resolvePosts(profile.id), [profile]);
   const collections = useMemo(() => resolveCollections(profile.id), [profile]);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const onSaveProfile = (p: EditableProfile) => {
+    setProfile((prev) => ({ ...prev, ...p } as UserProfile));
+    try {
+      localStorage.setItem(`profile_overrides_${profile.id}`, JSON.stringify(p));
+    } catch {}
+    setEditOpen(false);
+  };
 
   const joined = profile.joinedAtISO ?? undefined;
 
@@ -153,7 +189,7 @@ export default function ProfilePage() {
     <div className="min-h-screen">
       {/* COVER */}
       <div className="relative">
-        <div className="relative w-full aspect-[16/6] bg-gradient-to-br from-sky-200/40 to-purple-200/40 dark:from-sky-900/20 dark:to-purple-900/20">
+        <div className="relative w-full aspect-[16/6]" style={{ background: 'linear-gradient(135deg, var(--bg-secondary), transparent)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {profile.coverUrl && (
             <img
@@ -167,7 +203,7 @@ export default function ProfilePage() {
         {/* AVATAR */}
         <div className="absolute inset-x-0 -bottom-12">
           <div className="mx-auto max-w-6xl px-6">
-            <div className="h-40 w-40 rounded-full overflow-hidden ring-4 ring-white dark:ring-neutral-900 bg-neutral-200 dark:bg-neutral-800">
+            <div className="h-40 w-40 rounded-full overflow-hidden ring-4" style={{ borderColor: 'var(--bg)', backgroundColor: 'var(--bg-secondary)' }}>
               {profile.avatarUrl ? (
                 <img src={profile.avatarUrl} alt={profile.displayName} className="h-full w-full object-cover" />
               ) : (
@@ -179,7 +215,7 @@ export default function ProfilePage() {
       </div>
 
       {/* HEADER INFO */}
-      <div className="mx-auto max-w-6xl px-6">
+      <div className="mx-auto max-w-6xl px-6" style={{ color: 'var(--text)' }}>
         <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between pt-16">
           <div>
             <div className="text-2xl font-semibold">{profile.displayName}</div>
@@ -213,7 +249,7 @@ export default function ProfilePage() {
               <Stat label="Followers" value={profile.stats.followers} />
               <Stat label="Following" value={profile.stats.following} />
             </div>
-            <ActionButtons profile={profile} />
+            <ActionButtons profile={profile} onEdit={() => setEditOpen(true)} />
           </div>
         </div>
 
@@ -229,7 +265,7 @@ export default function ProfilePage() {
             </TabPanel>
 
             <TabPanel header="About">
-              <div className="rounded-2xl ring-1 ring-black/5 dark:ring-white/10 p-6 bg-white/60 dark:bg-neutral-900/60">
+              <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <div className="text-sm opacity-60 mb-1">Bio</div>
@@ -249,6 +285,22 @@ export default function ProfilePage() {
             </TabPanel>
           </TabView>
         </div>
+        <EditProfileDialog
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          profile={{
+            id: profile.id,
+            username: profile.username,
+            displayName: profile.displayName,
+            bio: profile.bio,
+            website: profile.website,
+            location: profile.location,
+            avatarUrl: profile.avatarUrl,
+            coverUrl: profile.coverUrl,
+            interests: profile.interests ?? [],
+          }}
+          onSave={onSaveProfile}
+        />
       </div>
     </div>
   );

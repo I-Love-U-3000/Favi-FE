@@ -4,8 +4,10 @@ import MessageItem from "./MessageItem";
 interface Message {
   id: number;
   sender: string;
-  text: string;
+  text?: string;
   timestamp: string;
+  imageUrl?: string;
+  stickerUrl?: string;
 }
 
 interface MessageListProps {
@@ -15,7 +17,7 @@ interface MessageListProps {
 
 export default function MessageList({ messages, currentUser }: MessageListProps) {
   return (
-    <ScrollPanel style={{ height: "calc(100vh - 200px)" }} className="flex-grow bg-gray-800">
+    <ScrollPanel style={{ height: "calc(100vh - 220px)" }} className="flex-grow">
       <div className="p-4 flex flex-col gap-3">
         {messages.map((message) => (
           <MessageItem
