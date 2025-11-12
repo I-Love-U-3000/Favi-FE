@@ -401,8 +401,6 @@ function PostListItem({ post }: { post: PostResponse }) {
         <div className="flex items-center justify-between">
           <div />
           <div className="relative flex items-center gap-4 text-sm opacity-80" onClick={(e)=>e.stopPropagation()}>
-            <span className="inline-flex items-center gap-1" title="Comments"><i className="pi pi-comments" /> {commentCount}</span>
-
             <div
               className="relative inline-flex items-center"
               onMouseEnter={openPicker}
@@ -441,6 +439,10 @@ function PostListItem({ post }: { post: PostResponse }) {
               )}
               <span className="ml-2 text-xs opacity-70">{totalReacts}</span>
             </div>
+
+            <button className="inline-flex items-center gap-1 hover:opacity-100" title="Share" onClick={()=>router.push(`/posts/${post.id}`)}>
+              <span className="inline-flex items-center gap-1" title="Comments"><i className="pi pi-comments" /> {commentCount}</span>
+            </button>
 
             <button className="inline-flex items-center gap-1 hover:opacity-100" title="Share" onClick={()=>setShareOpen(v=>!v)}>
               <i className="pi pi-share-alt" /> {shareCount}
