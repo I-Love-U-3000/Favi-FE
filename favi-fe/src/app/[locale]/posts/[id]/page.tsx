@@ -132,7 +132,7 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
         <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
           {/* Media + caption */}
           <section
-            className="rounded-2xl overflow-hidden ring-1 ring-black/5"
+            className="rounded-2xl overflow-visible ring-1 ring-black/5"
             style={{ backgroundColor: "var(--bg-secondary)" }}
           >
             <div className="px-4 py-3 flex items-center gap-3">
@@ -159,7 +159,7 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
             </div>
 
             {medias[0]?.url && (
-              <div className="relative" onClick={(e)=>e.stopPropagation()}>
+              <div className="relative rounded-2xl overflow-hidden" onClick={(e)=>e.stopPropagation()}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={medias[idx]?.url} alt={post.caption ?? ""} className="w-full h-[60vh] max-h-[640px] object-cover cursor-zoom-in" onClick={()=>{ setViewerOpen(true); setZoom(1); }} />
                 {medias.length > 1 && (
@@ -213,34 +213,40 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
                   ))}
                 </div>
               )}
-              <div className="flex items-center justify-between text-sm opacity-80 relative">
-                <div className="relative inline-flex items-center gap-2" onMouseEnter={openPicker} onMouseLeave={() => closePickerWithDelay(140)}>
-                  <button
-                    className="px-2 py-1 rounded hover:bg-black/5"
-                    onClick={() => toggleReact((userReaction || "Like") as ReactionType)}
-                    aria-label="React"
-                  >
-                    {userReaction ? ({ Like: "👍", Love: "❤️", Haha: "😂", Wow: "😮", Sad: "😢", Angry: "😡" } as any)[userReaction] : "React"}
-                  </button>
-                  {pickerOpen && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-10 bg-black/75 text-white rounded-full px-1.5 py-1 flex items-center gap-1.5 shadow-lg" onMouseEnter={openPicker} onMouseLeave={() => closePickerWithDelay(120)}>
-                      {["Like","Love","Haha","Wow","Sad","Angry"].map(r => (
-                        <button key={r} className="w-8 h-8 grid place-items-center text-xl hover:scale-110 transition" onClick={() => toggleReact(r as ReactionType)} title={r}>
-                          {({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[r]}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              <div className="flex items-center justify-end text-sm opacity-80 relative">
                 <div className="flex items-center gap-4">
-                  <span className="inline-flex items-center gap-1"><i className="pi pi-megaphone" style={{ opacity: .6 }} /> {totalReacts}</span>
+                  {/* Hover area to open reaction picker (left of reactions count) */}
+                  <div className="relative" onMouseEnter={openPicker} onMouseLeave={() => closePickerWithDelay(140)}>
+                    <span
+                      className="px-2 py-1 rounded-full cursor-pointer hover:bg-black/5 inline-flex items-center justify-center border"
+                      style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                    >
+                      {userReaction ? (
+                        <span className="text-base">{({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[userReaction]}</span>
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src="/reaction-default.svg" alt="react" className="w-4 h-4" />
+                      )}
+                    </span>
+                    {pickerOpen && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-[100] bg-black/75 text-white rounded-full px-1.5 py-1 flex items-center gap-1.5 shadow-lg" onMouseEnter={openPicker} onMouseLeave={() => closePickerWithDelay(120)}>
+                        {["Like","Love","Haha","Wow","Sad","Angry"].map(r => (
+                          <button key={r} className="w-8 h-8 grid place-items-center text-xl hover:scale-110 transition" onClick={() => toggleReact(r as ReactionType)} title={r}>
+                            {({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[r]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <span className="inline-flex items-center gap-1">{totalReacts}</span>
                   <span className="inline-flex items-center gap-1"><i className="pi pi-comments" /> {commentCount}</span>
                   <div className="relative">
                     <button className="inline-flex items-center gap-1 hover:opacity-100" title="Share" onClick={()=> setShareOpen(v=>!v)}>
                       <i className="pi pi-share-alt" /> {shareCount}
                     </button>
                     {shareOpen && (
-                      <div className="absolute right-0 mt-2 z-10 bg-white dark:bg-neutral-900 border rounded-lg shadow p-2 flex flex-col text-sm">
+                      <div className="absolute right-0 mt-2 z-[100] bg-white dark:bg-neutral-900 border rounded-lg shadow p-2 flex flex-col text-sm">
                         <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{ alert('Share to chat (todo)'); setShareOpen(false); setShareCount(c=>c+1); }}>Share to chat</button>
                         <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{ alert('Share to your profile (todo)'); setShareOpen(false); setShareCount(c=>c+1); }}>Share to profile</button>
                         <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{ navigator.clipboard?.writeText(window.location.origin + `/posts/${post.id}`); setShareOpen(false); setShareCount(c=>c+1); }}>Copy link</button>
