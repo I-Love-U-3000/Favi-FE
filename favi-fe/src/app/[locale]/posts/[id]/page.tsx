@@ -6,7 +6,7 @@ import commentAPI, { CommentResponse } from "@/lib/api/commentAPI";
 import useProfile from "@/lib/hooks/useProfile";
 import type { PostResponse, ReactionType } from "@/types";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { readPostReaction, writePostReaction } from "@/lib/postCache";
 import Dock from "@/components/Dock";
 import { useAuth } from "@/components/AuthProvider";
@@ -339,7 +339,7 @@ const flattenFromApi = (roots: any[]): CommentResponse[] => {
 };
 
 function CommentsPanel({ postId, onCountChange }: { postId: string; onCountChange?: (n:number)=>void }) {
-  const { requireAuth, isAuthenticated } = useAuth();
+  const { requireAuth, isAuthenticated, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<CommentResponse[]>([]);
@@ -428,6 +428,49 @@ function CommentsPanel({ postId, onCountChange }: { postId: string; onCountChang
     } finally { setPosting(false); }
   };
 
+  const handleUpdateComment = useCallback(async (commentId: string, content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed) throw new Error("Nội dung không được để trống");
+    if (!requireAuth()) throw new Error("Bạn cần đăng nhập để chỉnh sửa bình luận.");
+    try {
+      const updated = await commentAPI.update(commentId, trimmed);
+      setItems(prev => prev.map(item => (getId(item) === getId(updated) ? updated : item)));
+    } catch (e: any) {
+      throw new Error(e?.error || e?.message || "Failed to update comment");
+    }
+  }, [requireAuth]);
+
+  const handleDeleteComment = useCallback(async (commentId: string) => {
+    if (!requireAuth()) throw new Error("Bạn cần đăng nhập để xóa bình luận.");
+    try {
+      await commentAPI.delete(commentId);
+      setItems(prev => {
+        const childMap = new Map<string, string[]>();
+        prev.forEach(item => {
+          const pid = getParentId(item);
+          if (!pid) return;
+          if (!childMap.has(pid)) childMap.set(pid, []);
+          childMap.get(pid)!.push(getId(item));
+        });
+
+        const toRemove = new Set<string>();
+        const stack = [commentId];
+        while (stack.length) {
+          const cur = stack.pop()!;
+          if (toRemove.has(cur)) continue;
+          toRemove.add(cur);
+          (childMap.get(cur) || []).forEach(child => stack.push(child));
+        }
+
+        const next = prev.filter(item => !toRemove.has(getId(item)));
+        if (onCountChange) onCountChange(next.length);
+        return next;
+      });
+    } catch (e: any) {
+      throw new Error(e?.error || e?.message || "Failed to delete comment");
+    }
+  }, [requireAuth, onCountChange]);
+
   return (
     <div className="rounded-2xl overflow-hidden ring-1 ring-black/5" style={{ backgroundColor: "var(--bg-secondary)" }}>
       <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
@@ -457,6 +500,9 @@ function CommentsPanel({ postId, onCountChange }: { postId: string; onCountChang
                   setReplyText={setReplyText}
                   submitReply={() => submitReply(rootId)}
                   posting={posting}
+                  currentUserId={user?.id}
+                  onEditComment={handleUpdateComment}
+                  onDeleteComment={handleDeleteComment}
                 />
 
                 {visible.length > 0 && (
@@ -473,6 +519,9 @@ function CommentsPanel({ postId, onCountChange }: { postId: string; onCountChang
                           setReplyText={setReplyText}
                           submitReply={() => submitReply(rid)}
                           posting={posting}
+                          currentUserId={user?.id}
+                          onEditComment={handleUpdateComment}
+                          onDeleteComment={handleDeleteComment}
                         />
                       );
                     })}
@@ -531,6 +580,9 @@ function CommentRow({
   setReplyText,
   submitReply,
   posting,
+  currentUserId,
+  onEditComment,
+  onDeleteComment,
 }: {
   c: CommentResponse;
   onReply: () => void;
@@ -539,14 +591,56 @@ function CommentRow({
   setReplyText: (v: string) => void;
   submitReply: () => void;
   posting: boolean;
+  currentUserId?: string | null;
+  onEditComment: (commentId: string, content: string) => Promise<void>;
+  onDeleteComment: (commentId: string) => Promise<void>;
 }) {
   const router = useRouter();
   const prof = useProfile((c as any).authorProfileId);
+  const commentId = getId(c);
 
   // Không fallback "User" nữa
   const username = prof.profile?.username || (c as any).authorUsername || "";
   const displayName = prof.profile?.displayName || (c as any).authorDisplayName || username;
   const avatar = prof.profile?.avatarUrl || (c as any).authorAvatarUrl || "/avatar-default.svg";
+  const authorId = prof.profile?.id || (c as any).authorProfileId || null;
+  const canManage = !!currentUserId && !!authorId && currentUserId === authorId;
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState((c as any).content ?? "");
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    setDraft((c as any).content ?? "");
+  }, [c]);
+
+  const handleSaveEdit = async () => {
+    const next = draft.trim();
+    if (!next || saving) return;
+    try {
+      setSaving(true);
+      await onEditComment(commentId, next);
+      setIsEditing(false);
+    } catch (e: any) {
+      alert(e?.message || "Failed to update comment");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (deleting) return;
+    const confirmed = window.confirm("Bạn có chắc muốn xóa bình luận này?");
+    if (!confirmed) return;
+    try {
+      setDeleting(true);
+      await onDeleteComment(commentId);
+    } catch (e: any) {
+      alert(e?.message || "Failed to delete comment");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="flex items-start gap-2">
@@ -574,14 +668,63 @@ function CommentRow({
           <span className="opacity-60"> · {new Date((c as any).createdAt).toLocaleString()}</span>
         </div>
 
-        <div className="text-sm" style={{ color: "var(--text)" }}>
-          {(c as any).content}
-        </div>
+        {isEditing ? (
+          <div className="mt-2 space-y-2">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={3}
+              className="w-full resize-none rounded-lg border px-3 py-2 text-sm"
+              style={{ backgroundColor: "var(--input-bg)", color: "var(--text)", borderColor: "var(--input-border)" }}
+              disabled={saving}
+            />
+            <div className="flex items-center gap-2">
+              <Button
+                className="px-3 py-1.5 rounded-lg text-xs"
+                style={{ backgroundColor: "var(--primary)", color: "white", opacity: draft.trim() && !saving ? 1 : 0.6 }}
+                disabled={!draft.trim() || saving}
+                onClick={handleSaveEdit}
+              >
+                Lưu
+              </Button>
+              <button
+                className="px-3 py-1.5 rounded-lg text-xs"
+                onClick={() => {
+                  setIsEditing(false);
+                  setDraft((c as any).content ?? "");
+                }}
+                style={{ border: "1px solid var(--border)", opacity: saving ? 0.6 : 1 }}
+                disabled={saving}
+              >
+                Hủy
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm" style={{ color: "var(--text)" }}>
+            {(c as any).content}
+          </div>
+        )}
 
-        <div className="mt-1">
+        <div className="mt-1 flex flex-wrap items-center gap-3">
           <button className="text-xs opacity-80 hover:opacity-100" onClick={onReply}>
             Trả lời
           </button>
+          {canManage && !isEditing && (
+            <>
+              <button className="text-xs opacity-80 hover:opacity-100" onClick={() => setIsEditing(true)}>
+                Sửa
+              </button>
+              <button
+                className="text-xs text-red-500 hover:opacity-100"
+                style={{ opacity: deleting ? 0.6 : 1 }}
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? "Đang xóa…" : "Xóa"}
+              </button>
+            </>
+          )}
         </div>
 
         {replying && (

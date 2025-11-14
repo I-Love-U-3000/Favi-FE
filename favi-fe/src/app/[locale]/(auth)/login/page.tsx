@@ -1,6 +1,7 @@
 "use client";
 
 import authAPI from "@/lib/api/authAPI";
+import { profileAPI } from "@/lib/api/profileAPI";
 import { LoginRequest } from "@/types";
 import { useState, useRef, useCallback, FormEvent } from "react";
 import Link from "next/link";
@@ -85,6 +86,28 @@ export default function LoginPage() {
         setGuestMode(false);
         showToast("success", "Đăng nhập thành công");
         refresh();
+
+        const userInfo = authAPI.getUserInfo<{ id?: string }>();
+        if (userInfo?.id) {
+          try {
+            await profileAPI.getById(userInfo.id);
+          } catch (profileErr: any) {
+            const status = profileErr?.status ?? profileErr?.response?.status;
+            const errMsg = profileErr?.error ?? profileErr?.message ?? "";
+            const missingProfile = status === 404 || /not\s+found/i.test(String(errMsg));
+            if (missingProfile) {
+              showToast(
+                "info",
+                "Vui lòng xác minh email",
+                "Kiểm tra hộp thư để hoàn tất xác minh trước khi tiếp tục."
+              );
+              router.replace("/auth/verify-notion");
+              return;
+            }
+            console.warn("Unable to verify profile after login:", profileErr);
+          }
+        }
+
         router.replace("/home");
       } catch (err: any) {
         // fetchWrapper nên trả lỗi có message; nếu không, fallback

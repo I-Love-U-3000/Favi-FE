@@ -1,4 +1,3 @@
-// src/lib/fetchWrapper.ts
 const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 
 function getAuthHeaders(): Record<string, string> {
@@ -7,7 +6,6 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 async function handleResponse(res: Response) {
-  // Với 204/205 không có body, .json() sẽ lỗi -> catch và trả {}
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw { status: res.status, error: (data as any)?.error || (data as any)?.message || "Request failed" };
@@ -19,11 +17,10 @@ async function tryRefreshAndRetry(url: string, init: RequestInit): Promise<any> 
   const refreshToken = typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
   if (!refreshToken) throw { status: 401, message: "No refresh token" };
 
-  // ⬇️ Backend nhận body là STRING, không phải { refreshToken: ... }
   const refreshRes = await fetch(String(baseUrl) + "/auth/refresh", {
     method: "POST",
-    headers: { "Content-Type": "application/json" }, // hoặc "text/plain" nếu bạn config thế
-    body: JSON.stringify(refreshToken),              // ⭐ quan trọng: gửi chuỗi
+    headers: { "Content-Type": "application/json" }, 
+    body: JSON.stringify(refreshToken),              
   });
 
   if (!refreshRes.ok) throw { status: 401, message: "Refresh token expired" };
@@ -35,7 +32,6 @@ async function tryRefreshAndRetry(url: string, init: RequestInit): Promise<any> 
   if (newAccess) localStorage.setItem("access_token", newAccess);
   if (newRefresh) localStorage.setItem("refresh_token", newRefresh);
 
-  // Giữ các headers cũ + bơm Authorization mới
   const retryInit: RequestInit = {
     ...init,
     headers: {
@@ -67,7 +63,6 @@ async function request<T>(method: string, path: string, body?: any, auth = true)
   try {
     res = await fetch(url, init);
   } catch (e: any) {
-    // Network error (CORS/redirect/connection)
     throw { status: 0, error: e?.message || "Network error" };
   }
 

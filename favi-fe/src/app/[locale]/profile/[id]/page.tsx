@@ -1,11 +1,12 @@
 "use client";
 
-import {useEffect, useMemo, useState} from "react";
+import {ChangeEvent, RefObject, useEffect, useRef, useState} from "react";
 import {useParams, useRouter} from "next/navigation";
 import {Button} from "primereact/button";
 import {TabView, TabPanel} from "primereact/tabview";
 import {Tag} from "primereact/tag";
 import {useTranslations} from "next-intl";
+import { Dialog } from "primereact/dialog";
 
 import {mockUserProfile} from "@/lib/mockTest/mockUserProfile";
 import {mockPost} from "@/lib/mockTest/mockPost";
@@ -13,10 +14,12 @@ import {mockCollection} from "@/lib/mockTest/mockCollection";
 import type {UserProfile, PhotoPost, Collection, PostResponse} from "@/types";
 import profileAPI from "@/lib/api/profileAPI";
 import postAPI from "@/lib/api/postAPI";
-import { normalizeProfile } from "@/lib/profileCache";
+import { normalizeProfile, writeCachedProfile } from "@/lib/profileCache";
 import CollectionDialog from "@/components/CollectionDialog";
 import EditProfileDialog, { EditableProfile } from "@/components/EditProfileDialog";
 import ReportDialog from "@/components/ReportDialog";
+import { useAuth } from "@/components/AuthProvider";
+import CropImage from "@/components/CropImage";
 
 /* ========== Helpers ========== */
 function asArray<T>(x: T | T[] | undefined | null): T[] {
@@ -56,12 +59,12 @@ function Stat({label, value}: {label: string; value: number | string}) {
   );
 }
 
-function ActionButtons({profile, onEdit}:{profile: UserProfile; onEdit:()=>void}) {
+function ActionButtons({profile, onEdit, isOwner}:{profile: UserProfile; onEdit:()=>void; isOwner: boolean}) {
   const [following, setFollowing] = useState(!!profile.isFollowing);
   const [reportOpen, setReportOpen] = useState(false);
   const [newCollectionOpen, setNewCollectionOpen] = useState(false);
 
-  if (profile.isMe) {
+  if (isOwner) {
     return (
       <div className="flex gap-2 items-center">
         <Button label="Edit profile" className="p-button-outlined" onClick={onEdit} />
@@ -154,6 +157,7 @@ function CollectionsGrid({items}: {items: Collection[]}) {
 export default function ProfilePage() {
   const t = useTranslations("Profile"); // thay cho getTranslations(server)
   const router = useRouter();
+  const { user } = useAuth();
 
   const params = useParams(); // { id?: string | string[] }
   const id = Array.isArray((params as any).id) ? (params as any).id[0] : (params as any).id as string | undefined;
@@ -169,6 +173,17 @@ export default function ProfilePage() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const posterInputRef = useRef<HTMLInputElement | null>(null);
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [posterDialogOpen, setPosterDialogOpen] = useState(false);
+  const [rawAvatarUrl, setRawAvatarUrl] = useState<string | null>(null);
+  const [rawPosterUrl, setRawPosterUrl] = useState<string | null>(null);
+  const [avatarAspect, setAvatarAspect] = useState(1);
+  const [posterAspect, setPosterAspect] = useState(16 / 9);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [posterUploading, setPosterUploading] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -203,19 +218,169 @@ export default function ProfilePage() {
   }, [id]);
 
   const [editOpen, setEditOpen] = useState(false);
-  const onSaveProfile = (p: EditableProfile) => {
-    setProfile((prev) => ({ ...prev, ...p } as UserProfile));
+  const onSaveProfile = async (p: EditableProfile, files: { avatar?: File | null; cover?: File | null } = {}) => {
+    if (!profile || savingProfile) return;
+    setSavingProfile(true);
     try {
-      localStorage.setItem(`profile_overrides_${profile.id}`, JSON.stringify(p));
-    } catch {}
-    setEditOpen(false);
+      let avatarUrl: string | null | undefined = p.avatarUrl === null ? null : profile.avatarUrl ?? null;
+      let coverUrl: string | null | undefined = p.coverUrl === null ? null : profile.coverUrl ?? null;
+
+      if (files?.avatar) {
+        const media = await profileAPI.uploadAvatar(files.avatar);
+        avatarUrl = media?.thumbnailUrl || media?.url || avatarUrl;
+      }
+      if (files?.cover) {
+        const media = await profileAPI.uploadPoster(files.cover);
+        coverUrl = media?.thumbnailUrl || media?.url || coverUrl;
+      }
+
+      const payload: Record<string, any> = {
+        display_name: p.displayName,
+        bio: p.bio ?? null,
+        website: p.website ?? null,
+        location: p.location ?? null,
+        interests: p.interests ?? [],
+        avatar_url: avatarUrl ?? null,
+        cover_url: coverUrl ?? null,
+      };
+      Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) delete payload[key];
+      });
+
+      const updated = await profileAPI.update(payload);
+      const normalized = normalizeProfile(updated);
+      if (normalized) {
+        setProfile(normalized);
+      } else {
+        applyProfilePatch({
+          displayName: p.displayName,
+          bio: p.bio,
+          website: p.website,
+          location: p.location,
+          interests: p.interests,
+          avatarUrl: avatarUrl ?? undefined,
+          coverUrl: coverUrl ?? undefined,
+        });
+      }
+      setEditOpen(false);
+    } catch (e: any) {
+      alert(e?.error || e?.message || "Failed to save profile");
+    } finally {
+      setSavingProfile(false);
+    }
   };
+
+  const applyProfilePatch = (patch: Partial<UserProfile>) => {
+    setProfile(prev => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      try { writeCachedProfile(next.id, next); } catch {}
+      return next;
+    });
+  };
+
+  const resetFileInput = (ref: RefObject<HTMLInputElement | null>) => {
+    if (ref.current) ref.current.value = "";
+  };
+
+  const closeAvatarDialog = () => {
+    setAvatarDialogOpen(false);
+    setRawAvatarUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    resetFileInput(avatarInputRef);
+  };
+
+  const closePosterDialog = () => {
+    setPosterDialogOpen(false);
+    setRawPosterUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    resetFileInput(posterInputRef);
+  };
+
+  const onAvatarFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const objectUrl = URL.createObjectURL(file);
+    setRawAvatarUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return objectUrl;
+    });
+    setAvatarDialogOpen(true);
+    event.target.value = "";
+  };
+
+  const onPosterFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const objectUrl = URL.createObjectURL(file);
+    setRawPosterUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return objectUrl;
+    });
+    setPosterDialogOpen(true);
+    event.target.value = "";
+  };
+
+  const handleAvatarCropped = async (blob: Blob | null) => {
+    if (!blob) {
+      closeAvatarDialog();
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      const file = new File([blob], `avatar-${Date.now()}.jpg`, { type: blob.type || "image/jpeg" });
+      const media = await profileAPI.uploadAvatar(file);
+      const nextUrl = media?.thumbnailUrl || media?.url;
+      if (nextUrl) applyProfilePatch({ avatarUrl: nextUrl });
+    } catch (e: any) {
+      alert(e?.message || "Upload avatar failed");
+    } finally {
+      setAvatarUploading(false);
+      closeAvatarDialog();
+    }
+  };
+
+  const handlePosterCropped = async (blob: Blob | null) => {
+    if (!blob) {
+      closePosterDialog();
+      return;
+    }
+    setPosterUploading(true);
+    try {
+      const file = new File([blob], `poster-${Date.now()}.jpg`, { type: blob.type || "image/jpeg" });
+      const media = await profileAPI.uploadPoster(file);
+      const nextUrl = media?.thumbnailUrl || media?.url;
+      if (nextUrl) applyProfilePatch({ coverUrl: nextUrl });
+    } catch (e: any) {
+      alert(e?.message || "Upload cover failed");
+    } finally {
+      setPosterUploading(false);
+      closePosterDialog();
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (rawAvatarUrl) URL.revokeObjectURL(rawAvatarUrl);
+    };
+  }, [rawAvatarUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (rawPosterUrl) URL.revokeObjectURL(rawPosterUrl);
+    };
+  }, [rawPosterUrl]);
 
   if (loading) return <div className="p-6 text-sm opacity-70">Loading profile…</div>;
   if (error) return <div className="p-6 text-sm text-red-500">{error}</div>;
   if (!profile) return <div className="p-6 text-sm opacity-70">User not found.</div>;
 
   const joined = profile.joinedAtISO ?? undefined;
+  const isOwner = !!(profile.isMe || (user?.id && profile.id === user.id));
 
   return (
     <div className="min-h-screen">
@@ -230,16 +395,46 @@ export default function ProfilePage() {
               className="absolute inset-0 h-full w-full object-cover"
             />
           )}
+          {posterUploading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 text-white text-sm">
+              Đang tải ảnh bìa…
+            </div>
+          )}
+          {isOwner && (
+            <div className="absolute right-4 top-4 z-20 flex gap-2">
+              <Button
+                label={posterUploading ? "Đang tải..." : "Đổi ảnh bìa"}
+                icon="pi pi-camera"
+                className="p-button-sm p-button-outlined"
+                onClick={() => posterInputRef.current?.click()}
+                disabled={posterUploading}
+              />
+            </div>
+          )}
         </div>
 
         {/* AVATAR */}
         <div className="absolute inset-x-0 -bottom-12">
           <div className="mx-auto max-w-6xl px-6">
-            <div className="h-40 w-40 rounded-full overflow-hidden ring-4" style={{ borderColor: 'var(--bg)', backgroundColor: 'var(--bg-secondary)' }}>
+            <div className="relative h-40 w-40 rounded-full overflow-hidden ring-4" style={{ borderColor: 'var(--bg)', backgroundColor: 'var(--bg-secondary)' }}>
               {profile.avatarUrl ? (
                 <img src={profile.avatarUrl} alt={profile.displayName} className="h-full w-full object-cover" />
               ) : (
                 <div className="h-full w-full grid place-items-center text-sm opacity-60">No avatar</div>
+              )}
+              {avatarUploading && (
+                <div className="absolute inset-0 z-10 grid place-items-center bg-black/40 text-white text-xs">
+                  Đang tải avatar…
+                </div>
+              )}
+              {isOwner && (
+                <Button
+                  label={avatarUploading ? "Đang tải..." : "Đổi avatar"}
+                  icon="pi pi-camera"
+                  className="p-button-sm p-button-secondary absolute bottom-3 right-3 z-20"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarUploading}
+                />
               )}
             </div>
           </div>
@@ -281,7 +476,7 @@ export default function ProfilePage() {
               <Stat label="Followers" value={profile.stats?.followers ?? 0} />
               <Stat label="Following" value={profile.stats?.following ?? 0} />
             </div>
-            <ActionButtons profile={profile} onEdit={() => setEditOpen(true)} />
+            <ActionButtons profile={profile} onEdit={() => setEditOpen(true)} isOwner={isOwner} />
           </div>
         </div>
 
@@ -324,16 +519,77 @@ export default function ProfilePage() {
             id: profile.id,
             username: profile.username,
             displayName: profile.displayName,
-            bio: profile.bio,
-            website: profile.website,
-            location: profile.location,
+            bio: profile.bio ?? undefined,
+            website: profile.website ?? undefined,
+            location: profile.location ?? undefined,
             avatarUrl: profile.avatarUrl,
             coverUrl: profile.coverUrl,
             interests: profile.interests ?? [],
           }}
           onSave={onSaveProfile}
+          saving={savingProfile}
         />
       </div>
+      {isOwner && (
+        <>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onAvatarFileChange}
+          />
+          <input
+            ref={posterInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onPosterFileChange}
+          />
+          <Dialog
+            visible={avatarDialogOpen}
+            header="Chỉnh sửa avatar"
+            modal
+            onHide={closeAvatarDialog}
+            className="w-full max-w-2xl"
+            contentClassName="!p-0"
+          >
+            {rawAvatarUrl && (
+              <div className="p-4">
+                <CropImage
+                  imageSrc={rawAvatarUrl}
+                  onCropComplete={handleAvatarCropped}
+                  aspect={avatarAspect}
+                  setAspect={setAvatarAspect}
+                  lockAspect
+                  outputMime="image/jpeg"
+                />
+              </div>
+            )}
+          </Dialog>
+          <Dialog
+            visible={posterDialogOpen}
+            header="Chỉnh sửa ảnh bìa"
+            modal
+            onHide={closePosterDialog}
+            className="w-full max-w-3xl"
+            contentClassName="!p-0"
+          >
+            {rawPosterUrl && (
+              <div className="p-4">
+                <CropImage
+                  imageSrc={rawPosterUrl}
+                  onCropComplete={handlePosterCropped}
+                  aspect={posterAspect}
+                  setAspect={setPosterAspect}
+                  lockAspect
+                  outputMime="image/jpeg"
+                />
+              </div>
+            )}
+          </Dialog>
+        </>
+      )}
     </div>
   );
 }
