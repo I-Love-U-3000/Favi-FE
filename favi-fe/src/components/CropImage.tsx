@@ -4,20 +4,19 @@ import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
 import 'react-easy-crop/react-easy-crop.css';
 
-interface CroppedAreaPixels { x: number; y: number; width: number; height: number; }
+export interface CroppedAreaPixels { x: number; y: number; width: number; height: number; }
 
 interface CropImageProps {
   imageSrc: string;
   onCropComplete: (croppedImage: Blob | null, aspect: number) => void;
   aspect: number;
   setAspect: (aspect: number) => void;
-  /** Optional - ẩn dropdown đổi tỉ lệ (VD: avatar luôn 1:1) */
   lockAspect?: boolean;
-  /** Optional - mime & chất lượng output */
   outputMime?: 'image/jpeg' | 'image/png' | 'image/webp';
-  outputQuality?: number; // 0..1
-  /** Optional - khi người dùng đóng dialog mà không export */
+  outputQuality?: number;
   onCancel?: () => void;
+  hideExportButton?: boolean;
+  onAreaChange?: (area: CroppedAreaPixels | null) => void;
 }
 
 const CropImage: React.FC<CropImageProps> = ({
@@ -29,6 +28,8 @@ const CropImage: React.FC<CropImageProps> = ({
   outputMime = 'image/jpeg',
   outputQuality = 0.9,
   onCancel,
+  hideExportButton = false,
+  onAreaChange,
 }) => {
   const [crop, setCrop] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -43,13 +44,12 @@ const CropImage: React.FC<CropImageProps> = ({
 
   const onCropCompleteHandler = useCallback((_: Area, pixels: CroppedAreaPixels) => {
     setCroppedAreaPixels(pixels);
-  }, []);
+    onAreaChange?.(pixels);
+  }, [onAreaChange]);
 
-  // an toàn cho cả object URL & http URL
   const createImage = (url: string): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {
       const image = new Image();
-      // crossOrigin không gây hại với object URL; với remote image thì cần để export canvas
       image.crossOrigin = 'anonymous';
       image.onload = () => resolve(image);
       image.onerror = (err) => reject(err);
@@ -83,7 +83,6 @@ const CropImage: React.FC<CropImageProps> = ({
       canvas.toBlob(
         (blob) => {
           onCropComplete(blob, aspect);
-          // QUAN TRỌNG: KHÔNG revoke imageSrc ở đây — parent sẽ quản lý
         },
         outputMime,
         outputQuality
@@ -116,7 +115,7 @@ const CropImage: React.FC<CropImageProps> = ({
               value={aspect}
               options={aspectOptions}
               onChange={(e) => setAspect(e.value)}
-              placeholder="Chọn tỷ lệ"
+              placeholder="Chọn tỉ lệ"
               className="w-36"
             />
           )}
@@ -139,11 +138,13 @@ const CropImage: React.FC<CropImageProps> = ({
               onClick={onCancel}
             />
           )}
-          <Button
-            label="Crop & Export"
-            onClick={handleExport}
-            className="p-button-raised p-button-primary"
-          />
+          {!hideExportButton && (
+            <Button
+              label="Crop & Export"
+              onClick={handleExport}
+              className="p-button-raised p-button-primary"
+            />
+          )}
         </div>
       </div>
     </div>

@@ -191,7 +191,26 @@ function PostListItem({ post }: { post: PostResponse }) {
   };
   const totalReacts = Object.values(byType).reduce((a,b)=>a+b,0);
   const [shareOpen, setShareOpen] = useState(false);
-  const commentCount = (post as any).commentCount ?? (post as any).comments ?? 0;
+  const commentSource =
+    post.commentsCount ??
+    (post as any).commentCount ??
+    (post as any).comments ??
+    (post as any).stats?.comments ??
+    0;
+  const commentCount =
+    typeof commentSource === "number"
+      ? commentSource
+      : Array.isArray(commentSource)
+        ? commentSource.length
+        : typeof commentSource === "object" && commentSource !== null
+          ? typeof (commentSource as any).total === "number"
+            ? (commentSource as any).total
+            : typeof (commentSource as any).count === "number"
+              ? (commentSource as any).count
+              : 0
+          : typeof commentSource === "string"
+            ? Number(commentSource) || 0
+            : 0;
   const shareCount = (post as any).shareCount ?? (post as any).shares ?? 0;
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);

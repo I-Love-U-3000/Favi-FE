@@ -1,13 +1,11 @@
 "use client";
 
-import {ChangeEvent, RefObject, useEffect, useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {useParams, useRouter} from "next/navigation";
 import {Button} from "primereact/button";
 import {TabView, TabPanel} from "primereact/tabview";
 import {Tag} from "primereact/tag";
 import {useTranslations} from "next-intl";
-import { Dialog } from "primereact/dialog";
-
 import {mockUserProfile} from "@/lib/mockTest/mockUserProfile";
 import {mockPost} from "@/lib/mockTest/mockPost";
 import {mockCollection} from "@/lib/mockTest/mockCollection";
@@ -19,7 +17,6 @@ import CollectionDialog from "@/components/CollectionDialog";
 import EditProfileDialog, { EditableProfile } from "@/components/EditProfileDialog";
 import ReportDialog from "@/components/ReportDialog";
 import { useAuth } from "@/components/AuthProvider";
-import CropImage from "@/components/CropImage";
 
 /* ========== Helpers ========== */
 function asArray<T>(x: T | T[] | undefined | null): T[] {
@@ -62,16 +59,13 @@ function Stat({label, value}: {label: string; value: number | string}) {
 function ActionButtons({profile, onEdit, isOwner}:{profile: UserProfile; onEdit:()=>void; isOwner: boolean}) {
   const [following, setFollowing] = useState(!!profile.isFollowing);
   const [reportOpen, setReportOpen] = useState(false);
-  const [newCollectionOpen, setNewCollectionOpen] = useState(false);
 
   if (isOwner) {
     return (
       <div className="flex gap-2 items-center">
         <Button label="Edit profile" className="p-button-outlined" onClick={onEdit} />
-        <Button label="New collection" icon="pi pi-images" onClick={() => setNewCollectionOpen(true)} />
         <Button icon="pi pi-share-alt" className="p-button-text" />
-        <Button icon="pi pi-ellipsis-h" className="p-button-text" />
-        <CollectionDialog visible={newCollectionOpen} onHide={() => setNewCollectionOpen(false)} />
+        <MoreMenuButton />
       </div>
     );
   }
@@ -95,8 +89,53 @@ function ActionButtons({profile, onEdit, isOwner}:{profile: UserProfile; onEdit:
       />
       <Button icon="pi pi-envelope" className="p-button-outlined" />
       <Button icon="pi pi-flag" className="p-button-text" onClick={() => setReportOpen(true)} />
-      <Button icon="pi pi-ellipsis-h" className="p-button-text" />
+      <MoreMenuButton />
       <ReportDialog visible={reportOpen} onHide={() => setReportOpen(false)} targetType="user" targetName={profile.username} />
+    </div>
+  );
+}
+
+function MoreMenuButton() {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (event: MouseEvent) => {
+      if (!wrapperRef.current || wrapperRef.current.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  const handleAction = (label: string) => {
+    setOpen(false);
+    alert(`${label} is coming soon.`);
+  };
+
+  const options = [
+    { key: "archive", label: "Kho lưu trữ" },
+    { key: "trash", label: "Thùng rác" },
+  ];
+
+  return (
+    <div className="relative" ref={wrapperRef}>
+      <Button icon="pi pi-ellipsis-h" className="p-button-text" aria-label="More options" onClick={() => setOpen(v => !v)} />
+      {open && (
+        <div className="absolute right-0 mt-2 z-20 w-44 overflow-hidden rounded-xl border bg-white shadow-lg dark:bg-neutral-900 text-sm">
+          {options.map(option => (
+            <button
+              key={option.key}
+              type="button"
+              className="block w-full px-4 py-2 text-left hover:bg-black/5 dark:hover:bg-white/10"
+              onClick={() => handleAction(option.label)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -173,17 +212,10 @@ export default function ProfilePage() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const avatarInputRef = useRef<HTMLInputElement | null>(null);
-  const posterInputRef = useRef<HTMLInputElement | null>(null);
-  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
-  const [posterDialogOpen, setPosterDialogOpen] = useState(false);
-  const [rawAvatarUrl, setRawAvatarUrl] = useState<string | null>(null);
-  const [rawPosterUrl, setRawPosterUrl] = useState<string | null>(null);
-  const [avatarAspect, setAvatarAspect] = useState(1);
-  const [posterAspect, setPosterAspect] = useState(16 / 9);
-  const [avatarUploading, setAvatarUploading] = useState(false);
-  const [posterUploading, setPosterUploading] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [newCollectionOpen, setNewCollectionOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  const [previewImage, setPreviewImage] = useState<{ url: string; alt: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -217,6 +249,20 @@ export default function ProfilePage() {
     return () => { cancelled = true; };
   }, [id]);
 
+  useEffect(() => {
+    if (!previewImage) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreviewImage(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [previewImage]);
+
   const [editOpen, setEditOpen] = useState(false);
   const onSaveProfile = async (p: EditableProfile, files: { avatar?: File | null; cover?: File | null } = {}) => {
     if (!profile || savingProfile) return;
@@ -235,13 +281,11 @@ export default function ProfilePage() {
       }
 
       const payload: Record<string, any> = {
-        display_name: p.displayName,
+        displayName: p.displayName,
         bio: p.bio ?? null,
         website: p.website ?? null,
         location: p.location ?? null,
-        interests: p.interests ?? [],
-        avatar_url: avatarUrl ?? null,
-        cover_url: coverUrl ?? null,
+        interests: p.interests ?? []
       };
       Object.keys(payload).forEach(key => {
         if (payload[key] === undefined) delete payload[key];
@@ -279,108 +323,16 @@ export default function ProfilePage() {
     });
   };
 
-  const resetFileInput = (ref: RefObject<HTMLInputElement | null>) => {
-    if (ref.current) ref.current.value = "";
-  };
-
-  const closeAvatarDialog = () => {
-    setAvatarDialogOpen(false);
-    setRawAvatarUrl(prev => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    resetFileInput(avatarInputRef);
-  };
-
-  const closePosterDialog = () => {
-    setPosterDialogOpen(false);
-    setRawPosterUrl(prev => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    resetFileInput(posterInputRef);
-  };
-
-  const onAvatarFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const objectUrl = URL.createObjectURL(file);
-    setRawAvatarUrl(prev => {
-      if (prev) URL.revokeObjectURL(prev);
-      return objectUrl;
-    });
-    setAvatarDialogOpen(true);
-    event.target.value = "";
-  };
-
-  const onPosterFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const objectUrl = URL.createObjectURL(file);
-    setRawPosterUrl(prev => {
-      if (prev) URL.revokeObjectURL(prev);
-      return objectUrl;
-    });
-    setPosterDialogOpen(true);
-    event.target.value = "";
-  };
-
-  const handleAvatarCropped = async (blob: Blob | null) => {
-    if (!blob) {
-      closeAvatarDialog();
-      return;
-    }
-    setAvatarUploading(true);
-    try {
-      const file = new File([blob], `avatar-${Date.now()}.jpg`, { type: blob.type || "image/jpeg" });
-      const media = await profileAPI.uploadAvatar(file);
-      const nextUrl = media?.thumbnailUrl || media?.url;
-      if (nextUrl) applyProfilePatch({ avatarUrl: nextUrl });
-    } catch (e: any) {
-      alert(e?.message || "Upload avatar failed");
-    } finally {
-      setAvatarUploading(false);
-      closeAvatarDialog();
-    }
-  };
-
-  const handlePosterCropped = async (blob: Blob | null) => {
-    if (!blob) {
-      closePosterDialog();
-      return;
-    }
-    setPosterUploading(true);
-    try {
-      const file = new File([blob], `poster-${Date.now()}.jpg`, { type: blob.type || "image/jpeg" });
-      const media = await profileAPI.uploadPoster(file);
-      const nextUrl = media?.thumbnailUrl || media?.url;
-      if (nextUrl) applyProfilePatch({ coverUrl: nextUrl });
-    } catch (e: any) {
-      alert(e?.message || "Upload cover failed");
-    } finally {
-      setPosterUploading(false);
-      closePosterDialog();
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (rawAvatarUrl) URL.revokeObjectURL(rawAvatarUrl);
-    };
-  }, [rawAvatarUrl]);
-
-  useEffect(() => {
-    return () => {
-      if (rawPosterUrl) URL.revokeObjectURL(rawPosterUrl);
-    };
-  }, [rawPosterUrl]);
-
   if (loading) return <div className="p-6 text-sm opacity-70">Loading profile…</div>;
   if (error) return <div className="p-6 text-sm text-red-500">{error}</div>;
   if (!profile) return <div className="p-6 text-sm opacity-70">User not found.</div>;
 
   const joined = profile.joinedAtISO ?? undefined;
   const isOwner = !!(profile.isMe || (user?.id && profile.id === user.id));
+  const trimmedDisplayName = profile.displayName?.trim();
+  const primaryName = trimmedDisplayName || profile.username;
+  const coverUrl = profile.coverUrl ?? "";
+  const avatarUrl = profile.avatarUrl ?? "";
 
   return (
     <div className="min-h-screen">
@@ -388,28 +340,20 @@ export default function ProfilePage() {
       <div className="relative">
         <div className="relative w-full aspect-[16/6]" style={{ background: 'linear-gradient(135deg, var(--bg-secondary), transparent)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          {profile.coverUrl && (
-            <img
-              src={profile.coverUrl}
-              alt="Cover"
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          )}
-          {posterUploading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 text-white text-sm">
-              Đang tải ảnh bìa…
-            </div>
-          )}
-          {isOwner && (
-            <div className="absolute right-4 top-4 z-20 flex gap-2">
-              <Button
-                label={posterUploading ? "Đang tải..." : "Đổi ảnh bìa"}
-                icon="pi pi-camera"
-                className="p-button-sm p-button-outlined"
-                onClick={() => posterInputRef.current?.click()}
-                disabled={posterUploading}
+          {coverUrl && (
+            <button
+              type="button"
+              className="absolute inset-0 h-full w-full cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              style={{ background: 'transparent' }}
+              aria-label="Xem ảnh bìa"
+              onClick={() => setPreviewImage({ url: coverUrl, alt: `${primaryName} cover` })}
+            >
+              <img
+                src={coverUrl}
+                alt={`${primaryName} cover`}
+                className="h-full w-full object-cover"
               />
-            </div>
+            </button>
           )}
         </div>
 
@@ -417,24 +361,18 @@ export default function ProfilePage() {
         <div className="absolute inset-x-0 -bottom-12">
           <div className="mx-auto max-w-6xl px-6">
             <div className="relative h-40 w-40 rounded-full overflow-hidden ring-4" style={{ borderColor: 'var(--bg)', backgroundColor: 'var(--bg-secondary)' }}>
-              {profile.avatarUrl ? (
-                <img src={profile.avatarUrl} alt={profile.displayName} className="h-full w-full object-cover" />
+              {avatarUrl ? (
+                <button
+                  type="button"
+                  className="absolute inset-0 h-full w-full cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded-full"
+                  style={{ background: 'transparent' }}
+                  aria-label="Xem avatar"
+                  onClick={() => setPreviewImage({ url: avatarUrl, alt: `${primaryName} avatar` })}
+                >
+                  <img src={avatarUrl} alt={`${primaryName} avatar`} className="h-full w-full object-cover" />
+                </button>
               ) : (
                 <div className="h-full w-full grid place-items-center text-sm opacity-60">No avatar</div>
-              )}
-              {avatarUploading && (
-                <div className="absolute inset-0 z-10 grid place-items-center bg-black/40 text-white text-xs">
-                  Đang tải avatar…
-                </div>
-              )}
-              {isOwner && (
-                <Button
-                  label={avatarUploading ? "Đang tải..." : "Đổi avatar"}
-                  icon="pi pi-camera"
-                  className="p-button-sm p-button-secondary absolute bottom-3 right-3 z-20"
-                  onClick={() => avatarInputRef.current?.click()}
-                  disabled={avatarUploading}
-                />
               )}
             </div>
           </div>
@@ -445,8 +383,10 @@ export default function ProfilePage() {
       <div className="mx-auto max-w-6xl px-6" style={{ color: 'var(--text)' }}>
         <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between pt-16">
           <div>
-            <div className="text-2xl font-semibold">{profile.displayName}</div>
-            <div className="text-sm opacity-70">@{profile.username}</div>
+            <div className="text-2xl font-semibold">{primaryName}</div>
+            {trimmedDisplayName && (
+              <div className="text-sm opacity-70">@{profile.username}</div>
+            )}
 
             <div className="mt-3 text-sm max-w-2xl">{profile.bio}</div>
 
@@ -482,12 +422,17 @@ export default function ProfilePage() {
 
         {/* TABS */}
         <div className="mt-8 mb-20">
-          <TabView>
+          <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
             <TabPanel header="Posts">
               <PhotoGrid items={posts} />
             </TabPanel>
 
             <TabPanel header="Collections">
+              {isOwner && (
+                <div className="flex justify-end mb-4">
+                  <Button label="New collection" icon="pi pi-images" onClick={() => setNewCollectionOpen(true)} />
+                </div>
+              )}
               <CollectionsGrid items={collections} />
             </TabPanel>
 
@@ -529,67 +474,42 @@ export default function ProfilePage() {
           onSave={onSaveProfile}
           saving={savingProfile}
         />
+        {isOwner && (
+          <CollectionDialog visible={newCollectionOpen} onHide={() => setNewCollectionOpen(false)} />
+        )}
       </div>
-      {isOwner && (
-        <>
-          <input
-            ref={avatarInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={onAvatarFileChange}
-          />
-          <input
-            ref={posterInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={onPosterFileChange}
-          />
-          <Dialog
-            visible={avatarDialogOpen}
-            header="Chỉnh sửa avatar"
-            modal
-            onHide={closeAvatarDialog}
-            className="w-full max-w-2xl"
-            contentClassName="!p-0"
-          >
-            {rawAvatarUrl && (
-              <div className="p-4">
-                <CropImage
-                  imageSrc={rawAvatarUrl}
-                  onCropComplete={handleAvatarCropped}
-                  aspect={avatarAspect}
-                  setAspect={setAvatarAspect}
-                  lockAspect
-                  outputMime="image/jpeg"
-                />
-              </div>
-            )}
-          </Dialog>
-          <Dialog
-            visible={posterDialogOpen}
-            header="Chỉnh sửa ảnh bìa"
-            modal
-            onHide={closePosterDialog}
-            className="w-full max-w-3xl"
-            contentClassName="!p-0"
-          >
-            {rawPosterUrl && (
-              <div className="p-4">
-                <CropImage
-                  imageSrc={rawPosterUrl}
-                  onCropComplete={handlePosterCropped}
-                  aspect={posterAspect}
-                  setAspect={setPosterAspect}
-                  lockAspect
-                  outputMime="image/jpeg"
-                />
-              </div>
-            )}
-          </Dialog>
-        </>
+
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[1000] bg-black/80 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="absolute top-4 right-4">
+            <button
+              type="button"
+              className="w-10 h-10 grid place-items-center rounded-full bg-white/20 text-white hover:bg-white/30"
+              aria-label="Close preview"
+              onClick={(event) => {
+                event.stopPropagation();
+                setPreviewImage(null);
+              }}
+            >
+              <i className="pi pi-times" />
+            </button>
+          </div>
+          <div className="max-w-[90vw] max-h-[85vh]" onClick={(event) => event.stopPropagation()}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewImage.url}
+              alt={previewImage.alt}
+              className="max-h-[85vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
+            />
+          </div>
+        </div>
       )}
+
     </div>
   );
 }

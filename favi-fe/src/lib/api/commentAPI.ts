@@ -1,4 +1,5 @@
 import { fetchWrapper } from "@/lib/fetchWrapper";
+import type { ReactionType } from "@/types";
 
 type PagedResult<T> = { items: T[]; page: number; pageSize: number; totalCount: number };
 
@@ -38,6 +39,9 @@ export const commentAPI = {
     camelize<CommentResponse>(await fetchWrapper.put<any>(`/Comments/${id}`, { content }, true)),
 
   delete: async (id: string) => fetchWrapper.del<any>(`/Comments/${id}`, undefined, true),
+
+  toggleReaction: async (id: string, type: ReactionType) =>
+    camelize(await fetchWrapper.post<any>(`/Comments/${id}/reactions?type=${encodeURIComponent(type)}`, undefined, true)),
 };
 
 export default commentAPI;

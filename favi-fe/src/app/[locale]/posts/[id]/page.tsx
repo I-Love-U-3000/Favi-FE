@@ -6,7 +6,7 @@ import commentAPI, { CommentResponse } from "@/lib/api/commentAPI";
 import useProfile from "@/lib/hooks/useProfile";
 import type { PostResponse, ReactionType } from "@/types";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { readPostReaction, writePostReaction } from "@/lib/postCache";
 import Dock from "@/components/Dock";
 import { useAuth } from "@/components/AuthProvider";
@@ -83,7 +83,12 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
     (cached?.currentUserReaction ?? post.reactions?.currentUserReaction ?? null) as any
   );
   const totalReacts = Object.values(byType).reduce((a, b) => a + b, 0);
-  const [commentCount, setCommentCount] = useState<number>(0);
+  const initialCommentCount =
+    post.commentsCount ??
+    (post as any).commentCount ??
+    (post as any).comments ??
+    0;
+  const [commentCount, setCommentCount] = useState<number>(initialCommentCount);
   const [shareCount, setShareCount] = useState<number>((post as any).shareCount ?? (post as any).shares ?? 0);
   const [shareOpen, setShareOpen] = useState(false);
   // reaction picker like feed
@@ -348,6 +353,15 @@ function CommentsPanel({ postId, onCountChange }: { postId: string; onCountChang
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [expandedRoots, setExpandedRoots] = useState<Record<string, boolean>>({});
+  const syncedInitialCount = useRef(false);
+
+  useEffect(() => {
+    if (!syncedInitialCount.current) {
+      syncedInitialCount.current = true;
+      return;
+    }
+    if (onCountChange) onCountChange(items.length);
+  }, [items.length, onCountChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -406,7 +420,7 @@ function CommentsPanel({ postId, onCountChange }: { postId: string; onCountChang
       setPosting(true);
       const created = await commentAPI.create({ postId, content });
       // back-end trả 1 item phẳng (không có replies), OK
-      setItems(prev => { const next=[created,...prev]; if (onCountChange) onCountChange(next.length); return next; });
+      setItems(prev => [created, ...prev]);
       setNewComment("");
     } catch (e: any) {
       alert(e?.error || e?.message || "Failed to comment");
@@ -420,7 +434,7 @@ function CommentsPanel({ postId, onCountChange }: { postId: string; onCountChang
     try {
       setPosting(true);
       const created = await commentAPI.create({ postId, content, parentCommentId: parentId });
-      setItems(prev => { const next=[created,...prev]; if (onCountChange) onCountChange(next.length); return next; }); // có parentCommentId -> render sẽ đặt đúng
+      setItems(prev => [created, ...prev]); // có parentCommentId -> render sẽ đặt đúng
       setReplyToId(null);
       setReplyText("");
     } catch (e: any) {

@@ -74,11 +74,6 @@ export type Collection = {
   count: number;
 };
 
-// ============
-// Post DTOs (align with backend)
-// ============
-
-// Use a numeric alias for PrivacyLevel to match typical .NET enum JSON (number)
 export type PrivacyLevel = number;
 
 export type ReactionType =
@@ -131,6 +126,7 @@ export type PostResponse = {
   medias: PostMediaResponse[];
   tags: TagDto[];
   reactions: ReactionSummaryDto;
+  commentsCount: number;
 };
 
 export type PagedResult<T> = {
