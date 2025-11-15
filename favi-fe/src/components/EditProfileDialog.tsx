@@ -25,17 +25,77 @@ export default function EditProfileDialog({
   onClose,
   profile,
   onSave,
+  saving = false,
 }: {
   open: boolean;
   onClose: () => void;
   profile: EditableProfile;
-  onSave: (p: EditableProfile) => void;
+  onSave: (p: EditableProfile, files: { avatar?: File | null; cover?: File | null }) => void;
+  saving?: boolean;
 }) {
   const [draft, setDraft] = useState<EditableProfile>(profile);
   const avatarInput = useRef<HTMLInputElement>(null);
   const coverInput = useRef<HTMLInputElement>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
 
-  useEffect(() => setDraft(profile), [profile, open]);
+  useEffect(() => {
+    setDraft(profile);
+    setAvatarFile(null);
+    setCoverFile(null);
+    setAvatarPreviewUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setCoverPreviewUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }, [profile, open]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+    };
+  }, [avatarPreviewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
+    };
+  }, [coverPreviewUrl]);
+
+  const handleAvatarFile = (file: File | null) => {
+    if (avatarPreviewUrl) {
+      URL.revokeObjectURL(avatarPreviewUrl);
+      setAvatarPreviewUrl(null);
+    }
+    setAvatarFile(file);
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setAvatarPreviewUrl(url);
+      setDraft(prev => ({ ...prev, avatarUrl: url }));
+    } else {
+      setDraft(prev => ({ ...prev, avatarUrl: null }));
+    }
+  };
+
+  const handleCoverFile = (file: File | null) => {
+    if (coverPreviewUrl) {
+      URL.revokeObjectURL(coverPreviewUrl);
+      setCoverPreviewUrl(null);
+    }
+    setCoverFile(file);
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setCoverPreviewUrl(url);
+      setDraft(prev => ({ ...prev, coverUrl: url }));
+    } else {
+      setDraft(prev => ({ ...prev, coverUrl: null }));
+    }
+  };
 
   return (
     <Dialog
@@ -46,7 +106,11 @@ export default function EditProfileDialog({
       footer={
         <div className="flex justify-end gap-2">
           <Button label="Cancel" className="p-button-text" onClick={onClose} />
-          <Button label="Save" onClick={() => onSave(draft)} />
+          <Button
+            label={saving ? "Saving..." : "Save"}
+            disabled={saving}
+            onClick={() => onSave(draft, { avatar: avatarFile, cover: coverFile })}
+          />
         </div>
       }
     >
@@ -60,11 +124,12 @@ export default function EditProfileDialog({
           </div>
           <div className="mt-2 flex gap-2">
             <Button label="Change cover" icon="pi pi-image" onClick={() => coverInput.current?.click()} className="p-button-text" />
-            <Button label="Remove" className="p-button-text p-button-danger" onClick={() => setDraft({ ...draft, coverUrl: null })} />
+            <Button label="Remove" className="p-button-text p-button-danger" onClick={() => handleCoverFile(null)} />
             <input ref={coverInput} type="file" accept="image/*" className="hidden" onChange={(e) => {
-              const f = e.target.files?.[0]; if (!f) return;
-              const url = URL.createObjectURL(f);
-              setDraft({ ...draft, coverUrl: url });
+              const f = e.target.files?.[0];
+              if (!f) return;
+              handleCoverFile(f);
+              e.target.value = "";
             }} />
           </div>
         </div>
@@ -75,11 +140,12 @@ export default function EditProfileDialog({
             <AvatarCircle src={draft.avatarUrl ?? undefined} size={72} />
             <div className="mt-2 flex gap-2">
               <Button label="Change" icon="pi pi-user" className="p-button-text" onClick={() => avatarInput.current?.click()} />
-              <Button label="Remove" className="p-button-text p-button-danger" onClick={() => setDraft({ ...draft, avatarUrl: null })} />
+              <Button label="Remove" className="p-button-text p-button-danger" onClick={() => handleAvatarFile(null)} />
               <input ref={avatarInput} type="file" accept="image/*" className="hidden" onChange={(e) => {
-                const f = e.target.files?.[0]; if (!f) return;
-                const url = URL.createObjectURL(f);
-                setDraft({ ...draft, avatarUrl: url });
+                const f = e.target.files?.[0];
+                if (!f) return;
+                handleAvatarFile(f);
+                e.target.value = "";
               }} />
             </div>
           </div>

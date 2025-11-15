@@ -3,7 +3,10 @@
 import { Link } from "@/i18n/routing";
 import { usePathname } from "next/navigation";
 import LanguageSwitcher from "./LanguageSwitcher";
+import { useAuth } from "@/components/AuthProvider";
+import useProfile from "@/lib/hooks/useProfile";
 import ThemeSwitcher from "./ThemeSwitcher";
+import { useOverlay } from "@/components/RootProvider";
 
 type Item = { label: string; href: string; icon: string };
 
@@ -20,6 +23,9 @@ const NAV: Item[] = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { isAuthenticated, isGuest, user, logout } = useAuth();
+  const me = useProfile(user?.id);
+  const { openPostComposer } = useOverlay();
 
   // Outer spacer preserves layout width; inner is fixed so it never scrolls away
   return (
@@ -43,12 +49,32 @@ export default function Navbar() {
         </div>
 
         <nav className="px-2 py-4 space-y-1 overflow-y-auto h-[calc(100vh-64px-64px)]">
-          {NAV.map((item) => {
+          {(isAuthenticated ? NAV : NAV.filter(i => ["/home","/search"].includes(i.href))).map((item) => {
             const active = pathname?.startsWith(item.href);
+            // Dynamic profile link to current user's profile id
+            const href = item.label === 'Profile' && isAuthenticated && (user as any)?.id
+              ? `/profile/${(user as any).id}`
+              : item.href;
+            if (item.label === "Create") {
+              return (
+                <button
+                  key={href}
+                  onClick={openPostComposer}
+                  className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg transition"
+                  style={{
+                    backgroundColor: active ? "rgba(0,0,0,0.05)" : "transparent",
+                    color: "var(--text)",
+                  }}
+                >
+                  <i className={`${item.icon} text-lg`} />
+                  <span className="text-sm font-medium">{item.label}</span>
+                </button>
+              );
+            }
             return (
               <Link
-                key={item.href}
-                href={item.href}
+                key={href}
+                href={href}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition"
                 style={{
                   backgroundColor: active ? "rgba(0,0,0,0.05)" : "transparent",
@@ -62,8 +88,36 @@ export default function Navbar() {
           })}
         </nav>
 
-        <div className="px-3 py-4" style={{ borderTop: "1px solid var(--border)", color: "var(--text-secondary)" }}>
-          <div className="text-xs">© Favi</div>
+        <div className="px-3 py-4 space-y-3" style={{ borderTop: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+          {isAuthenticated ? (
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={me.profile?.avatarUrl || "/avatar-default.svg"}
+                  alt={me.profile?.username || "avatar"}
+                  className="w-8 h-8 rounded-full border"
+                />
+                <div className="min-w-0">
+                  <div className="text-xs font-medium truncate" style={{ color: "var(--text)" }}>
+                    {me.profile?.displayName || (user as any)?.email || "User"}
+                  </div>
+                  {me.profile?.username && (
+                    <div className="text-[11px] opacity-70 truncate">@{me.profile.username}</div>
+                  )}
+                </div>
+              </div>
+              <button
+                className="px-3 py-1 rounded-md text-xs"
+                style={{ backgroundColor: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}
+                onClick={logout}
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <div className="text-xs">{isGuest ? "Guest" : "Guest"}</div>
+          )}
         </div>
       </aside>
     </div>

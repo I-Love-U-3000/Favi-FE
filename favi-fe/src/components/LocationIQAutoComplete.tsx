@@ -59,6 +59,13 @@ const LocationIQAutoComplete: React.FC<LocationIQAutoCompleteProps> = ({
   const fetchSuggestions = async (searchQuery: string) => {
     setLoading(true);
     try {
+      if (!apiKey) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('LocationIQ API key is missing. Set NEXT_PUBLIC_LOCATIONIQ_API_KEY to enable autocomplete.');
+        }
+        setSuggestions([]);
+        return;
+      }
       const url = `https://api.locationiq.com/v1/autocomplete?key=${apiKey}&q=${encodeURIComponent(searchQuery)}&limit=5&countrycodes=vn&language=vi&proximity=${proximity}`;
       const response = await axios.get(url);
       setSuggestions(response.data || []);
