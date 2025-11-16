@@ -19,7 +19,7 @@ export default function HeroSection() {
     <section className="flex flex-col justify-center bg-[#FEF7F7] relative min-h-screen hero-section">
       {/* Wrapper for background and image with fixed aspect ratio */}
       <div
-        className="absolute inset-0 bg-[url('/QuaDuRoi.svg')] bg-no-repeat bg-center items-center hero-bg"
+        className="absolute inset-0 bg-[url('/pages/landing/page1/QuaDuRoi.svg')] bg-no-repeat bg-center items-center hero-bg"
         style={{
           backgroundSize: "contain",
           backgroundPosition: "center",
@@ -31,7 +31,7 @@ export default function HeroSection() {
       />
       {/* Image Element with Custom Scaling */}
       <img
-        src="/GroupFN.svg"
+        src="/pages/landing/page1/GroupFN.svg"
         alt="Moods"
         className="hero-img"
         style={{ scale: 0.7, transform: "translateY(10%) translateX(2%)" }}

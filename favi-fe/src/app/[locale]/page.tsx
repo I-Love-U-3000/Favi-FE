@@ -1,36 +1,36 @@
 "use client";
 
-import Dock from "@/components/Dock";
 import HeroSection from "@/components/HeroSection";
-import LocationIQAutoComplete from "@/components/LocationIQAutoComplete";
-import InstagramPostDialog from "@/components/PostDialog";
-import { Button } from "primereact/button";
-import { Toast } from "primereact/toast";
-import { useRef, useState, useEffect } from "react";
+import LandingFeatureOne from "@/components/LandingFeatureOne";
+import { useEffect } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-gsap.registerPlugin(ScrollTrigger);
-
 export default function Home() {
   useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
+    const animateIn = (section: HTMLElement, index: number) => {
+      gsap.fromTo(
+        section,
+        { opacity: 0, y: 50 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 1,
+          ease: "power2.out",
+          delay: index * 0.2,
+        }
+      );
+    };
+
     // Section animations on scroll
     (gsap.utils.toArray(".section") as HTMLElement[]).forEach((section, index) => {
       ScrollTrigger.create({
         trigger: section,
         start: "top 80%", // Animation starts when top of section is 80% from top of viewport
-        onEnter: () => {
-          gsap.from(section, {
-            opacity: 0,
-            y: 50,
-            duration: 1,
-            ease: "power2.out",
-            delay: index * 0.2, // Stagger effect based on section index
-          });
-        },
-        onLeaveBack: () => {
-          gsap.to(section, { opacity: 0, y: 50, duration: 0.5 });
-        }, // Optional: Reverse animation when scrolling back
+        onEnter: () => animateIn(section, index),
+        once: true, // chỉ animate lần đầu
       });
     });
   }, []);
@@ -38,9 +38,7 @@ export default function Home() {
   return (
     <main>
       <HeroSection />
-      <section className="section bg-gray-100 min-h-screen flex items-center justify-center">
-        <h1 className="text-4xl font-bold">About Us</h1>
-      </section>
+      <LandingFeatureOne />
       <section className="section bg-[#FEF7F7] min-h-screen flex items-center justify-center">
         <h1 className="text-4xl font-bold">Gallery</h1>
       </section>
