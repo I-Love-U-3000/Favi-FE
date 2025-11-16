@@ -2,6 +2,7 @@
 
 import HeroSection from "@/components/HeroSection";
 import LandingFeatureOne from "@/components/LandingFeatureOne";
+import LandingFeatureTwo from "@/components/LandingFeatureTwo";
 import { useEffect } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -39,6 +40,7 @@ export default function Home() {
     <main>
       <HeroSection />
       <LandingFeatureOne />
+      <LandingFeatureTwo/>
       <section className="section bg-[#FEF7F7] min-h-screen flex items-center justify-center">
         <h1 className="text-4xl font-bold">Gallery</h1>
       </section>

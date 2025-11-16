@@ -63,6 +63,13 @@ export default function LandingFeatureOne() {
     return () => ctx.revert();
   }, []);
 
+  const handleSloganClick = () => {
+    const target = document.getElementById("landing-feature-two");
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <section
       id="landing-feature-one"
@@ -128,13 +135,16 @@ export default function LandingFeatureOne() {
             />
 
             {/* Slogan phía dưới – TĂNG SIZE */}
-            <div className="absolute left-1/2 -translate-x-1/2 -bottom-17 flex justify-center">
+            <button
+              type="button"
+              onClick={handleSloganClick}
+              className="absolute left-1/2 -translate-x-1/2 -bottom-17 flex justify-center focus:outline-none">
               <img
                 src="/pages/landing/page2/Slogan.svg"
                 alt="Friendly and Smoothie"
                 className="lf-slogan w-[95%] max-w-2xl"
               />
-            </div>
+            </button>
           </div>
         </div>
       </div>
