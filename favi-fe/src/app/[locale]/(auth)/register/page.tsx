@@ -9,7 +9,7 @@ import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Divider } from "primereact/divider";
 import { Toast } from "primereact/toast";
-import LoginBackdrop from "@/components/LoginRegisterBackground";
+import { AuthBackground } from "@/components/AuthBackground";
 import { supabase } from "@/app/supabase-client";
 import { useTranslations } from "next-intl";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
@@ -147,12 +147,15 @@ export default function RegisterPage() {
   return (
     <div
       className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center p-6 transition-colors duration-500"
-      style={{ color: "var(--text)" }}
+      style={{
+        color: "var(--text)",
+        background: "radial-gradient(circle at 20% 20%, var(--bg-secondary) 0%, var(--bg) 55%)",
+      }}
     >
-      <LoginBackdrop />
+      <AuthBackground/>
       <Toast ref={toastRef} />
 
-      <div className="top-4 right-4 z-20 flex items-center gap-3">
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-3">
         <ThemeSwitcher />
         <LanguageSwitcher />
       </div>

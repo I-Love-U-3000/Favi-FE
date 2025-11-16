@@ -1,46 +1,47 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { THEMES, ThemeKey } from "@/theme/themes";
+import SelectionDialog from "@/components/SelectionDialog";
+import { useTranslations } from "next-intl";
 
 export default function ThemeSwitcher() {
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
+  const t = useTranslations("Common");
 
   const options = useMemo(
     () =>
-      Object.entries(THEMES).map(([key, val]) => ({
-        label: val.name,
-        value: key,
-      })),
+      Object.entries(THEMES)
+        .map(([key, val]) => ({
+          label: val.name,
+          value: key,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
     []
   );
 
   return (
-    <div className="relative">
+    <>
       <Button
+        type="button"
         icon="pi pi-palette"
         rounded
         text
         className="!text-xl"
-        onClick={() => setOpen((v) => !v)}
+        aria-label={t("ChangeTheme")}
+        onClick={() => setOpen(true)}
       />
-      {open && (
-        <div className="absolute right-0 mt-2 w-40">
-          <Dropdown
-            value={theme}
-            options={options}
-            onChange={(e) => {
-              setTheme(e.value as ThemeKey);
-              setOpen(false);
-            }}
-            className="w-full"
-          />
-        </div>
-      )}
-    </div>
+      <SelectionDialog
+        visible={open}
+        title={t("ChooseTheme")}
+        options={options}
+        value={theme ?? undefined}
+        onSelect={(val) => setTheme(val as ThemeKey)}
+        onClose={() => setOpen(false)}
+      />
+    </>
   );
 }

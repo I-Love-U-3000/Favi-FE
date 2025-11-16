@@ -89,8 +89,8 @@ export default function ProfileHoverCard({
                 <Image
                   src={user.avatarUrl || "/avatar-placeholder.png"}
                   alt={user.name || user.username}
-                  width={48}
-                  height={48}
+                  width={50}
+                  height={50}
                   className="rounded-full object-cover"
                 />
               </Link>

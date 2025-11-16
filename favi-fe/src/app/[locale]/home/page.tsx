@@ -12,10 +12,12 @@ import postAPI from "@/lib/api/postAPI";
 import type { PostResponse, ReactionType } from "@/types";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import { readPostReaction, writePostReaction } from "@/lib/postCache";
+import { useTranslations } from "next-intl";
 
 export default function HomePage() {
   const { isAuthenticated, user } = useAuth();
   const me = useProfile(user?.id);
+  const t = useTranslations("HomePage");
   const [view, setView] = useState<"list" | "grid">("list");
   const router = useRouter();
   const [quickQ, setQuickQ] = useState("");
@@ -32,21 +34,21 @@ export default function HomePage() {
         if (!isAuthenticated) {
           if (!cancelled) {
             setPosts([]);
-            setError("Vui lòng đăng nhập để xem bảng feed của bạn.");
+            setError(t("LoginRequired"));
           }
         } else {
           const res = await postAPI.getFeed(1, 24);
           if (!cancelled) setPosts(res.items || []);
         }
       } catch (e: any) {
-        if (!cancelled) setError(e?.error || e?.message || "Failed to load feed");
+        if (!cancelled) setError(e?.error || e?.message || t("LoadFeedFailed"));
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     load();
     return () => { cancelled = true; };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, t]);
 
   const gridPosts = useMemo(() => posts.filter(p => (p.medias || []).length > 0), [posts]);
 
@@ -74,7 +76,7 @@ export default function HomePage() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={me.profile?.avatarUrl || "/avatar-default.svg"}
-                      alt={me.profile?.username || "avatar"}
+                      alt={me.profile?.username || t("AvatarAlt")}
                       className="w-9 h-9 rounded-full border"
                     />
                   </div>
@@ -89,7 +91,7 @@ export default function HomePage() {
                         router.push(`/search?mode=keyword&q=${encodeURIComponent(quickQ)}`);
                       }
                     }}
-                    placeholder="Search photos, captions, tags…"
+                    placeholder={t("SearchPlaceholder")}
                     className="w-full px-4 py-2 rounded-xl border"
                     style={{ backgroundColor: "var(--input-bg)", color: "var(--text)", borderColor: "var(--input-border)" }}
                   />
@@ -99,13 +101,13 @@ export default function HomePage() {
                   className="px-4 py-2 rounded-xl"
                   style={{ backgroundColor: "var(--primary)", color: "white" }}
                 >
-                  Search
+                  {t("SearchAction")}
                 </button>
               </div>
             </div>
             {/* Feed from database */}
             {loading && (
-              <div className="mt-6 text-sm opacity-70">Loading posts…</div>
+              <div className="mt-6 text-sm opacity-70">{t("LoadingPosts")}</div>
             )}
             {error && (
               <div className="mt-6 text-sm text-red-500">{error}</div>
@@ -113,10 +115,10 @@ export default function HomePage() {
 
             {/* Feed controls */}
             <div className="mt-6 flex items-center justify-between">
-              <div className="text-sm opacity-70">Your feed</div>
+              <div className="text-sm opacity-70">{t("FeedTitle")}</div>
               <div className="inline-flex rounded-full p-1 bg-black/5">
-                <button onClick={() => setView("list")} className={`px-3 py-1.5 text-xs rounded-full ${view==="list"?"bg-white shadow ring-1 ring-black/10":"opacity-70 hover:opacity-100"}`}>List</button>
-                <button onClick={() => setView("grid")} className={`px-3 py-1.5 text-xs rounded-full ${view==="grid"?"bg-white shadow ring-1 ring-black/10":"opacity-70 hover:opacity-100"}`}>Grid</button>
+                <button onClick={() => setView("list")} className={`px-3 py-1.5 text-xs rounded-full ${view==="list"?"bg-white shadow ring-1 ring-black/10":"opacity-70 hover:opacity-100"}`}>{t("ViewList")}</button>
+                <button onClick={() => setView("grid")} className={`px-3 py-1.5 text-xs rounded-full ${view==="grid"?"bg-white shadow ring-1 ring-black/10":"opacity-70 hover:opacity-100"}`}>{t("ViewGrid")}</button>
               </div>
             </div>
 
@@ -126,7 +128,7 @@ export default function HomePage() {
                   <PostListItem key={p.id} post={p} />
                 ))}
                 {!loading && posts.length === 0 && (
-                  <div className="mt-8 text-center text-sm opacity-70">No posts yet.</div>
+                  <div className="mt-8 text-center text-sm opacity-70">{t("EmptyFeed")}</div>
                 )}
               </div>
             ) : (
@@ -153,10 +155,13 @@ export default function HomePage() {
 function PostListItem({ post }: { post: PostResponse }) {
   const { requireAuth } = useAuth();
   const router = useRouter();
+  const t = useTranslations("HomePage");
+  const tReactions = useTranslations("Reactions");
   const author = useProfile(post.authorProfileId);
   const avatar = author.profile?.avatarUrl || "/avatar-default.svg";
-  const display = author.profile?.displayName || author.profile?.username || "User";
+  const display = author.profile?.displayName || author.profile?.username || t("FallbackDisplayName");
   const username = author.profile?.username;
+  const fallbackUsername = t("FallbackUsername");
   const medias = post.medias || [];
   const [mediaIdx, setMediaIdx] = useState(0);
   useEffect(() => {
@@ -277,12 +282,12 @@ function PostListItem({ post }: { post: PostResponse }) {
     >
       {/* Header: author with hover card */}
       <div className="px-4 py-3 flex items-center gap-3">
-        <ProfileHoverCard
-          user={{
-            id: author.profile?.id || post.authorProfileId,
-            username: username || "user",
-            name: display,
-            avatarUrl: avatar,
+      <ProfileHoverCard
+        user={{
+          id: author.profile?.id || post.authorProfileId,
+          username: username || fallbackUsername,
+          name: display,
+          avatarUrl: avatar,
             bio: author.profile?.bio || undefined,
             followersCount: author.profile?.stats?.followers,
             followingCount: author.profile?.stats?.following,
@@ -312,14 +317,14 @@ function PostListItem({ post }: { post: PostResponse }) {
               <button
                 className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full w-8 h-8 flex items-center justify-center"
                 onClick={(e)=>{ e.stopPropagation(); setMediaIdx(i=> (i-1+medias.length)%medias.length); }}
-                aria-label="Previous"
+                aria-label={t("AriaPrevious")}
               >
                 ‹
               </button>
               <button
                 className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full w-8 h-8 flex items-center justify-center"
                 onClick={(e)=>{ e.stopPropagation(); setMediaIdx(i=> (i+1)%medias.length); }}
-                aria-label="Next"
+                aria-label={t("AriaNext")}
               >
                 ›
               </button>
@@ -341,7 +346,7 @@ function PostListItem({ post }: { post: PostResponse }) {
             <button
               className="w-9 h-9 grid place-items-center rounded-full bg-white/20 text-white hover:bg-white/30"
               onClick={(e)=>{ e.stopPropagation(); setImageViewerOpen(false); }}
-              aria-label="Close"
+              aria-label={t("AriaClose")}
             >
               <i className="pi pi-times" />
             </button>
@@ -352,14 +357,14 @@ function PostListItem({ post }: { post: PostResponse }) {
               <button
                 className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 grid place-items-center rounded-full bg-white/20 text-white hover:bg-white/30"
                 onClick={(e)=>{ e.stopPropagation(); setMediaIdx(i=> (i-1+medias.length)%medias.length); setZoomScale(1); }}
-                aria-label="Previous"
+                aria-label={t("AriaPrevious")}
               >
                 <i className="pi pi-chevron-left" />
               </button>
               <button
                 className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 grid place-items-center rounded-full bg-white/20 text-white hover:bg-white/30"
                 onClick={(e)=>{ e.stopPropagation(); setMediaIdx(i=> (i+1)%medias.length); setZoomScale(1); }}
-                aria-label="Next"
+                aria-label={t("AriaNext")}
               >
                 <i className="pi pi-chevron-right" />
               </button>
@@ -434,13 +439,13 @@ function PostListItem({ post }: { post: PostResponse }) {
                 className="px-2 py-1 rounded-full border hover:bg-black/5"
                 style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
                 onClick={(e) => { e.stopPropagation(); userReaction ? chooseReaction(userReaction) : chooseReaction('Like' as any); }}
-                aria-label="React"
+                aria-label={t("AriaReact")}
               >
                 {userReaction ? (
                   <span className="text-base">{({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[userReaction]}</span>
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src="/reaction-default.svg" alt="react" className="w-4 h-4" />
+                  <img src="/reaction-default.svg" alt={t("ReactIconAlt")} className="w-4 h-4" />
                 )}
               </button>
               {pickerOpen && (
@@ -454,7 +459,7 @@ function PostListItem({ post }: { post: PostResponse }) {
                       key={r}
                       className="w-8 h-8 grid place-items-center text-xl hover:scale-110 transition"
                       onClick={() => chooseReaction(r as ReactionType)}
-                      title={r}
+                      title={tReactions(r as any)}
                     >
                       {({ Like:'👍', Love:'❤️', Haha:'😂', Wow:'😮', Sad:'😢', Angry:'😡' } as any)[r]}
                     </button>
@@ -464,18 +469,18 @@ function PostListItem({ post }: { post: PostResponse }) {
               <span className="ml-2 text-xs opacity-70">{totalReacts}</span>
             </div>
 
-            <button className="inline-flex items-center gap-1 hover:opacity-100" title="Share" onClick={()=>router.push(`/posts/${post.id}`)}>
-              <span className="inline-flex items-center gap-1" title="Comments"><i className="pi pi-comments" /> {commentCount}</span>
+            <button className="inline-flex items-center gap-1 hover:opacity-100" title={t("ShareActionTitle")} onClick={()=>router.push(`/posts/${post.id}`)}>
+              <span className="inline-flex items-center gap-1" title={t("CommentsLabel")}><i className="pi pi-comments" /> {commentCount}</span>
             </button>
 
-            <button className="inline-flex items-center gap-1 hover:opacity-100" title="Share" onClick={()=>setShareOpen(v=>!v)}>
+            <button className="inline-flex items-center gap-1 hover:opacity-100" title={t("ShareActionTitle")} onClick={()=>setShareOpen(v=>!v)}>
               <i className="pi pi-share-alt" /> {shareCount}
             </button>
             {shareOpen && (
               <div className="absolute translate-y-10 right-0 z-[70] bg-white dark:bg-neutral-900 border rounded-lg shadow p-2 flex flex-col text-sm">
-                <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{alert('Share to chat (todo)'); setShareOpen(false);}}>Share to chat</button>
-                <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{alert('Share to your profile (todo)'); setShareOpen(false);}}>Share to profile</button>
-                <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{navigator.clipboard?.writeText(window.location.origin + `/posts/${post.id}`); alert('Link copied'); setShareOpen(false);}}>Copy link</button>
+                <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{alert(t("ShareMenuChatTodo")); setShareOpen(false);}}>{t("ShareMenuChat")}</button>
+                <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{alert(t("ShareMenuProfileTodo")); setShareOpen(false);}}>{t("ShareMenuProfile")}</button>
+                <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{navigator.clipboard?.writeText(window.location.origin + `/posts/${post.id}`); alert(t("CopyLinkSuccess")); setShareOpen(false);}}>{t("ShareMenuCopy")}</button>
               </div>
             )}
           </div>

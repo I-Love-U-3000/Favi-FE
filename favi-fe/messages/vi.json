@@ -5,11 +5,11 @@
     },
 
     "LoginPage": {
-        "Slogan": "Bắt lấy khoảng khắc"
+        "Slogan": "Bắt lấy cảm xúc"
     },
 
     "RegisterPage": {
-        "Slogan": "Bắt lấy khoảng khắc",
+        "Slogan": "Bắt lấy cảm xúc",
         "Welcome": "Chào mừng",
         "Register": "Đăng kí",
         "Username": "Tên tài khoản",
@@ -37,5 +37,49 @@
         "UsernameNoSpaces": "Username không được chứa khoảng trắng.",
         "UsernameInvalidChars": "Username chỉ được chứa chữ, số, dấu gạch dưới hoặc chấm.",
         "UsernameNoVietnamese": "Username không được chứa dấu tiếng Việt."
+    },
+
+    "HomePage": {
+        "LoginRequired": "Vui lòng đăng nhập để xem bảng feed của bạn.",
+        "LoadFeedFailed": "Không thể tải bảng feed.",
+        "SearchPlaceholder": "Tìm ảnh, chú thích, thẻ…",
+        "SearchAction": "Tìm kiếm",
+        "LoadingPosts": "Đang tải bài viết…",
+        "FeedTitle": "Bảng feed của bạn",
+        "ViewList": "Danh sách",
+        "ViewGrid": "Lưới",
+        "EmptyFeed": "Chưa có bài viết nào.",
+        "AvatarAlt": "ảnh đại diện",
+        "FallbackDisplayName": "Người dùng",
+        "FallbackUsername": "nguoidung",
+        "AriaPrevious": "Trước",
+        "AriaNext": "Tiếp",
+        "AriaClose": "Đóng",
+        "AriaReact": "Thả cảm xúc",
+        "ShareActionTitle": "Chia sẻ",
+        "CommentsLabel": "Bình luận",
+        "ShareMenuChat": "Chia sẻ lên chat",
+        "ShareMenuProfile": "Chia sẻ lên trang cá nhân",
+        "ShareMenuCopy": "Sao chép liên kết",
+        "ShareMenuChatTodo": "Tính năng chia sẻ lên chat sẽ sớm có mặt.",
+        "ShareMenuProfileTodo": "Tính năng chia sẻ lên trang cá nhân sẽ sớm có mặt.",
+        "CopyLinkSuccess": "Đã sao chép liên kết",
+        "ReactIconAlt": "biểu tượng cảm xúc"
+    },
+
+    "Reactions": {
+        "Like": "Thích",
+        "Love": "Yêu thích",
+        "Haha": "Haha",
+        "Wow": "Wow",
+        "Sad": "Buồn",
+        "Angry": "Phẫn nộ"
+    },
+
+    "Common": {
+        "ChangeTheme": "Đổi giao diện",
+        "ChooseTheme": "Chọn giao diện",
+        "ChangeLanguage": "Đổi ngôn ngữ",
+        "ChooseLanguage": "Chọn ngôn ngữ"
     }
 }

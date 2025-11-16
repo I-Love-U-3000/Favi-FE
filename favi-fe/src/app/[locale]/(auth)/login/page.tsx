@@ -12,10 +12,12 @@ import { Button } from "primereact/button";
 import { Divider } from "primereact/divider";
 import { Checkbox } from "primereact/checkbox";
 import { Toast } from "primereact/toast";
-import LoginBackdrop from "@/components/LoginRegisterBackground";
+import { AuthBackground } from "@/components/AuthBackground";
 import { supabase } from "@/app/supabase-client";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/AuthProvider";
+import ThemeSwitcher from "@/components/ThemeSwitcher";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 async function loginWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
@@ -141,9 +143,14 @@ export default function LoginPage() {
   }, [setGuestMode, router]);
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0ea5e9]/10 via-[#a78bfa]/10 to-[#22c55e]/10 flex flex-col items-center justify-center p-6">
-      <LoginBackdrop variant="neon-stripes" />
+    <div
+      className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center p-6">
+      <AuthBackground />
       <Toast ref={toastRef} />
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-3">
+        <ThemeSwitcher />
+        <LanguageSwitcher />
+      </div>
 
       <header className="mb-10 text-center pointer-events-none select-none relative z-10">
         <h1
@@ -154,24 +161,29 @@ export default function LoginPage() {
           Favi
         </h1>
         <p
-          className="mt-3 text-xl md:text-2xl font-medium
-               text-gray-700 dark:text-gray-200
-               opacity-90">
+          className="mt-3 text-xl md:text-2xl font-medium opacity-90"
+          style={{ color: "var(--text-secondary)" }}
+        >
           {t('Slogan')}
         </p>
       </header>
 
       <Card
-        className="relative z-10 w-full max-w-[560px]
-             backdrop-blur-2xl
-             bg-white/75 dark:bg-[#0b1020]/70
-             border border-white/40 dark:border-white/10
-             shadow-[0_20px_80px_-20px_rgba(0,0,0,0.45)]
-             rounded-3xl"
+        className="relative z-10 w-full max-w-[560px] rounded-3xl shadow-[0_20px_80px_-20px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
+        style={{
+          backgroundColor: "var(--bg-secondary)",
+          borderColor: "var(--border)",
+          color: "var(--text)",
+          borderWidth: "1px",
+        }}
         title={
           <div className="text-center space-y-1">
-            <div className="text-2xl md:text-3xl font-bold tracking-tight">Welcome back</div>
-            <div className="text-sm md:text-base text-gray-500">Đăng nhập để tiếp tục</div>
+            <div className="text-2xl md:text-3xl font-bold tracking-tight" style={{ color: "var(--text)" }}>
+              Welcome back
+            </div>
+            <div className="text-sm md:text-base" style={{ color: "var(--text-secondary)" }}>
+              Đăng nhập để tiếp tục
+            </div>
           </div>
         }
       >
@@ -193,7 +205,9 @@ export default function LoginPage() {
                 aria-required
               />
             </div>
-            <p className="text-xs text-gray-500">Dùng email hoặc username bạn đã đăng ký.</p>
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+              Dùng email hoặc username bạn đã đăng ký.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -201,7 +215,12 @@ export default function LoginPage() {
               <label htmlFor="password" className="text-sm md:text-base font-medium">
                 Mật khẩu
               </label>
-              <Link href="/forgot-password" className="text-sm md:text-base text-primary hover:underline" prefetch={false}>
+              <Link
+                href="/forgot-password"
+                className="text-sm md:text-base hover:underline"
+                prefetch={false}
+                style={{ color: "var(--primary)" }}
+              >
                 Quên mật khẩu?
               </Link>
             </div>
@@ -239,7 +258,12 @@ export default function LoginPage() {
               />
               <span className="text-sm md:text-base">Ghi nhớ đăng nhập</span>
             </label>
-            <Link href="/register" className="text-sm md:text-base hover:underline text-primary" prefetch={false}>
+            <Link
+              href="/register"
+              className="text-sm md:text-base hover:underline"
+              prefetch={false}
+              style={{ color: "var(--primary)" }}
+            >
               Tạo tài khoản mới
             </Link>
           </div>
@@ -254,7 +278,9 @@ export default function LoginPage() {
           />
 
           <Divider align="center">
-            <span className="text-xs md:text-sm text-gray-500">hoặc</span>
+            <span className="text-xs md:text-sm" style={{ color: "var(--text-secondary)" }}>
+              hoặc
+            </span>
           </Divider>
 
           <Button
