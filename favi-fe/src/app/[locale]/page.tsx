@@ -3,7 +3,6 @@
 import Dock from "@/components/Dock";
 import HeroSection from "@/components/HeroSection";
 import LocationIQAutoComplete from "@/components/LocationIQAutoComplete";
-import Navbar from "@/components/Navbar";
 import InstagramPostDialog from "@/components/PostDialog";
 import { Button } from "primereact/button";
 import { Toast } from "primereact/toast";
@@ -15,9 +14,6 @@ gsap.registerPlugin(ScrollTrigger);
 
 export default function Home() {
   useEffect(() => {
-    // Navbar animation on load
-    gsap.from(".navbar", { opacity: 0, y: -50, duration: 1, ease: "power2.out" });
-
     // Section animations on scroll
     (gsap.utils.toArray(".section") as HTMLElement[]).forEach((section, index) => {
       ScrollTrigger.create({
@@ -41,7 +37,6 @@ export default function Home() {
 
   return (
     <main>
-      <Navbar />
       <HeroSection />
       <section className="section bg-gray-100 min-h-screen flex items-center justify-center">
         <h1 className="text-4xl font-bold">About Us</h1>

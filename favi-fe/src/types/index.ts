@@ -135,3 +135,32 @@ export type PagedResult<T> = {
   pageSize: number;
   totalCount: number;
 };
+
+export type CreateCommentRequest = {
+  postId: string;
+  authorProfileId?: string | null;
+  content: string;
+  parentCommentId?: string | null;
+};
+
+export type UpdateCommentRequest = {
+  content: string;
+};
+
+export type CommentResponse = {
+  id: string; // Guid
+  postId: string; // Guid
+  authorProfileId?: string | null;
+  authorUsername?: string | null;
+  authorDisplayName?: string | null;
+  authorAvatarUrl?: string | null;
+  content: string;
+  createdAt: string; // ISO
+  updatedAt?: string | null; // ISO
+  parentCommentId?: string | null;
+  reactions?: ReactionSummaryDto | null;
+};
+
+export type CommentTreeResponse = CommentResponse & {
+  replies?: CommentTreeResponse[];
+};
