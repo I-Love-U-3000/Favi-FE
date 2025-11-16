@@ -18,44 +18,38 @@ export default function LandingFeatureOne() {
       // timeline xuất hiện 1 lần
       const tl = gsap.timeline({ paused: true });
 
-      tl.from(".lf-bounding", {
+      tl.from(".lf-bounding-1", {
         opacity: 0,
         y: 40,
-        duration: 1,
+        duration: 0.9,
         ease: "power3.out",
       })
-        .from(
-          ".lf-slogan",
-          {
-            opacity: 0,
-            y: 30,
-            duration: 0.9,
-            ease: "power2.out",
-          },
-          "-=0.6"
-        )
-        .from(
-          ".lf-cat",
-          {
-            opacity: 0,
-            y: 80,
-            scale: 0.9,
-            duration: 1.2,
-            ease: "power3.out",
-          },
-          "-=0.4"
-        )
-        .from(
-          ".lf-blob",
-          {
-            opacity: 0,
-            scale: 0.8,
-            duration: 1.2,
-            ease: "power2.out",
-            stagger: 0.1,
-          },
-          "-=0.8"
-        );
+        .from(".lf-bounding-2", {
+          opacity: 0,
+          y: 40,
+          duration: 0.9,
+          ease: "power3.out",
+        })
+        .from(".lf-slogan", {
+          opacity: 0,
+          y: 30,
+          duration: 0.8,
+          ease: "power2.out",
+        })
+        .from(".lf-cat", {
+          opacity: 0,
+          y: 80,
+          scale: 0.9,
+          duration: 1.0,
+          ease: "power3.out",
+        })
+        .from(".lf-blob", {
+          opacity: 0,
+          scale: 0.8,
+          duration: 1.0,
+          ease: "power2.out",
+          stagger: 0.1,
+        });
 
       // Trigger cho animation xuất hiện
       ScrollTrigger.create({
@@ -70,7 +64,10 @@ export default function LandingFeatureOne() {
   }, []);
 
   return (
-    <section className="section min-h-screen flex items-center justify-center bg-[#fee89b]">
+    <section
+      id="landing-feature-one"
+      className="section min-h-screen flex items-center justify-center bg-[#fee89b]"
+    >
       <div
         ref={rootRef}
         className="relative w-full h-full max-w-6xl mx-auto px-4 py-16 flex items-center justify-center"
@@ -85,14 +82,14 @@ export default function LandingFeatureOne() {
             <img
               src="/pages/landing/page2/BoundingHeadline.svg"
               alt=""
-              className="lf-bounding absolute -left-[10%] top-[1%] w-[70%] max-w-xl drop-shadow-[0_18px_45px_rgba(0,0,0,0.2)]"
+              className="lf-bounding-1 absolute -left-[10%] top-[1%] w-[70%] max-w-xl drop-shadow-[0_18px_45px_rgba(0,0,0,0.2)]"
             />
 
             {/* Bounding headline xanh (ô vuông xanh bên phải) */}
             <img
               src="/pages/landing/page2/BoundingHeadline2.svg"
               alt=""
-              className="lf-bounding absolute -right-[1%] top-[9%] w-[72%] max-w-2xl opacity-95 drop-shadow-[0_18px_45px_rgba(0,0,0,0.18)]"
+              className="lf-bounding-2 absolute -right-[1%] top-[9%] w-[72%] max-w-2xl opacity-95 drop-shadow-[0_18px_45px_rgba(0,0,0,0.18)]"
             />
 
             {/* Cat + UI nằm trên ô xanh */}

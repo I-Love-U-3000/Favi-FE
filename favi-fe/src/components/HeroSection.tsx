@@ -15,6 +15,13 @@ export default function HeroSection() {
     gsap.from(".hero-btn", { opacity: 0, y: 50, duration: 1, delay: 1, ease: "power2.out" });
   }, []);
 
+  const handleCtaClick = () => {
+    const target = document.getElementById("landing-feature-one");
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <section className="flex flex-col justify-center bg-[#FEF7F7] relative min-h-screen hero-section">
       {/* Wrapper for background and image with fixed aspect ratio */}
@@ -40,6 +47,7 @@ export default function HeroSection() {
       <button
         style={{ marginTop: "150px" }}
         className={`text-center w-200 h-12 self-center border-4 border-black bg-[#F24E1E] hover:bg-[#d13f0f] z-20 ${heptaSlab.className} text-white text-[30px] hero-btn`}
+        onClick={handleCtaClick}
       >
         Which is your mood today? Explore now!
       </button>
