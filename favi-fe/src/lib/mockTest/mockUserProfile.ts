@@ -14,5 +14,4 @@ export const mockUserProfile: UserProfile = {
   stats: { posts: 12, followers: 1890, following: 321, likes: 5420 },
   isMe: true,
   joinedAtISO: "2024-11-02",
-  interests: ["Photography", "Next.js", "Supabase", "AI/ML", "Design System"],
 };

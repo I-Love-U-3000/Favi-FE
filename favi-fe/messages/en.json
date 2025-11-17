@@ -1,7 +1,9 @@
 {
     "Profile": {
         "Joined": "joined",
-        "Website": "website"
+        "Website": "website",
+        "UpdateProfileSuccessTitle": "Profile updated",
+        "UpdateProfileSuccessMessage": "Your profile has been updated successfully."
     },
 
     "LoginPage": {

@@ -9,7 +9,7 @@ import {useTranslations} from "next-intl";
 import {mockUserProfile} from "@/lib/mockTest/mockUserProfile";
 import {mockPost} from "@/lib/mockTest/mockPost";
 import {mockCollection} from "@/lib/mockTest/mockCollection";
-import type {UserProfile, PhotoPost, Collection, PostResponse} from "@/types";
+import type {UserProfile, PhotoPost, Collection, PostResponse, SocialLink, SocialKind} from "@/types";
 import profileAPI from "@/lib/api/profileAPI";
 import postAPI from "@/lib/api/postAPI";
 import { normalizeProfile, writeCachedProfile } from "@/lib/profileCache";
@@ -17,6 +17,7 @@ import CollectionDialog from "@/components/CollectionDialog";
 import EditProfileDialog, { EditableProfile } from "@/components/EditProfileDialog";
 import ReportDialog from "@/components/ReportDialog";
 import { useAuth } from "@/components/AuthProvider";
+import { useOverlay } from "@/components/RootProvider";
 
 /* ========== Helpers ========== */
 function asArray<T>(x: T | T[] | undefined | null): T[] {
@@ -197,6 +198,7 @@ export default function ProfilePage() {
   const t = useTranslations("Profile"); // thay cho getTranslations(server)
   const router = useRouter();
   const { user } = useAuth();
+  const { showToast } = useOverlay();
 
   const params = useParams(); // { id?: string | string[] }
   const id = Array.isArray((params as any).id) ? (params as any).id[0] : (params as any).id as string | undefined;
@@ -216,6 +218,8 @@ export default function ProfilePage() {
   const [newCollectionOpen, setNewCollectionOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [previewImage, setPreviewImage] = useState<{ url: string; alt: string } | null>(null);
+  const [links, setLinks] = useState<SocialLink[]>([]);
+  const [loadingLinks, setLoadingLinks] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -248,6 +252,93 @@ export default function ProfilePage() {
     })();
     return () => { cancelled = true; };
   }, [id]);
+
+  const detectSocialKindFromUrl = (url: string): SocialKind | "Website" => {
+    let host = "";
+    try {
+      const normalized = url.startsWith("http://") || url.startsWith("https://") ? url : `https://${url}`;
+      host = new URL(normalized).hostname.toLowerCase();
+    } catch {
+      return "Website";
+    }
+
+    if (host.includes("facebook.com")) return "Facebook";
+    if (host.includes("instagram.com")) return "Instagram";
+    if (host.includes("twitter.com") || host.includes("x.com")) return "Twitter";
+    if (host.includes("tiktok.com")) return "Tiktok";
+    if (host.includes("youtube.com") || host.includes("youtu.be")) return "Youtube";
+    if (host.includes("github.com")) return "Github";
+    if (host.includes("linkedin.com")) return "LinkedIn";
+    return "Website";
+  };
+
+  useEffect(() => {
+    if (!profile) return;
+    let cancelled = false;
+
+    const loadLinks = async () => {
+      setLoadingLinks(true);
+      try {
+        const raw = await profileAPI.getLinksPublic(profile.id);
+        const items: any[] = Array.isArray(raw) ? raw : raw?.items ?? [];
+        if (cancelled) return;
+        const mapped: SocialLink[] = items
+          .map((x) => {
+            const url: string = (x.url ?? x.Url ?? "").trim();
+            if (!url) return null;
+            const rawKind = x.socialKind ?? x.SocialKind ?? x.type ?? x.Type ?? x.kind ?? x.Kind;
+            let socialKind: SocialKind | "Website";
+            if (typeof rawKind === "number") {
+              const map: Record<number, SocialKind> = {
+                0: "Website",
+                1: "Facebook",
+                2: "Instagram",
+                3: "Twitter",
+                4: "Tiktok",
+                5: "Youtube",
+                6: "Github",
+                7: "LinkedIn",
+              };
+              socialKind = map[rawKind] ?? "Website";
+            } else if (typeof rawKind === "string") {
+              const k = rawKind as SocialKind;
+              socialKind =
+                k === "Website" ||
+                k === "Facebook" ||
+                k === "Instagram" ||
+                k === "Twitter" ||
+                k === "Tiktok" ||
+                k === "Youtube" ||
+                k === "Github" ||
+                k === "LinkedIn"
+                  ? k
+                  : detectSocialKindFromUrl(url);
+            } else {
+              socialKind = detectSocialKindFromUrl(url);
+            }
+
+            const rawId = x.id ?? x.Id;
+            return {
+              id: rawId ? String(rawId) : undefined,
+              socialKind,
+              url,
+            } as SocialLink;
+          })
+          .filter((x): x is SocialLink => Boolean(x));
+        setLinks(mapped);
+      } catch {
+        if (!cancelled) setLinks([]);
+      } finally {
+        if (!cancelled) setLoadingLinks(false);
+      }
+    };
+
+    loadLinks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profile]);
 
   useEffect(() => {
     if (!previewImage) return;
@@ -285,7 +376,6 @@ export default function ProfilePage() {
         bio: p.bio ?? null,
         website: p.website ?? null,
         location: p.location ?? null,
-        interests: p.interests ?? []
       };
       Object.keys(payload).forEach(key => {
         if (payload[key] === undefined) delete payload[key];
@@ -301,11 +391,109 @@ export default function ProfilePage() {
           bio: p.bio,
           website: p.website,
           location: p.location,
-          interests: p.interests,
           avatarUrl: avatarUrl ?? undefined,
           coverUrl: coverUrl ?? undefined,
         });
       }
+
+      // Sync social links (best-effort)
+      if (p.socialLinks) {
+        try {
+          const currentById = new Map<string, SocialLink>();
+          links.forEach((l) => {
+            if (l.id) currentById.set(l.id, l);
+          });
+
+          const next = (p.socialLinks || []).filter((l) => l.url.trim());
+
+          // Determine removals and updates
+          const toRemove: string[] = [];
+          currentById.forEach((existing, id) => {
+            const nextItem = next.find((n) => n.id === id);
+            if (!nextItem) {
+              toRemove.push(id);
+            } else if (nextItem.url.trim() !== existing.url) {
+              toRemove.push(id);
+            }
+          });
+
+          // Determine additions (new or changed)
+          const toAdd = next.filter(
+            (n) =>
+              !n.id ||
+              !n.id ||
+              !currentById.has(n.id) ||
+              currentById.get(n.id)?.url !== n.url.trim()
+          );
+
+          for (const id of toRemove) {
+            await profileAPI.removeLink(id);
+          }
+
+          for (const item of toAdd) {
+            const url = item.url.trim();
+            const kind = detectSocialKindFromUrl(url);
+            await profileAPI.addLink({ socialKind: kind, url });
+          }
+
+          // Reload links after changes
+          const raw = await profileAPI.getLinksPublic(profile.id);
+          const items: any[] = Array.isArray(raw) ? raw : raw?.items ?? [];
+          const mapped: SocialLink[] = items
+            .map((x) => {
+              const url: string = (x.url ?? x.Url ?? "").trim();
+              if (!url) return null;
+              const rawKind = x.socialKind ?? x.SocialKind ?? x.type ?? x.Type ?? x.kind ?? x.Kind;
+              let socialKind: SocialKind | "Website";
+              if (typeof rawKind === "number") {
+                const map: Record<number, SocialKind> = {
+                  0: "Website",
+                  1: "Facebook",
+                  2: "Instagram",
+                  3: "Twitter",
+                  4: "Tiktok",
+                  5: "Youtube",
+                  6: "Github",
+                  7: "LinkedIn",
+                };
+                socialKind = map[rawKind] ?? "Website";
+              } else if (typeof rawKind === "string") {
+                const k = rawKind as SocialKind;
+                socialKind =
+                  k === "Website" ||
+                  k === "Facebook" ||
+                  k === "Instagram" ||
+                  k === "Twitter" ||
+                  k === "Tiktok" ||
+                  k === "Youtube" ||
+                  k === "Github" ||
+                  k === "LinkedIn"
+                    ? k
+                    : detectSocialKindFromUrl(url);
+              } else {
+                socialKind = detectSocialKindFromUrl(url);
+              }
+
+              const rawId = x.id ?? x.Id;
+              return {
+                id: rawId ? String(rawId) : undefined,
+                socialKind,
+                url,
+              } as SocialLink;
+            })
+            .filter((x): x is SocialLink => Boolean(x));
+          setLinks(mapped);
+        } catch {
+          // ignore link sync errors; profile already updated
+        }
+      }
+
+      showToast({
+        severity: "success",
+        summary: t("UpdateProfileSuccessTitle"),
+        detail: t("UpdateProfileSuccessMessage"),
+        life: 3500,
+      });
       setEditOpen(false);
     } catch (e: any) {
       alert(e?.error || e?.message || "Failed to save profile");
@@ -381,7 +569,7 @@ export default function ProfilePage() {
 
       {/* HEADER INFO */}
       <div className="mx-auto max-w-6xl px-6" style={{ color: 'var(--text)' }}>
-        <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between pt-16">
+        <div className="flex flex-col md:flex-row gap-4 justify-between pt-16">
           <div>
             <div className="text-2xl font-semibold">{primaryName}</div>
             {trimmedDisplayName && (
@@ -438,20 +626,49 @@ export default function ProfilePage() {
 
             <TabPanel header="About">
               <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <div className="text-sm opacity-60 mb-1">Bio</div>
-                    <p className="text-sm leading-relaxed">{profile.bio}</p>
-                  </div>
-
-                  <div>
-                    <div className="text-sm opacity-60 mb-2">Interests</div>
-                    <div className="flex flex-wrap gap-2">
-                      {profile.interests?.map(it => (
-                        <Tag key={it} value={it} rounded />
-                      ))}
+                <div className="space-y-3">
+                  {loadingLinks ? (
+                    <div className="text-sm opacity-70">Loading links...</div>
+                  ) : links.length === 0 ? (
+                    <div className="text-sm opacity-70">
+                      No social links have been added yet.
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-3">
+                      {links.map((link) => {
+                        const kind = link.socialKind;
+                        const icon =
+                          kind === "Facebook"
+                            ? "pi pi-facebook"
+                            : kind === "Instagram"
+                            ? "pi pi-instagram"
+                            : kind === "Twitter"
+                            ? "pi pi-twitter"
+                            : kind === "Tiktok"
+                            ? "pi pi-video"
+                            : kind === "Youtube"
+                            ? "pi pi-youtube"
+                            : kind === "Github"
+                            ? "pi pi-github"
+                            : kind === "LinkedIn"
+                            ? "pi pi-linkedin"
+                            : "pi pi-link";
+                        return (
+                          <a
+                            key={link.id ?? link.url}
+                            href={link.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm"
+                            style={{ backgroundColor: "var(--bg)", border: "1px solid var(--border)" }}
+                          >
+                            <i className={icon} />
+                            <span className="truncate max-w-[180px]">{link.url}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </TabPanel>
@@ -469,7 +686,7 @@ export default function ProfilePage() {
             location: profile.location ?? undefined,
             avatarUrl: profile.avatarUrl,
             coverUrl: profile.coverUrl,
-            interests: profile.interests ?? [],
+            socialLinks: links.map((l) => ({ id: l.id, url: l.url })),
           }}
           onSave={onSaveProfile}
           saving={savingProfile}

@@ -1,85 +1,87 @@
 {
-    "Profile": {
-        "Joined": "tham gia vào",
-        "Website": "trang web"
-    },
+  "Profile": {
+    "Joined": "tham gia vào",
+    "Website": "trang web",
+    "UpdateProfileSuccessTitle": "Cập nhật hồ sơ",
+    "UpdateProfileSuccessMessage": "Hồ sơ của bạn đã được cập nhật thành công."
+  },
 
-    "LoginPage": {
-        "Slogan": "Bắt lấy cảm xúc"
-    },
+  "LoginPage": {
+    "Slogan": "Bắt lấy cảm xúc"
+  },
 
-    "RegisterPage": {
-        "Slogan": "Bắt lấy cảm xúc",
-        "Welcome": "Chào mừng",
-        "Register": "Đăng kí",
-        "Username": "Tên tài khoản",
-        "Email": "Email",
-        "Password": "Mật khẩu",
-        "AlreadyHasAccount": "Đã có tài khoản",
-        "Login": "Đăng nhập",
-        "Or": "hoặc",
-        "ContinueWithGoogle": "Tiếp tục với Google",
-        "IsConnecting": "Đang kết nối...",
-        "IsRegistering": "Đang đăng kí...",
-        "EmailVerification": "Xác minh Email",
-        "EmailVerificationDetail": "Chúng tôi đã gửi thông báo cho bạn. Hãy sử dụng email để xác minh trước khi tiếp tục với ứng dụng.",
-        "InvalidEmail": "Email không hợp lệ",
-        "InvalidUsername": "Username không hợp lệ",
-        "UsernameExists": "Tên tài khoản đã tồn tại",
-        "ShortPassword": "Mật khẩu quá ngắn",
-        "ShortPasswordDetail": "Mật khẩu phải có ít nhất 6 ký tự.",
-        "EmailExists": "Email đã đăng ký",
-        "ProfileExists": "Hồ sơ đã tồn tại",
-        "RegisterFailed": "Đăng ký thất bại",
-        "GoogleSignInError": "Lỗi khi đăng nhập Google",
-        "UnknownError": "Lỗi không xác định",
-        "UsernameLength": "Username phải dài từ 3–32 ký tự.",
-        "UsernameNoSpaces": "Username không được chứa khoảng trắng.",
-        "UsernameInvalidChars": "Username chỉ được chứa chữ, số, dấu gạch dưới hoặc chấm.",
-        "UsernameNoVietnamese": "Username không được chứa dấu tiếng Việt."
-    },
+  "RegisterPage": {
+    "Slogan": "Bắt lấy cảm xúc",
+    "Welcome": "Chào mừng",
+    "Register": "Đăng ký",
+    "Username": "Tên tài khoản",
+    "Email": "Email",
+    "Password": "Mật khẩu",
+    "AlreadyHasAccount": "Đã có tài khoản",
+    "Login": "Đăng nhập",
+    "Or": "hoặc",
+    "ContinueWithGoogle": "Tiếp tục với Google",
+    "IsConnecting": "Đang kết nối...",
+    "IsRegistering": "Đang đăng ký...",
+    "EmailVerification": "Xác minh Email",
+    "EmailVerificationDetail": "Chúng tôi đã gửi thông báo cho bạn. Hãy sử dụng email đó để xác minh trước khi tiếp tục với ứng dụng.",
+    "InvalidEmail": "Email không hợp lệ",
+    "InvalidUsername": "Username không hợp lệ",
+    "UsernameExists": "Tên tài khoản đã tồn tại",
+    "ShortPassword": "Mật khẩu quá ngắn",
+    "ShortPasswordDetail": "Mật khẩu phải có ít nhất 6 ký tự.",
+    "EmailExists": "Email đã đăng ký",
+    "ProfileExists": "Hồ sơ đã tồn tại",
+    "RegisterFailed": "Đăng ký thất bại",
+    "GoogleSignInError": "Lỗi khi đăng nhập Google",
+    "UnknownError": "Lỗi không xác định",
+    "UsernameLength": "Username phải dài từ 3–32 ký tự.",
+    "UsernameNoSpaces": "Username không được chứa khoảng trắng.",
+    "UsernameInvalidChars": "Username chỉ được chứa chữ, số, dấu gạch dưới hoặc dấu chấm.",
+    "UsernameNoVietnamese": "Username không được chứa dấu tiếng Việt."
+  },
 
-    "HomePage": {
-        "LoginRequired": "Vui lòng đăng nhập để xem bảng feed của bạn.",
-        "LoadFeedFailed": "Không thể tải bảng feed.",
-        "SearchPlaceholder": "Tìm ảnh, chú thích, thẻ…",
-        "SearchAction": "Tìm kiếm",
-        "LoadingPosts": "Đang tải bài viết…",
-        "FeedTitle": "Bảng feed của bạn",
-        "ViewList": "Danh sách",
-        "ViewGrid": "Lưới",
-        "EmptyFeed": "Chưa có bài viết nào.",
-        "AvatarAlt": "ảnh đại diện",
-        "FallbackDisplayName": "Người dùng",
-        "FallbackUsername": "nguoidung",
-        "AriaPrevious": "Trước",
-        "AriaNext": "Tiếp",
-        "AriaClose": "Đóng",
-        "AriaReact": "Thả cảm xúc",
-        "ShareActionTitle": "Chia sẻ",
-        "CommentsLabel": "Bình luận",
-        "ShareMenuChat": "Chia sẻ lên chat",
-        "ShareMenuProfile": "Chia sẻ lên trang cá nhân",
-        "ShareMenuCopy": "Sao chép liên kết",
-        "ShareMenuChatTodo": "Tính năng chia sẻ lên chat sẽ sớm có mặt.",
-        "ShareMenuProfileTodo": "Tính năng chia sẻ lên trang cá nhân sẽ sớm có mặt.",
-        "CopyLinkSuccess": "Đã sao chép liên kết",
-        "ReactIconAlt": "biểu tượng cảm xúc"
-    },
+  "HomePage": {
+    "LoginRequired": "Vui lòng đăng nhập để xem bảng feed của bạn.",
+    "LoadFeedFailed": "Không thể tải bảng feed.",
+    "SearchPlaceholder": "Tìm ảnh, chú thích, thẻ...",
+    "SearchAction": "Tìm kiếm",
+    "LoadingPosts": "Đang tải bài viết...",
+    "FeedTitle": "Bảng feed của bạn",
+    "ViewList": "Danh sách",
+    "ViewGrid": "Lưới",
+    "EmptyFeed": "Chưa có bài viết nào.",
+    "AvatarAlt": "ảnh đại diện",
+    "FallbackDisplayName": "Người dùng",
+    "FallbackUsername": "nguoidung",
+    "AriaPrevious": "Trước",
+    "AriaNext": "Tiếp",
+    "AriaClose": "Đóng",
+    "AriaReact": "Thả cảm xúc",
+    "ShareActionTitle": "Chia sẻ",
+    "CommentsLabel": "Bình luận",
+    "ShareMenuChat": "Chia sẻ lên chat",
+    "ShareMenuProfile": "Chia sẻ lên trang cá nhân",
+    "ShareMenuCopy": "Sao chép liên kết",
+    "ShareMenuChatTodo": "Tính năng chia sẻ lên chat sẽ sớm có mặt.",
+    "ShareMenuProfileTodo": "Tính năng chia sẻ lên trang cá nhân sẽ sớm có mặt.",
+    "CopyLinkSuccess": "Đã sao chép liên kết",
+    "ReactIconAlt": "biểu tượng cảm xúc"
+  },
 
-    "Reactions": {
-        "Like": "Thích",
-        "Love": "Yêu thích",
-        "Haha": "Haha",
-        "Wow": "Wow",
-        "Sad": "Buồn",
-        "Angry": "Phẫn nộ"
-    },
+  "Reactions": {
+    "Like": "Thích",
+    "Love": "Yêu thích",
+    "Haha": "Haha",
+    "Wow": "Wow",
+    "Sad": "Buồn",
+    "Angry": "Phẫn nộ"
+  },
 
-    "Common": {
-        "ChangeTheme": "Đổi giao diện",
-        "ChooseTheme": "Chọn giao diện",
-        "ChangeLanguage": "Đổi ngôn ngữ",
-        "ChooseLanguage": "Chọn ngôn ngữ"
-    }
+  "Common": {
+    "ChangeTheme": "Đổi giao diện",
+    "ChooseTheme": "Chọn giao diện",
+    "ChangeLanguage": "Đổi ngôn ngữ",
+    "ChooseLanguage": "Chọn ngôn ngữ"
+  }
 }

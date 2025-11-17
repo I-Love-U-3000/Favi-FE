@@ -32,7 +32,7 @@ export type ProfileUpdateInput = {
   bio?: string | null;
   avatar_url?: string | null;
   cover_url?: string | null;
-}
+};
 
 export type UserProfile = {
   id: string;
@@ -52,8 +52,23 @@ export type UserProfile = {
   isMe?: boolean;           
   isFollowing?: boolean;    
   joinedAtISO?: string;    
-  interests?: string[];
-}
+};
+
+export type SocialKind =
+  | "Website"
+  | "Facebook"
+  | "Instagram"
+  | "Twitter"
+  | "Tiktok"
+  | "Youtube"
+  | "Github"
+  | "LinkedIn";
+
+export type SocialLink = {
+  id?: string;
+  socialKind: SocialKind | "Website";
+  url: string;
+};
 
 export type PhotoPost = {
   id: string;

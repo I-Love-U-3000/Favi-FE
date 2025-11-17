@@ -1,5 +1,5 @@
 import { fetchWrapper } from "@/lib/fetchWrapper";
-import type { PostMediaResponse } from "@/types";
+import type { PostMediaResponse, SocialKind } from "@/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -105,7 +105,7 @@ export const profileAPI = {
 
   getMyLinks: () => fetchWrapper.get<any>("/profiles/me/links", true),
 
-  addLink: (dto: { type: string; url: string; label?: string }) =>
+  addLink: (dto: { socialKind: SocialKind | "Website" | string; url: string; label?: string }) =>
     fetchWrapper.post<any>("/profiles/links", dto, true),
 
   removeLink: (linkId: string) =>

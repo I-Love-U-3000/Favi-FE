@@ -80,7 +80,6 @@ export function normalizeProfile(input: any): UserProfile | null {
     isMe: get(input, "isMe", "is_me"),
     isFollowing: get(input, "isFollowing", "is_following"),
     joinedAtISO: get(input, "joinedAtISO", "joined_at", "joinedAt"),
-    interests: get(input, "interests") ?? undefined,
   } as UserProfile;
 }
 

@@ -10,6 +10,11 @@ import NavGate from "@/components/NavGate";
 export const metadata: Metadata = {
   title: "Favi",
   description: "Capture the mood.",
+  icons: {
+    icon: "/favi-logo.png",
+    shortcut: "/favi-logo.png",
+    apple: "/favi-logo.png",
+  },
 };
 
 export default function RootLayout({
