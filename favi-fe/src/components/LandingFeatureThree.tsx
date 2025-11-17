@@ -208,35 +208,35 @@ export default function LandingFeatureThree() {
           <div className="absolute -right-14 top-80 -translate-y-1/2 z-30 flex flex-col items-center gap-4">
             <button
               type="button"
-              className="lf3-cta relative w-24 h-24 md:w-28 md:h-28 flex items-center justify-center focus:outline-none"
+              className="lf3-cta group relative w-24 h-24 md:w-28 md:h-28 flex items-center justify-center focus:outline-none cursor-pointer"
               onClick={scrollToNextSection}
             >
               <img
                 src="/pages/landing/page4/Ellipse1.svg"
                 alt="Next"
-                className="w-full h-full"
+                className="w-full h-full transition-transform duration-200 ease-out group-hover:scale-110 group-hover:-translate-y-1"
               />
               <img
                 src="/pages/landing/page4/NextButton.svg"
                 alt="Next label"
-                className="absolute w-1/2 h-1/2 object-contain"
+                className="absolute w-1/2 h-1/2 object-contain transition-transform duration-200 ease-out group-hover:scale-105"
               />
             </button>
 
             <button
               type="button"
-              className="lf3-cta relative w-24 h-24 md:w-28 md:h-28 flex items-center justify-center focus:outline-none"
+              className="lf3-cta group relative w-24 h-24 md:w-28 md:h-28 flex items-center justify-center focus:outline-none cursor-pointer"
               onClick={scrollToNextSection}
             >
               <img
                 src="/pages/landing/page4/Ellipse2.svg"
                 alt="Skip"
-                className="w-full h-full"
+                className="w-full h-full transition-transform duration-200 ease-out group-hover:scale-110 group-hover:-translate-y-1"
               />
               <img
                 src="/pages/landing/page4/SkipButton.svg"
                 alt="Skip label"
-                className="absolute w-1/2 h-1/2 object-contain"
+                className="absolute w-1/2 h-1/2 object-contain transition-transform duration-200 ease-out group-hover:scale-105"
               />
             </button>
           </div>

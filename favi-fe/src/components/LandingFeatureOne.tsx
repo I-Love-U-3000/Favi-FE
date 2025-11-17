@@ -138,11 +138,11 @@ export default function LandingFeatureOne() {
             <button
               type="button"
               onClick={handleSloganClick}
-              className="absolute left-1/2 -translate-x-1/2 -bottom-17 flex justify-center focus:outline-none">
+              className="absolute left-1/2 -translate-x-1/2 -bottom-12 flex justify-center focus:outline-none focus:outline-none cursor-pointer">
               <img
                 src="/pages/landing/page2/Slogan.svg"
                 alt="Friendly and Smoothie"
-                className="lf-slogan w-[95%] max-w-2xl"
+                className="lf-slogan w-[95%] max-w-2xl transition-transform duration-200 ease-out group-hover:scale-105 group-hover:-translate-y-1"
               />
             </button>
           </div>

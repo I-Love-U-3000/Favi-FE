@@ -112,9 +112,9 @@ export default function LandingFeatureFour() {
               <button
                 type="button"
                 onClick={handleSloganClick}
-                className="flex justify-center focus:outline-none"
+                className="group flex justify-center focus:outline-none cursor-pointer"
               >
-                <div className="lf4-slogan-container relative w-[80%] max-w-2xl mx-auto">
+                <div className="lf4-slogan-container relative w-[80%] max-w-2xl mx-auto transition-transform duration-200 ease-out group-hover:scale-105 group-hover:-translate-y-1">
                   <img
                     src="/pages/landing/page5/SloganContainer.svg"
                     alt=""
