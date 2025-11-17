@@ -124,14 +124,14 @@ export default function LandingFeatureOne() {
             <img
               src="/pages/landing/page2/Blob1.svg"
               alt=""
-              className="lf-blob absolute -right-58 -top-15 w-65 md:w-90 opacity-70"
+              className="lf-blob absolute -right-55 -top-15 w-65 md:w-90 opacity-70"
             />
 
             {/* Blob4: xanh lá – góc dưới phải */}
             <img
               src="/pages/landing/page2/Blob4.svg"
               alt=""
-              className="lf-blob absolute -right-60 -bottom-65 w-65 md:w-90 opacity-70"
+              className="lf-blob absolute -right-55 -bottom-65 w-65 md:w-90 opacity-70"
             />
 
             {/* Slogan phía dưới – TĂNG SIZE */}
