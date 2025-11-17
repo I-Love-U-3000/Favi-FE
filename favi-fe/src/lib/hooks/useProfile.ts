@@ -11,7 +11,7 @@ type Options = {
 
 export function useProfile(profileId: string | undefined | null, opts?: Options) {
   const id = profileId ?? null;
-  const revalidateOnMount = opts?.revalidateOnMount ?? false;
+  const revalidateOnMount = opts?.revalidateOnMount ?? true;
   const [profile, setProfile] = useState<UserProfile | null>(() => (id ? readCachedProfile(id) : null));
   const [loading, setLoading] = useState<boolean>(!profile && !!id);
   const [error, setError] = useState<string | null>(null);

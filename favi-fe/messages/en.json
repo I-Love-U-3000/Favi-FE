@@ -83,5 +83,12 @@
         "ChooseTheme": "Choose a theme",
         "ChangeLanguage": "Change language",
         "ChooseLanguage": "Choose a language"
+    },
+
+    "FriendsPage": {
+        "Title": "Recommended for you",
+        "SuggestionsTitle": "Who you may know",
+        "Empty": "Empty",
+        "Folow": "Follow"
     }
 }

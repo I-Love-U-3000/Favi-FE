@@ -1,5 +1,5 @@
 import { fetchWrapper } from "@/lib/fetchWrapper";
-import type { PostMediaResponse, SocialKind } from "@/types";
+import type { PostMediaResponse, ProfileResponse, SocialKind } from "@/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -63,7 +63,14 @@ async function uploadProfileAsset(path: string, file: File): Promise<PostMediaRe
 }
 
 export const profileAPI = {
-  getById: (id: string) => fetchWrapper.get<any>(`/profiles/${id}`, false),
+  getById: (id: string) => fetchWrapper.get<ProfileResponse>(`/profiles/${id}`, false),
+  getRecommendations: (skip?: number, take?: number) => {
+    const q: string[] = [];
+    if (typeof skip === "number") q.push(`skip=${skip}`);
+    if (typeof take === "number") q.push(`take=${take}`);
+    const qs = q.length ? `?${q.join("&")}` : "";
+    return fetchWrapper.get<any>(`/profiles/recommendations${qs}`, true);
+  },
   getAvatar: (id: string) => fetchWrapper.get<string>(`/profiles/avatar/${id}`, false),
   getPoster: (id: string) => fetchWrapper.get<string>(`/profiles/poster/${id}`, false),
   uploadAvatar: (file: File) => uploadProfileAsset("/profiles/avatar", file),

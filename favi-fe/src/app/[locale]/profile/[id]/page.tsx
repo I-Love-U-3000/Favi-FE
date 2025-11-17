@@ -515,7 +515,6 @@ export default function ProfilePage() {
   if (error) return <div className="p-6 text-sm text-red-500">{error}</div>;
   if (!profile) return <div className="p-6 text-sm opacity-70">User not found.</div>;
 
-  const joined = profile.joinedAtISO ?? undefined;
   const isOwner = !!(profile.isMe || (user?.id && profile.id === user.id));
   const trimmedDisplayName = profile.displayName?.trim();
   const primaryName = trimmedDisplayName || profile.username;
@@ -589,11 +588,6 @@ export default function ProfilePage() {
                    href={profile.website} target="_blank" rel="noreferrer">
                   <i className="pi pi-globe" /> {t("Website")}
                 </a>
-              )}
-              {joined && (
-                <span className="inline-flex items-center gap-1" suppressHydrationWarning>
-                  <i className="pi pi-calendar" /> {t("Joined")} {joined}
-                </span>
               )}
             </div>
           </div>

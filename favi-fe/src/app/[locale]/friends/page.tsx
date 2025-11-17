@@ -1,102 +1,155 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "primereact/button";
+import { useTranslations } from "next-intl";
+import ProfileHoverCard from "@/components/ProfileHoverCard";
+import profileAPI from "@/lib/api/profileAPI";
+import { useAuth } from "@/components/AuthProvider";
 
-type Friend = {
+type Recommendation = {
   id: string;
-  name: string;
-  avatar: string;
-  status: "none" | "requested" | "incoming" | "following";
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  bio?: string;
+  followersCount?: number;
+  followingCount?: number;
 };
 
 export default function FriendsPage() {
-  const initial = useMemo<Friend[]>(
-    () => [
-      { id: "u1", name: "Eleanor Pena", avatar: "https://i.pravatar.cc/80?img=31", status: "incoming" },
-      { id: "u2", name: "Leslie Alexander", avatar: "https://i.pravatar.cc/80?img=32", status: "none" },
-      { id: "u3", name: "Brooklyn Simmons", avatar: "https://i.pravatar.cc/80?img=33", status: "following" },
-      { id: "u4", name: "Arlene McCoy", avatar: "https://i.pravatar.cc/80?img=34", status: "requested" },
-    ],
-    []
-  );
-  const [list, setList] = useState(initial);
-  const suggestions = useMemo<Friend[]>(
-    () => [
-      { id: "s1", name: "Keanu Reeves", avatar: "https://i.pravatar.cc/80?img=52", status: "none" },
-      { id: "s2", name: "Ada Lovelace", avatar: "https://i.pravatar.cc/80?img=53", status: "none" },
-      { id: "s3", name: "Grace Hopper", avatar: "https://i.pravatar.cc/80?img=54", status: "none" },
-    ],
-    []
-  );
+  const { isAuthenticated } = useAuth();
+  const t = useTranslations("FriendsPage");
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [actioning, setActioning] = useState<string | null>(null);
 
-  const accept = (id: string) => setList(ls => ls.map(u => u.id === id ? { ...u, status: "following" } : u));
-  const reject = (id: string) => setList(ls => ls.map(u => u.id === id ? { ...u, status: "none" } : u));
-  const request = (id: string) => setList(ls => ls.map(u => u.id === id ? { ...u, status: "requested" } : u));
-  const cancel = (id: string) => setList(ls => ls.map(u => u.id === id ? { ...u, status: "none" } : u));
-  const unfollow = (id: string) => setList(ls => ls.map(u => u.id === id ? { ...u, status: "none" } : u));
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!isAuthenticated) {
+        setRecommendations([]);
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await profileAPI.getRecommendations(0, 20);
+        if (!cancelled) {
+          const items = (res?.items ?? res) as any[];
+          const mapped: Recommendation[] = (items || []).map((p) => ({
+            id: String(p.id ?? p.Id ?? p.profileId ?? p.profileID ?? p.userId ?? ""),
+            username: p.username ?? p.Username ?? p.handle ?? String(p.id ?? p.Id ?? ""),
+            displayName: p.displayName ?? p.DisplayName ?? p.name ?? p.fullName ?? undefined,
+            avatarUrl: p.avatarUrl ?? p.AvatarUrl ?? p.avatar ?? p.avatarURL ?? undefined,
+            bio: p.bio ?? p.Bio ?? undefined,
+            followersCount: p.stats?.followers ?? p.stats?.Followers ?? p.followersCount ?? p.FollowersCount ?? undefined,
+            followingCount: p.stats?.following ?? p.stats?.Following ?? p.followingCount ?? p.FollowingCount ?? undefined,
+          })).filter(x => x.id && x.username);
+          setRecommendations(mapped);
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          setError(e?.message || e?.error || "Failed to load recommendations");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
+
+  const handleFollow = async (id: string) => {
+    try {
+      setActioning(id);
+      await profileAPI.follow(id);
+      setRecommendations((prev) => prev.filter((r) => r.id !== id));
+    } catch (e) {
+      // ignore for now, maybe toast later
+    } finally {
+      setActioning((current) => (current === id ? null : current));
+    }
+  };
+
+  const text = useMemo(
+    () => ({
+      title: t("Title", { defaultMessage: "Friends" }),
+      sectionSuggestions: t("SuggestionsTitle", { defaultMessage: "Who you may know" }),
+      loginRequired: t("LoginRequired", { defaultMessage: "Please login to see suggestions." }),
+      empty: t("Empty", { defaultMessage: "No suggestions at the moment." }),
+      follow: t("Follow", { defaultMessage: "Follow" }),
+    }),
+    [t]
+  );
 
   return (
-    <div className="max-w-5xl mx-auto p-6" style={{ color: 'var(--text)' }}>
-      <h1 className="text-2xl font-semibold mb-6">Friends</h1>
+    <div className="max-w-5xl mx-auto p-6" style={{ color: "var(--text)" }}>
+      <h1 className="text-2xl font-semibold mb-6">{text.title}</h1>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Your network */}
-        <section>
-          <h2 className="text-lg font-medium mb-3">Your network</h2>
-          <div className="space-y-3">
-            {list.map((u) => (
-              <div key={u.id} className="flex items-center justify-between rounded-xl p-3" style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
+      <section>
+        <h2 className="text-lg font-medium mb-3">{text.sectionSuggestions}</h2>
+
+        {!isAuthenticated && (
+          <div className="text-sm opacity-70">{text.loginRequired}</div>
+        )}
+
+        {isAuthenticated && loading && (
+          <div className="text-sm opacity-70">Loading...</div>
+        )}
+
+        {isAuthenticated && error && !loading && (
+          <div className="text-sm text-red-500">{error}</div>
+        )}
+
+        {isAuthenticated && !loading && !error && recommendations.length === 0 && (
+          <div className="text-sm opacity-70">{text.empty}</div>
+        )}
+
+        <div className="mt-3 space-y-3">
+          {recommendations.map((s) => {
+            const display = s.displayName || s.username;
+            return (
+              <div
+                key={s.id}
+                className="flex items-center justify-between rounded-xl p-3"
+                style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+              >
                 <div className="flex items-center gap-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={u.avatar} alt={u.name} className="w-10 h-10 rounded-full" />
+                  <ProfileHoverCard
+                    user={{
+                      id: s.id,
+                      username: s.username,
+                      name: display,
+                      avatarUrl: s.avatarUrl,
+                      bio: s.bio,
+                      followersCount: s.followersCount,
+                      followingCount: s.followingCount,
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={s.avatarUrl || "/avatar-default.svg"}
+                      alt={display}
+                      className="w-10 h-10 rounded-full cursor-pointer border"
+                    />
+                  </ProfileHoverCard>
                   <div>
-                    <div className="text-sm font-medium">{u.name}</div>
-                    <div className="text-xs opacity-70">{u.status}</div>
+                    <div className="text-sm font-medium">{display}</div>
+                    <div className="text-xs opacity-70">@{s.username}</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {u.status === "incoming" && (
-                    <>
-                      <Button label="Accept" onClick={() => accept(u.id)} />
-                      <Button label="Reject" className="p-button-text" onClick={() => reject(u.id)} />
-                    </>
-                  )}
-                  {u.status === "none" && (
-                    <Button label="Request follow" onClick={() => request(u.id)} />
-                  )}
-                  {u.status === "requested" && (
-                    <Button label="Cancel" className="p-button-text" onClick={() => cancel(u.id)} />
-                  )}
-                  {u.status === "following" && (
-                    <Button label="Unfollow" className="p-button-text" onClick={() => unfollow(u.id)} />
-                  )}
-                </div>
+                <Button
+                  label={text.follow}
+                  onClick={() => handleFollow(s.id)}
+                  loading={actioning === s.id}
+                />
               </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Suggestions */}
-        <section>
-          <h2 className="text-lg font-medium mb-3">Who you may know</h2>
-          <div className="space-y-3">
-            {suggestions.map((s) => (
-              <div key={s.id} className="flex items-center justify-between rounded-xl p-3" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-                <div className="flex items-center gap-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={s.avatar} alt={s.name} className="w-10 h-10 rounded-full" />
-                  <div>
-                    <div className="text-sm font-medium">{s.name}</div>
-                    <div className="text-xs opacity-70">Related by mutual tags</div>
-                  </div>
-                </div>
-                <Button label="Request" onClick={() => request(s.id)} />
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }

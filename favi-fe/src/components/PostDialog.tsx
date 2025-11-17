@@ -634,12 +634,6 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
             )}
           </div>
           <div className="flex gap-2 flex-wrap items-center">
-            <Button
-              label="Thêm hashtag"
-              icon="pi pi-hashtag"
-              className="p-button-text"
-              onClick={() => setCaption(caption + ' #')}
-            />
             <Button label="Thẻ người" icon="pi pi-user" className="p-button-text" />
             <Button label="Thêm vị trí" icon="pi pi-map-marker" className="p-button-text" />
             <span className="flex-1" />

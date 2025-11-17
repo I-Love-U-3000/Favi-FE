@@ -83,5 +83,12 @@
     "ChooseTheme": "Chọn giao diện",
     "ChangeLanguage": "Đổi ngôn ngữ",
     "ChooseLanguage": "Chọn ngôn ngữ"
+  },
+
+  "FriendsPage": {
+        "Title": "Đề xuất cho bạn",
+        "SuggestionsTitle": "Những người bạn có thể biết",
+        "Empty": "Trống",
+        "Follow": "Theo dõi"
   }
 }

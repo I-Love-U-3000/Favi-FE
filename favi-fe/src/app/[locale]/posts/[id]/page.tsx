@@ -148,6 +148,9 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
                   username: username || "",
                   name: display || username || "",
                   avatarUrl: avatar,
+                  bio: author.profile?.bio || undefined,
+                  followersCount: author.profile?.stats?.followers,
+                  followingCount: author.profile?.stats?.following,
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -827,6 +830,9 @@ function CommentRow({
           username: username || "",
           name: displayName || username || "",
           avatarUrl: avatar,
+          bio: prof.profile?.bio || undefined,
+          followersCount: prof.profile?.stats?.followers,
+          followingCount: prof.profile?.stats?.following,
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}

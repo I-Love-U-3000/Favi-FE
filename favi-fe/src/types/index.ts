@@ -34,6 +34,22 @@ export type ProfileUpdateInput = {
   cover_url?: string | null;
 };
 
+// Backend profile DTO (C# ProfileResponse)
+export type ProfileResponse = {
+  id: string; // Guid
+  username: string;
+  displayName?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  coverUrl?: string | null;
+  createdAt: string; // ISO
+  lastActiveAt: string; // ISO
+  privacyLevel: PrivacyLevel;
+  followPrivacyLevel: PrivacyLevel;
+  followersCount?: number | null;
+  followingCount?: number | null;
+};
+
 export type UserProfile = {
   id: string;
   username: string;         
