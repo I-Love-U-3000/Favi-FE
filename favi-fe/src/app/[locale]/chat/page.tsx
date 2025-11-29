@@ -9,6 +9,8 @@ import { useTranslations } from "next-intl";
 import { supabase } from "@/app/supabase-client";
 import chatAPI from "@/lib/api/chatAPI";
 import type { ConversationSummaryResponse, MessageResponse } from "@/types";
+import { useAuth } from "@/components/AuthProvider";
+import { useSearchParams } from "next/navigation";
 
 // --------- INTERNAL CHAT TYPES (làm việc với backend) ---------
 interface ChatMessage {
@@ -52,7 +54,20 @@ interface UiConversation {
 
 export default function ChatPage() {
   const t = useTranslations("ChatPage");
-  const currentUserId = "TODO-current-profile-id"; // TODO: lấy từ auth (supabase / jwt)
+  const { user } = useAuth();
+  const currentUserId = user?.id ?? "";
+  const searchParams = useSearchParams();
+  const initialConversationId = searchParams.get("conversationId");
+
+  if (!currentUserId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="text-sm opacity-70">
+          Bạn cần đăng nhập để dùng chat.
+        </span>
+      </div>
+    );
+  }
 
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<ChatConversation | null>(null);
@@ -60,6 +75,8 @@ export default function ChatPage() {
 
   // ------------- 1. Load danh sách conversations từ backend -------------
   useEffect(() => {
+    if (!currentUserId) return;
+
     const fetchConversations = async () => {
       try {
         const data = (await chatAPI.getConversations(
@@ -73,7 +90,7 @@ export default function ChatPage() {
 
           return {
             id: c.id,
-            key: c.id, // có thể sau này đổi nếu muốn
+            key: c.id,
             recipient: {
               username: other?.username ?? "unknown",
               avatar: other?.avatarUrl ?? "/default-avatar.png",
@@ -85,8 +102,14 @@ export default function ChatPage() {
 
         setConversations(mapped);
 
-        if (mapped.length > 0) {
-          // auto mở hội thoại đầu tiên
+        // Ưu tiên mở conversationId từ URL nếu có
+        const fromQuery = initialConversationId
+          ? mapped.find((c) => c.id === initialConversationId)
+          : null;
+
+        if (fromQuery) {
+          handleConversationSelect(fromQuery.id, fromQuery);
+        } else if (mapped.length > 0) {
           handleConversationSelect(mapped[0].id, mapped[0]);
         }
       } catch (e) {
@@ -96,7 +119,7 @@ export default function ChatPage() {
 
     fetchConversations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentUserId, initialConversationId]);
 
   // ------------- 2. Load message khi chọn conversation -------------
   const handleConversationSelect = useCallback(
@@ -296,9 +319,8 @@ export default function ChatPage() {
             style={{ color: "var(--text-secondary)" }}
           >
             {selectedConversation?.recipient
-              ? `${t?.("TalkingTo") ?? "Talking to"} @${
-                  selectedConversation.recipient.username
-                }`
+              ? `${t?.("TalkingTo") ?? "Talking to"} @${selectedConversation.recipient.username
+              }`
               : t?.("NoConversation") ?? "No conversation selected"}
           </div>
         </div>
@@ -311,7 +333,7 @@ export default function ChatPage() {
           >
             <ChatList
               userId={currentUserId}
-              onClose={() => {}}
+              onClose={() => { }}
               // ChatList vẫn xài key để chọn conversation, nên mình truyền key (ở đây = id)
               onSelect={(conversationKey: string) => {
                 const conv = conversations.find((c) => c.key === conversationKey);
@@ -329,15 +351,15 @@ export default function ChatPage() {
               <>
                 <ChatHeader
                   recipient={selectedConversation.recipient}
-                  onBack={() => {}}
+                  onBack={() => { }}
                 />
                 <div className="flex-1 overflow-y-auto" style={{ maxHeight: "58vh" }}>
                   <MessageList messages={uiMessages} currentUser={currentUserId} />
                 </div>
                 <MessageInput
                   onSend={handleSendMessage}
-                  onSendImage={() => {}}
-                  onSendSticker={() => {}}
+                  onSendImage={() => { }}
+                  onSendSticker={() => { }}
                 />
               </>
             ) : (

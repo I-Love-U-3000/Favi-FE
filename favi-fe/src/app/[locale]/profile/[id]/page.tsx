@@ -12,6 +12,7 @@ import {mockCollection} from "@/lib/mockTest/mockCollection";
 import type {UserProfile, PhotoPost, Collection, PostResponse, SocialLink, SocialKind} from "@/types";
 import profileAPI from "@/lib/api/profileAPI";
 import postAPI from "@/lib/api/postAPI";
+import chatAPI from "@/lib/api/chatAPI";
 import { normalizeProfile, writeCachedProfile } from "@/lib/profileCache";
 import CollectionDialog from "@/components/CollectionDialog";
 import EditProfileDialog, { EditableProfile } from "@/components/EditProfileDialog";
@@ -60,6 +61,18 @@ function Stat({label, value}: {label: string; value: number | string}) {
 function ActionButtons({profile, onEdit, isOwner}:{profile: UserProfile; onEdit:()=>void; isOwner: boolean}) {
   const [following, setFollowing] = useState(!!profile.isFollowing);
   const [reportOpen, setReportOpen] = useState(false);
+  const router = useRouter();
+
+  const handleMessageClick = async () => {
+    try {
+      // gọi backend tạo / lấy DM giữa currentUser và profile này
+      const conv = await chatAPI.getOrCreateDm(profile.id);
+      // điều hướng sang trang chat, truyền conversationId
+      router.push(`/chat?conversationId=${conv.id}`);
+    } catch (e: any) {
+      alert(e?.error || e?.message || "Failed to start conversation");
+    }
+  };
 
   if (isOwner) {
     return (
@@ -88,7 +101,11 @@ function ActionButtons({profile, onEdit, isOwner}:{profile: UserProfile; onEdit:
           }
         }}
       />
-      <Button icon="pi pi-envelope" className="p-button-outlined" />
+      <Button
+        icon="pi pi-envelope"
+        className="p-button-outlined"
+        onClick={handleMessageClick}
+      />
       <Button icon="pi pi-flag" className="p-button-text" onClick={() => setReportOpen(true)} />
       <MoreMenuButton />
       <ReportDialog visible={reportOpen} onHide={() => setReportOpen(false)} targetType="user" targetName={profile.username} />
