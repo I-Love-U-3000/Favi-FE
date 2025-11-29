@@ -618,7 +618,7 @@ export default function ProfilePage() {
               <CollectionsGrid items={collections} />
             </TabPanel>
 
-            <TabPanel header="About">
+            <TabPanel header="Links">
               <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
                 <div className="space-y-3">
                   {loadingLinks ? (

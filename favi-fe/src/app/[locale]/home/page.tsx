@@ -8,11 +8,27 @@ import useProfile from "@/lib/hooks/useProfile";
 import { useRouter, Link } from "@/i18n/routing";
 import postAPI from "@/lib/api/postAPI";
 import type { PostResponse, ReactionType } from "@/types";
-import { PrivacyLevel } from "@/types";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import { readPostReaction, writePostReaction } from "@/lib/postCache";
 import { useTranslations } from "next-intl";
 import { PagedResult } from "@/types";
+
+type PrivacyKind = "Public" | "Followers" | "Private";
+
+const PRIVACY_ICON_MAP: Record<PrivacyKind, string> = {
+  Public: "pi pi-globe",
+  Followers: "pi pi-users",
+  Private: "pi pi-lock",
+};
+
+function normalizePrivacy(raw: unknown): PrivacyKind {
+  // backend: 0,1,2 hoặc string
+  if (raw === 0 || raw === "0" || raw === "Public") return "Public";
+  if (raw === 1 || raw === "1" || raw === "Followers") return "Followers";
+  if (raw === 2 || raw === "2" || raw === "Private") return "Private";
+  // fallback an toàn
+  return "Public";
+}
 
 export default function HomePage() {
   const { isAuthenticated, user } = useAuth();
@@ -226,12 +242,10 @@ function PostListItem({ post }: { post: PostResponse }) {
     }
     return 0;
   })();
+  const privacy: PrivacyKind = normalizePrivacy(
+    (post as any).privacyLevel ?? (post as any).privacy
+  );
   const shareCount = (post as any).shareCount ?? (post as any).shares ?? 0;
-  const privacyIcon: Record<PrivacyLevel, string> = {
-    [PrivacyLevel.Public]: "pi pi-globe",
-    [PrivacyLevel.Followers]: "pi pi-users",
-    [PrivacyLevel.Private]: "pi pi-lock",
-  };
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
   // Lock body scroll while viewer is open
@@ -290,14 +304,13 @@ function PostListItem({ post }: { post: PostResponse }) {
       style={{ backgroundColor: 'var(--bg-secondary)' }}
       onClick={() => router.push(`/posts/${post.id}`)}
     >
-      {/* Header: author with hover card */}
       <div className="px-4 py-3 flex items-center gap-3">
-      <ProfileHoverCard
-        user={{
-          id: author.profile?.id || post.authorProfileId,
-          username: username || fallbackUsername,
-          name: display,
-          avatarUrl: avatar,
+        <ProfileHoverCard
+          user={{
+            id: author.profile?.id || post.authorProfileId,
+            username: username || fallbackUsername,
+            name: display,
+            avatarUrl: avatar,
             bio: author.profile?.bio || undefined,
             followersCount: author.profile?.stats?.followers,
             followingCount: author.profile?.stats?.following,
@@ -306,9 +319,26 @@ function PostListItem({ post }: { post: PostResponse }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={avatar} alt={username || display} className="w-9 h-9 rounded-full border cursor-pointer" />
         </ProfileHoverCard>
+
         <div className="min-w-0">
           <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>{display}</div>
-          <div className="text-xs opacity-70 truncate">{username ? `@${username}` : ''} {username && '•'} {time}</div>
+          <div className="text-xs opacity-70 truncate">
+            {username ? `@${username}` : ''} {username && '•'} {time}
+          </div>
+
+          {/* 🔹 Privacy + Location chips (giống Post detail) */}
+          <div className="mt-1 flex items-center gap-2 text-[11px] text-gray-600">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 bg-white/70 dark:bg-neutral-800/70">
+              <i className={`${PRIVACY_ICON_MAP[privacy]} text-xs`} />
+            </span>
+
+            {post.location?.name && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 bg-white/70 dark:bg-neutral-800/70 max-w-[180px] truncate">
+                <i className="pi pi-map-marker text-xs" />
+                <span className="truncate">{post.location.name}</span>
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
