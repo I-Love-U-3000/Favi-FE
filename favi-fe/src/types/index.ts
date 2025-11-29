@@ -105,7 +105,11 @@ export type Collection = {
   count: number;
 };
 
-export type PrivacyLevel = number;
+export enum PrivacyLevel {
+  Public = 0,
+  Followers = 1,
+  Private = 2,
+}
 
 export type ReactionType =
   | "Like"
@@ -118,6 +122,7 @@ export type ReactionType =
 export type CreatePostRequest = {
   caption?: string | null;
   tags?: string[] | null;
+  privacyLevel?: PrivacyLevel;
 };
 
 export type UpdatePostRequest = {

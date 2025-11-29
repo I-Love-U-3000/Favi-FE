@@ -95,6 +95,14 @@ export const postAPI = {
       await fetchWrapper.get<any>(`/Posts/feed?page=${page}&pageSize=${pageSize}`, true)
     ),
 
+  getGuestFeed: async (page = 1, pageSize = 20) =>
+    camelize<PagedResult<PostResponse>>(
+      await fetchWrapper.get<any>(
+        `/Posts/guest-feed?page=${page}&pageSize=${pageSize}`, 
+        false 
+      )
+    ),
+
   getExplore: async (page = 1, pageSize = 20) =>
     camelize<PagedResult<PostResponse>>(
       await fetchWrapper.get<any>(`/Posts/explore?page=${page}&pageSize=${pageSize}`, true)

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import postAPI from "@/lib/api/postAPI";
 import { useAuth } from "@/components/AuthProvider";
+import { PrivacyLevel } from "@/types";
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { Galleria } from 'primereact/galleria';
@@ -31,6 +32,12 @@ interface InstagramPostDialogProps {
   onHide: () => void;
 }
 
+const PRIVACY_OPTIONS = [
+  { value: PrivacyLevel.Public, label: 'Public', description: 'Anyone can view' },
+  { value: PrivacyLevel.Followers, label: 'Followers', description: 'Only followers can view' },
+  { value: PrivacyLevel.Private, label: 'Private', description: 'Only you can view' },
+];
+
 const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHide }) => {
   const { requireAuth } = useAuth();
   const [step, setStep] = useState(1);
@@ -46,6 +53,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
   const [uploading, setUploading] = useState(false);
   const [aspect, setAspect] = useState<number>(1);
   const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(null); // State mới cho vị trí
+  const [privacyLevel, setPrivacyLevel] = useState<PrivacyLevel>(PrivacyLevel.Public);
   const fileInputRef = useRef<HTMLInputElement>(null); // Add ref for file input
   const stagedBeforeCropRef = useRef<File[] | null>(null); // hold existing media when appending
   const returnToStepRef = useRef<number | null>(null); // remember step to return after append crop
@@ -244,7 +252,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
     if (uploading) return;
     try {
       setUploading(true);
-      const created = await postAPI.create({ caption, tags });
+      const created = await postAPI.create({ caption, tags, privacyLevel });
       if (media.length > 0) {
         await postAPI.uploadMedia(created.id, media);
       }
@@ -252,6 +260,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
       setMedia([]);
       setCaption('');
       setTags([]);
+      setPrivacyLevel(PrivacyLevel.Public);
       setSelectedFiles([]);
       setCurrentPreviewUrl(null);
       setCropMode(false);
@@ -274,7 +283,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
     let created: { id: string } | null = null;
     try {
       setUploading(true);
-      created = await postAPI.create({ caption, tags });
+      created = await postAPI.create({ caption, tags, privacyLevel });
       if (media.length > 0) {
         await postAPI.uploadMedia(created.id, media);
       }
@@ -282,6 +291,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
       setMedia([]);
       setCaption('');
       setTags([]);
+      setPrivacyLevel(PrivacyLevel.Public);
       setSelectedFiles([]);
       setCurrentPreviewUrl(null);
       setCropMode(false);
@@ -308,6 +318,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
       setMedia([]);
       setCaption('');
       setTags([]);
+      setPrivacyLevel(PrivacyLevel.Public);
       setSelectedFiles([]);
       setCurrentPreviewUrl(null);
       setCropMode(false);
@@ -331,6 +342,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
     setCropAreas([]);
     setCaption('');
     setTags([]);
+    setPrivacyLevel(PrivacyLevel.Public);
     setSelectedPlace(null); // Reset selected place
     setAspect(1); // Reset aspect ratio
     if (fileInputRef.current) {
@@ -409,6 +421,7 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
         setCurrentPreviewUrl(null);
         setCaption('');
         setTags([]);
+        setPrivacyLevel(PrivacyLevel.Public);
         setSelectedPlace(null); // Reset selected place
         setAspect(1); // Reset aspect ratio
         if (fileInputRef.current) {
@@ -598,9 +611,29 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
               value={tags}
               onChange={(e) => setTags((e.value || []).filter((tag: string) => tag.trim() !== ''))}
               separator=","
-              placeholder="Nhập tags (dùng dấu phẩy để tách)"
+              placeholder="Nhap tags (dung dau phay de tach)"
               className="w-full"
             />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Privacy</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {PRIVACY_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setPrivacyLevel(option.value)}
+                  className={`border rounded-lg p-3 text-left transition-colors ${
+                    privacyLevel === option.value
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="font-semibold">{option.label}</div>
+                  <div className="text-sm text-gray-600">{option.description}</div>
+                </button>
+              ))}
+            </div>
           </div>
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Vị trí</label>

@@ -1,8 +1,6 @@
 "use client";
 
-import Dock from "@/components/Dock";
 // StoriesStrip and mock FeedCard removed in favor of real data
-
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
@@ -13,6 +11,7 @@ import type { PostResponse, ReactionType } from "@/types";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import { readPostReaction, writePostReaction } from "@/lib/postCache";
 import { useTranslations } from "next-intl";
+import { PagedResult } from "@/types";
 
 export default function HomePage() {
   const { isAuthenticated, user } = useAuth();
@@ -27,39 +26,44 @@ export default function HomePage() {
 
   useEffect(() => {
     let cancelled = false;
+
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
-        if (!isAuthenticated) {
-          if (!cancelled) {
-            setPosts([]);
-            setError(t("LoginRequired"));
-          }
+        let res: PagedResult<PostResponse>;
+
+        if (isAuthenticated) {
+          // personal feed
+          res = await postAPI.getFeed(1, 24);
         } else {
-          const res = await postAPI.getFeed(1, 24);
-          if (!cancelled) setPosts(res.items || []);
+          // guest feed 
+          res = await postAPI.getGuestFeed(1, 24);
+        }
+
+        if (!cancelled) {
+          setPosts(res.items || []);
         }
       } catch (e: any) {
-        if (!cancelled) setError(e?.error || e?.message || t("LoadFeedFailed"));
+        if (!cancelled) {
+          setError(e?.error || e?.message || t("LoadFeedFailed"));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
+
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated, t]);
 
   const gridPosts = useMemo(() => posts.filter(p => (p.medias || []).length > 0), [posts]);
 
-        // ====== UI ======
+  // ====== UI ======
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
-      {/* Dock cố định giữa bên trái */}
-      <div className="fixed left-4 top-1/2 -translate-y-1/2 z-20">
-        <Dock />
-      </div>
-
       {/* Nội dung */}
       <main className="flex-1 p-6 ">
         <div className="mx-auto max-w-7xl grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
