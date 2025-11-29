@@ -8,6 +8,7 @@ import useProfile from "@/lib/hooks/useProfile";
 import { useRouter, Link } from "@/i18n/routing";
 import postAPI from "@/lib/api/postAPI";
 import type { PostResponse, ReactionType } from "@/types";
+import { PrivacyLevel } from "@/types";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import { readPostReaction, writePostReaction } from "@/lib/postCache";
 import { useTranslations } from "next-intl";
@@ -226,6 +227,11 @@ function PostListItem({ post }: { post: PostResponse }) {
     return 0;
   })();
   const shareCount = (post as any).shareCount ?? (post as any).shares ?? 0;
+  const privacyIcon: Record<PrivacyLevel, string> = {
+    [PrivacyLevel.Public]: "pi pi-globe",
+    [PrivacyLevel.Followers]: "pi pi-users",
+    [PrivacyLevel.Private]: "pi pi-lock",
+  };
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
   // Lock body scroll while viewer is open

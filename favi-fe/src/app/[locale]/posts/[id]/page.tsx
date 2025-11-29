@@ -12,6 +12,22 @@ import Dock from "@/components/Dock";
 import { useAuth } from "@/components/AuthProvider";
 import { Button } from "primereact/button";
 
+type PrivacyKind = "Public" | "Followers" | "Private";
+
+const PRIVACY_ICON_MAP: Record<PrivacyKind, string> = {
+  Public: "pi pi-globe",
+  Followers: "pi pi-users",
+  Private: "pi pi-lock",
+};
+
+function normalizePrivacy(raw: unknown): PrivacyKind {
+  if (raw === 0 || raw === "0" || raw === "Public") return "Public";
+  if (raw === 1 || raw === "1" || raw === "Followers") return "Followers";
+  if (raw === 2 || raw === "2" || raw === "Private") return "Private";
+
+  return "Public";
+}
+
 export default function PostPage() {
   const routeParams = useParams() as any;
   const id = Array.isArray(routeParams?.id) ? routeParams.id[0] : String(routeParams?.id || "");
@@ -55,6 +71,9 @@ export default function PostPage() {
 function PostDetailDataView({ post }: { post: PostResponse }) {
   const { requireAuth } = useAuth();
   const router = useRouter();
+  const privacy: PrivacyKind = normalizePrivacy(
+    (post as any).privacyLevel ?? (post as any).privacy
+  );
 
   const author = useProfile(post.authorProfileId);
   const avatar = author.profile?.avatarUrl || "/avatar-default.svg";
@@ -164,6 +183,20 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
               <div className="min-w-0">
                 <div className="text-sm font-medium">{display || username}</div>
                 {username && <div className="text-xs opacity-70">@{username}</div>}
+                <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-600">
+                  {/* Privacy */}
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 bg-white/70">
+                    <i className={`${PRIVACY_ICON_MAP[privacy]} text-xs`} />
+                  </span>
+
+                  {/* Location (nếu có) */}
+                  {post.location?.name && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 bg-white/70 max-w-[200px] truncate">
+                      <i className="pi pi-map-marker text-xs" />
+                      <span className="truncate">{post.location.name}</span>
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -209,6 +242,17 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
                   {post.caption}
                 </div>
               )}
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-600">
+                {post.location?.name && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 bg-white/70 max-w-[240px] truncate">
+                    <i className="pi pi-map-marker text-xs" />
+                    <span className="truncate">
+                      {post.location.name}
+                      {post.location.fullAddress ? ` · ${post.location.fullAddress}` : ""}
+                    </span>
+                  </span>
+                )}
+              </div>
               {(post.tags || []).length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {post.tags.map((t) => (

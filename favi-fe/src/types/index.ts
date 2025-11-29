@@ -119,10 +119,18 @@ export type ReactionType =
   | "Sad"
   | "Angry";
 
+export type LocationDto = {
+  name?: string | null;
+  fullAddress?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
 export type CreatePostRequest = {
   caption?: string | null;
   tags?: string[] | null;
-  privacyLevel?: PrivacyLevel;
+  privacyLevel: PrivacyLevel;
+  location?: LocationDto | null;
 };
 
 export type UpdatePostRequest = {
@@ -163,6 +171,7 @@ export type PostResponse = {
   tags: TagDto[];
   reactions: ReactionSummaryDto;
   commentsCount: number;
+  location?: LocationDto | null;
 };
 
 export type PagedResult<T> = {
