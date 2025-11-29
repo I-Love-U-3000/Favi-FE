@@ -8,7 +8,6 @@ import type { CommentResponse, CommentTreeResponse, PostResponse, ReactionType, 
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readPostReaction, writePostReaction } from "@/lib/postCache";
-import Dock from "@/components/Dock";
 import { useAuth } from "@/components/AuthProvider";
 import { Button } from "primereact/button";
 
@@ -149,10 +148,6 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
 
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: "var(--bg)", color: "var(--text)" }}>
-      <div className="fixed left-4 top-1/2 -translate-y-1/2 z-20">
-        <Dock />
-      </div>
-
       <main className="flex-1 p-6">
         <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
           {/* Media + caption */}
@@ -242,17 +237,6 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
                   {post.caption}
                 </div>
               )}
-              <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-600">
-                {post.location?.name && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 bg-white/70 max-w-[240px] truncate">
-                    <i className="pi pi-map-marker text-xs" />
-                    <span className="truncate">
-                      {post.location.name}
-                      {post.location.fullAddress ? ` · ${post.location.fullAddress}` : ""}
-                    </span>
-                  </span>
-                )}
-              </div>
               {(post.tags || []).length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {post.tags.map((t) => (

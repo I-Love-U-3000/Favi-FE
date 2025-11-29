@@ -90,5 +90,10 @@
         "SuggestionsTitle": "Những người bạn có thể biết",
         "Empty": "Trống",
         "Follow": "Theo dõi"
+  },
+  "ChatPage": {
+    "Chats": "Đoạn Chat",
+    "NoConversation": "Không có đoạn chat",
+    "PickAChat": "Chọn một đoạn chat"
   }
 }

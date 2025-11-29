@@ -209,3 +209,53 @@ export type CommentResponse = {
 export type CommentTreeResponse = CommentResponse & {
   replies?: CommentTreeResponse[];
 };
+
+export type ConversationMemberResponse = {
+  profileId: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+}
+
+export type ConversationSummaryResponse = {
+  id: string;
+  type: "Dm" | "Group";
+  lastMessageAt?: string | null;
+  lastMessagePreview?: string | null;
+  unreadCount: number;
+  members: ConversationMemberResponse[];
+}
+
+export type MessageResponse = {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  content?: string;
+  mediaUrl?: string;
+  createdAt: string;
+  updatedAt?: string | null;
+  isEdited: boolean;
+}
+
+export type MessagePageResponse = {
+  items: MessageResponse[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export type CreateDmRequest = {
+  otherProfileId: string;
+}
+
+export type CreateGroupRequest = {
+  memberIds: string[];
+}
+
+export type SendMessageRequest = {
+  content?: string;
+  mediaUrl?: string;
+}
