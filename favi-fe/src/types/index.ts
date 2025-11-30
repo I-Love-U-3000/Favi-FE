@@ -259,3 +259,9 @@ export type SendMessageRequest = {
   content?: string;
   mediaUrl?: string;
 }
+
+export type FollowResponse = {
+  followerId: string;  
+  followeeId: string;  
+  createdAt: string;   
+};

@@ -6,68 +6,123 @@ import { useTranslations } from "next-intl";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import profileAPI from "@/lib/api/profileAPI";
 import { useAuth } from "@/components/AuthProvider";
+import type { ProfileResponse, FollowResponse } from "@/types";
+import { Link } from "@/i18n/routing"; // 🔹 THÊM DÒNG NÀY
 
-type Recommendation = {
-  id: string;
-  username: string;
-  displayName?: string;
-  avatarUrl?: string;
-  bio?: string;
-  followersCount?: number;
-  followingCount?: number;
-};
+type MaybePaged<T> = T[] | { items: T[] };
 
 export default function FriendsPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth() as {
+    isAuthenticated: boolean;
+    user?: { id: string } | null;
+  };
+
   const t = useTranslations("FriendsPage");
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+
+  const [recommendations, setRecommendations] = useState<ProfileResponse[]>([]);
+  const [friends, setFriends] = useState<ProfileResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+
     const load = async () => {
+      console.log("FriendsPage auth state:", { isAuthenticated, user });
+
       if (!isAuthenticated) {
+        console.log("Skip load: not authenticated");
         setRecommendations([]);
+        setFriends([]);
         return;
       }
+
       setLoading(true);
       setError(null);
+
       try {
-        const res = await profileAPI.getRecommendations(0, 20);
-        if (!cancelled) {
-          const items = (res?.items ?? res) as any[];
-          const mapped: Recommendation[] = (items || []).map((p) => ({
-            id: String(p.id ?? p.Id ?? p.profileId ?? p.profileID ?? p.userId ?? ""),
-            username: p.username ?? p.Username ?? p.handle ?? String(p.id ?? p.Id ?? ""),
-            displayName: p.displayName ?? p.DisplayName ?? p.name ?? p.fullName ?? undefined,
-            avatarUrl: p.avatarUrl ?? p.AvatarUrl ?? p.avatar ?? p.avatarURL ?? undefined,
-            bio: p.bio ?? p.Bio ?? undefined,
-            followersCount: p.stats?.followers ?? p.stats?.Followers ?? p.followersCount ?? p.FollowersCount ?? undefined,
-            followingCount: p.stats?.following ?? p.stats?.Following ?? p.followingCount ?? p.FollowingCount ?? undefined,
-          })).filter(x => x.id && x.username);
-          setRecommendations(mapped);
+        const recRes = (await profileAPI.getRecommendations(
+          0,
+          20
+        )) as MaybePaged<ProfileResponse>;
+
+        let followRes: MaybePaged<FollowResponse> | null = null;
+        if (user?.id) {
+          followRes = (await profileAPI.followings(
+            user.id,
+            0,
+            1000
+          )) as MaybePaged<FollowResponse>;
         }
-      } catch (e: any) {
+
+        if (cancelled) return;
+
+        const recItems: ProfileResponse[] = Array.isArray(recRes)
+          ? recRes
+          : recRes.items ?? [];
+
+        let friendProfiles: ProfileResponse[] = [];
+
+        if (followRes) {
+          const followItems: FollowResponse[] = Array.isArray(followRes)
+            ? followRes
+            : followRes.items ?? [];
+
+          const followList = (followItems || []).filter(Boolean);
+          console.log("Parsed followList:", followList);
+
+          const followeeIds = Array.from(
+            new Set(followList.map((f) => f.followeeId).filter(Boolean))
+          );
+          console.log("Followee IDs:", followeeIds);
+
+          const profilesResult = await Promise.allSettled(
+            followeeIds.map((id) => profileAPI.getById(id))
+          );
+
+          if (cancelled) return;
+
+          friendProfiles = profilesResult
+            .filter(
+              (r): r is PromiseFulfilledResult<ProfileResponse> =>
+                r.status === "fulfilled"
+            )
+            .map((r) => r.value);
+          console.log("Resolved friend profiles:", friendProfiles);
+        }
+
+        setRecommendations(recItems);
+        setFriends(friendProfiles);
+      } catch (e) {
+        console.error("FriendsPage load error:", e);
+        const err = e as { message?: string; error?: string };
         if (!cancelled) {
-          setError(e?.message || e?.error || "Failed to load recommendations");
+          setError(err?.message || err?.error || "Failed to load friends");
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
+
     load();
-    return () => { cancelled = true; };
-  }, [isAuthenticated]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, user?.id]);
 
   const handleFollow = async (id: string) => {
     try {
       setActioning(id);
       await profileAPI.follow(id);
+
       setRecommendations((prev) => prev.filter((r) => r.id !== id));
-    } catch (e) {
-      // ignore for now, maybe toast later
+      setFriends((prev) => {
+        const rec = recommendations.find((r) => r.id === id);
+        return rec ? [...prev, rec] : prev;
+      });
+    } catch (e: any) {
+      console.error("Follow failed:", e);
     } finally {
       setActioning((current) => (current === id ? null : current));
     }
@@ -77,79 +132,112 @@ export default function FriendsPage() {
     () => ({
       title: t("Title", { defaultMessage: "Friends" }),
       sectionSuggestions: t("SuggestionsTitle", { defaultMessage: "Who you may know" }),
-      loginRequired: t("LoginRequired", { defaultMessage: "Please login to see suggestions." }),
-      empty: t("Empty", { defaultMessage: "No suggestions at the moment." }),
+      sectionFriends: t("FriendsTitle", { defaultMessage: "People you follow" }),
+      loginRequired: t("LoginRequired", { defaultMessage: "Please login to see your friends." }),
+      emptySuggestions: t("EmptySuggestions", { defaultMessage: "No suggestions at the moment." }),
+      emptyFriends: t("EmptyFriends", { defaultMessage: "You are not following anyone yet." }),
       follow: t("Follow", { defaultMessage: "Follow" }),
     }),
     [t]
   );
 
+  // 🔹 SỬA HÀM renderUserCard: thêm Link + fallback avatar chắc cú hơn
+  const renderUserCard = (p: ProfileResponse, showFollow: boolean) => {
+    const display = p.displayName || p.username;
+    const avatarSrc =
+      p.avatarUrl && p.avatarUrl.trim().length > 0
+        ? p.avatarUrl
+        : "/avatar-default.svg";
+
+    return (
+      <div
+        key={p.id}
+        className="flex items-center justify-between rounded-xl p-3"
+        style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+      >
+        {/* Bọc avatar + text bằng Link để navigate tới profile detail */}
+        <Link href={`/profile/${p.id}`} className="flex items-center gap-3">
+          <ProfileHoverCard
+            user={{
+              id: p.id,
+              username: p.username,
+              name: display || "",
+              // Nếu dùng avatar default thì không nhất thiết phải truyền vào hoverCard
+              avatarUrl: avatarSrc !== "/avatar-default.svg" ? avatarSrc : undefined,
+              bio: p.bio || undefined,
+              followersCount: p.followersCount ?? undefined,
+              followingCount: p.followingCount ?? undefined,
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={avatarSrc}
+              alt={display || p.username}
+              className="w-10 h-10 rounded-full cursor-pointer border"
+            />
+          </ProfileHoverCard>
+          <div>
+            <div className="text-sm font-medium">{display}</div>
+            <div className="text-xs opacity-70">@{p.username}</div>
+          </div>
+        </Link>
+
+        {showFollow && (
+          <Button
+            label={text.follow}
+            onClick={() => handleFollow(p.id)}
+            loading={actioning === p.id}
+          />
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="max-w-5xl mx-auto p-6" style={{ color: "var(--text)" }}>
       <h1 className="text-2xl font-semibold mb-6">{text.title}</h1>
 
-      <section>
-        <h2 className="text-lg font-medium mb-3">{text.sectionSuggestions}</h2>
+      {!isAuthenticated && (
+        <div className="text-sm opacity-70 mb-4">{text.loginRequired}</div>
+      )}
 
-        {!isAuthenticated && (
-          <div className="text-sm opacity-70">{text.loginRequired}</div>
-        )}
+      {isAuthenticated && (
+        <>
+          {/* Friends section */}
+          <section className="mb-8">
+            <h2 className="text-lg font-medium mb-3">{text.sectionFriends}</h2>
 
-        {isAuthenticated && loading && (
-          <div className="text-sm opacity-70">Loading...</div>
-        )}
+            {loading && <div className="text-sm opacity-70">Loading...</div>}
+            {error && !loading && (
+              <div className="text-sm text-red-500">{error}</div>
+            )}
+            {!loading && !error && friends.length === 0 && (
+              <div className="text-sm opacity-70">{text.emptyFriends}</div>
+            )}
 
-        {isAuthenticated && error && !loading && (
-          <div className="text-sm text-red-500">{error}</div>
-        )}
+            <div className="mt-3 space-y-3">
+              {friends.map((f) => renderUserCard(f, false))}
+            </div>
+          </section>
 
-        {isAuthenticated && !loading && !error && recommendations.length === 0 && (
-          <div className="text-sm opacity-70">{text.empty}</div>
-        )}
+          {/* Suggestions section */}
+          <section>
+            <h2 className="text-lg font-medium mb-3">{text.sectionSuggestions}</h2>
 
-        <div className="mt-3 space-y-3">
-          {recommendations.map((s) => {
-            const display = s.displayName || s.username;
-            return (
-              <div
-                key={s.id}
-                className="flex items-center justify-between rounded-xl p-3"
-                style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}
-              >
-                <div className="flex items-center gap-3">
-                  <ProfileHoverCard
-                    user={{
-                      id: s.id,
-                      username: s.username,
-                      name: display,
-                      avatarUrl: s.avatarUrl,
-                      bio: s.bio,
-                      followersCount: s.followersCount,
-                      followingCount: s.followingCount,
-                    }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={s.avatarUrl || "/avatar-default.svg"}
-                      alt={display}
-                      className="w-10 h-10 rounded-full cursor-pointer border"
-                    />
-                  </ProfileHoverCard>
-                  <div>
-                    <div className="text-sm font-medium">{display}</div>
-                    <div className="text-xs opacity-70">@{s.username}</div>
-                  </div>
-                </div>
-                <Button
-                  label={text.follow}
-                  onClick={() => handleFollow(s.id)}
-                  loading={actioning === s.id}
-                />
-              </div>
-            );
-          })}
-        </div>
-      </section>
+            {loading && <div className="text-sm opacity-70">Loading...</div>}
+            {error && !loading && (
+              <div className="text-sm text-red-500">{error}</div>
+            )}
+            {!loading && !error && recommendations.length === 0 && (
+              <div className="text-sm opacity-70">{text.emptySuggestions}</div>
+            )}
+
+            <div className="mt-3 space-y-3">
+              {recommendations.map((s) => renderUserCard(s, true))}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }

@@ -86,11 +86,16 @@
   },
 
   "FriendsPage": {
-        "Title": "Đề xuất cho bạn",
-        "SuggestionsTitle": "Những người bạn có thể biết",
-        "Empty": "Trống",
-        "Follow": "Theo dõi"
+    "Title": "Đề xuất cho bạn",
+    "SuggestionsTitle": "Đề xuất cho bạn",
+    "Empty": "Trống",
+    "Follow": "Theo dõi",
+    "FriendsTitle": "Những người bạn đang theo dõi",
+    "EmptyFriends": "Bạn chưa theo dõi ai",
+    "EmptySuggestions": "Không có đề xuất",
+    "LoginRequired": "Vui lòng đăng nhập"
   },
+  
   "ChatPage": {
     "Chats": "Đoạn Chat",
     "NoConversation": "Không có đoạn chat",

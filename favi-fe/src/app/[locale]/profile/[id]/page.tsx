@@ -408,7 +408,7 @@ export default function ProfilePage() {
           bio: p.bio,
           website: p.website,
           location: p.location,
-          avatarUrl: avatarUrl ?? undefined,
+          avatarUrl: avatarUrl ?? "/avatar-default.svg",
           coverUrl: coverUrl ?? undefined,
         });
       }
@@ -536,7 +536,7 @@ export default function ProfilePage() {
   const trimmedDisplayName = profile.displayName?.trim();
   const primaryName = trimmedDisplayName || profile.username;
   const coverUrl = profile.coverUrl ?? "";
-  const avatarUrl = profile.avatarUrl ?? "";
+  const avatarUrl = profile.avatarUrl ?? "/avatar-default.svg";
 
   return (
     <div className="min-h-screen">

@@ -1,5 +1,5 @@
 import { fetchWrapper } from "@/lib/fetchWrapper";
-import type { PostMediaResponse, ProfileResponse, SocialKind } from "@/types";
+import type { PostMediaResponse, ProfileResponse, SocialKind, FollowResponse } from "@/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -55,7 +55,7 @@ async function uploadProfileAsset(path: string, file: File): Promise<PostMediaRe
     try {
       const err = await res.json();
       message = err?.message || err?.error || message;
-    } catch {}
+    } catch { }
     throw new Error(message);
   }
 
@@ -63,13 +63,13 @@ async function uploadProfileAsset(path: string, file: File): Promise<PostMediaRe
 }
 
 export const profileAPI = {
-  getById: (id: string) => fetchWrapper.get<ProfileResponse>(`/profiles/${id}`, false),
+  getById: (id: string) => fetchWrapper.get<ProfileResponse>(`/profiles/${id}`, true),
   getRecommendations: (skip?: number, take?: number) => {
     const q: string[] = [];
     if (typeof skip === "number") q.push(`skip=${skip}`);
     if (typeof take === "number") q.push(`take=${take}`);
     const qs = q.length ? `?${q.join("&")}` : "";
-    return fetchWrapper.get<any>(`/profiles/recommendations${qs}`, true);
+    return fetchWrapper.get<ProfileResponse[]>(`/profiles/recommendations${qs}`, true);
   },
   getAvatar: (id: string) => fetchWrapper.get<string>(`/profiles/avatar/${id}`, false),
   getPoster: (id: string) => fetchWrapper.get<string>(`/profiles/poster/${id}`, false),
@@ -84,7 +84,7 @@ export const profileAPI = {
       const { normalizeProfile, writeCachedProfile } = await import("@/lib/profileCache");
       const norm = normalizeProfile(res);
       if (norm?.id) writeCachedProfile(norm.id, norm);
-    } catch {}
+    } catch { }
     return res;
   },
 
@@ -92,20 +92,23 @@ export const profileAPI = {
 
   unfollow: (targetId: string) => fetchWrapper.del<any>(`/profiles/follow/${targetId}`, undefined, true),
 
-  followers: (id: string, skip?: number, take?: number) => {
+  followers: async (id: string, skip?: number, take?: number) => {
     const q: string[] = [];
     if (skip !== undefined) q.push(`skip=${skip}`);
     if (take !== undefined) q.push(`take=${take}`);
     const qs = q.length ? `?${q.join("&")}` : "";
-    return fetchWrapper.get<any>(`/profiles/${id}/followers${qs}`, false);
+    const res = await fetchWrapper.get<any>(`/profiles/${id}/followers${qs}`, true);
+    // Backend returns PascalCase so normalize to camelCase for UI consumption
+    return camelize<FollowResponse[] | { items: FollowResponse[] }>(res);
   },
 
-  followings: (id: string, skip?: number, take?: number) => {
+  followings: async (id: string, skip?: number, take?: number) => {
     const q: string[] = [];
     if (skip !== undefined) q.push(`skip=${skip}`);
     if (take !== undefined) q.push(`take=${take}`);
     const qs = q.length ? `?${q.join("&")}` : "";
-    return fetchWrapper.get<any>(`/profiles/${id}/followings${qs}`, false);
+    const res = await fetchWrapper.get<any>(`/profiles/${id}/followings${qs}`, true);
+    return camelize<FollowResponse[] | { items: FollowResponse[] }>(res);
   },
 
   getLinksPublic: (id: string) => fetchWrapper.get<any>(`/profiles/${id}/links`, false),

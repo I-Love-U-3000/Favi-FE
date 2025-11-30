@@ -87,7 +87,7 @@ export default function ProfileHoverCard({
             <div className="flex items-start gap-3">
               <Link href={href} prefetch={false} className="shrink-0">
                 <Image
-                  src={user.avatarUrl || "/avatar-placeholder.png"}
+                  src={user.avatarUrl || "/avatar-default.svg"}
                   alt={user.name || user.username}
                   width={50}
                   height={50}
