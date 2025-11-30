@@ -1,15 +1,15 @@
 "use client";
 
-import {useEffect, useRef, useState} from "react";
-import {useParams, useRouter} from "next/navigation";
-import {Button} from "primereact/button";
-import {TabView, TabPanel} from "primereact/tabview";
-import {Tag} from "primereact/tag";
-import {useTranslations} from "next-intl";
-import {mockUserProfile} from "@/lib/mockTest/mockUserProfile";
-import {mockPost} from "@/lib/mockTest/mockPost";
-import {mockCollection} from "@/lib/mockTest/mockCollection";
-import type {UserProfile, PhotoPost, Collection, PostResponse, SocialLink, SocialKind} from "@/types";
+import { useEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { Button } from "primereact/button";
+import { TabView, TabPanel } from "primereact/tabview";
+import { Tag } from "primereact/tag";
+import { useTranslations } from "next-intl";
+import { mockUserProfile } from "@/lib/mockTest/mockUserProfile";
+import { mockPost } from "@/lib/mockTest/mockPost";
+import { mockCollection } from "@/lib/mockTest/mockCollection";
+import type { UserProfile, PhotoPost, Collection, PostResponse, SocialLink, SocialKind } from "@/types";
 import profileAPI from "@/lib/api/profileAPI";
 import postAPI from "@/lib/api/postAPI";
 import chatAPI from "@/lib/api/chatAPI";
@@ -49,7 +49,7 @@ function resolveCollections(ownerId: string): Collection[] {
 }
 
 /* ========== UI bits ========== */
-function Stat({label, value}: {label: string; value: number | string}) {
+function Stat({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="text-center">
       <div className="text-xl font-semibold">{value}</div>
@@ -58,7 +58,7 @@ function Stat({label, value}: {label: string; value: number | string}) {
   );
 }
 
-function ActionButtons({profile, onEdit, isOwner}:{profile: UserProfile; onEdit:()=>void; isOwner: boolean}) {
+function ActionButtons({ profile, onEdit, isOwner }: { profile: UserProfile; onEdit: () => void; isOwner: boolean }) {
   const [following, setFollowing] = useState(!!profile.isFollowing);
   const [reportOpen, setReportOpen] = useState(false);
   const router = useRouter();
@@ -96,7 +96,7 @@ function ActionButtons({profile, onEdit, isOwner}:{profile: UserProfile; onEdit:
               await profileAPI.follow(profile.id);
             }
             setFollowing(v => !v);
-          } catch (e:any) {
+          } catch (e: any) {
             alert(e?.error || e?.message || 'Action failed');
           }
         }}
@@ -160,7 +160,7 @@ function MoreMenuButton() {
 
 import { Link } from "@/i18n/routing";
 
-function PhotoGrid({items}: {items: PhotoPost[]}) {
+function PhotoGrid({ items }: { items: PhotoPost[] }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
       {items.map(p => (
@@ -190,7 +190,7 @@ function PhotoGrid({items}: {items: PhotoPost[]}) {
   );
 }
 
-function CollectionsGrid({items}: {items: Collection[]}) {
+function CollectionsGrid({ items }: { items: Collection[] }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
       {items.map(c => (
@@ -321,13 +321,13 @@ export default function ProfilePage() {
               const k = rawKind as SocialKind;
               socialKind =
                 k === "Website" ||
-                k === "Facebook" ||
-                k === "Instagram" ||
-                k === "Twitter" ||
-                k === "Tiktok" ||
-                k === "Youtube" ||
-                k === "Github" ||
-                k === "LinkedIn"
+                  k === "Facebook" ||
+                  k === "Instagram" ||
+                  k === "Twitter" ||
+                  k === "Tiktok" ||
+                  k === "Youtube" ||
+                  k === "Github" ||
+                  k === "LinkedIn"
                   ? k
                   : detectSocialKindFromUrl(url);
             } else {
@@ -478,13 +478,13 @@ export default function ProfilePage() {
                 const k = rawKind as SocialKind;
                 socialKind =
                   k === "Website" ||
-                  k === "Facebook" ||
-                  k === "Instagram" ||
-                  k === "Twitter" ||
-                  k === "Tiktok" ||
-                  k === "Youtube" ||
-                  k === "Github" ||
-                  k === "LinkedIn"
+                    k === "Facebook" ||
+                    k === "Instagram" ||
+                    k === "Twitter" ||
+                    k === "Tiktok" ||
+                    k === "Youtube" ||
+                    k === "Github" ||
+                    k === "LinkedIn"
                     ? k
                     : detectSocialKindFromUrl(url);
               } else {
@@ -523,7 +523,7 @@ export default function ProfilePage() {
     setProfile(prev => {
       if (!prev) return prev;
       const next = { ...prev, ...patch };
-      try { writeCachedProfile(next.id, next); } catch {}
+      try { writeCachedProfile(next.id, next); } catch { }
       return next;
     });
   };
@@ -571,7 +571,11 @@ export default function ProfilePage() {
                   className="absolute inset-0 h-full w-full cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded-full"
                   style={{ background: 'transparent' }}
                   aria-label="Xem avatar"
-                  onClick={() => setPreviewImage({ url: avatarUrl, alt: `${primaryName} avatar` })}
+                  onClick={() => {
+                    if (avatarUrl != "/avatar-default.svg") {
+                      setPreviewImage({ url: avatarUrl, alt: `${primaryName} cover` })
+                    }
+                  }}
                 >
                   <img src={avatarUrl} alt={`${primaryName} avatar`} className="h-full w-full object-cover" />
                 </button>
@@ -602,7 +606,7 @@ export default function ProfilePage() {
               )}
               {profile.website && (
                 <a className="inline-flex items-center gap-1 underline underline-offset-2 hover:opacity-100"
-                   href={profile.website} target="_blank" rel="noreferrer">
+                  href={profile.website} target="_blank" rel="noreferrer">
                   <i className="pi pi-globe" /> {t("Website")}
                 </a>
               )}
@@ -652,18 +656,18 @@ export default function ProfilePage() {
                           kind === "Facebook"
                             ? "pi pi-facebook"
                             : kind === "Instagram"
-                            ? "pi pi-instagram"
-                            : kind === "Twitter"
-                            ? "pi pi-twitter"
-                            : kind === "Tiktok"
-                            ? "pi pi-video"
-                            : kind === "Youtube"
-                            ? "pi pi-youtube"
-                            : kind === "Github"
-                            ? "pi pi-github"
-                            : kind === "LinkedIn"
-                            ? "pi pi-linkedin"
-                            : "pi pi-link";
+                              ? "pi pi-instagram"
+                              : kind === "Twitter"
+                                ? "pi pi-twitter"
+                                : kind === "Tiktok"
+                                  ? "pi pi-video"
+                                  : kind === "Youtube"
+                                    ? "pi pi-youtube"
+                                    : kind === "Github"
+                                      ? "pi pi-github"
+                                      : kind === "LinkedIn"
+                                        ? "pi pi-linkedin"
+                                        : "pi pi-link";
                         return (
                           <a
                             key={link.id ?? link.url}

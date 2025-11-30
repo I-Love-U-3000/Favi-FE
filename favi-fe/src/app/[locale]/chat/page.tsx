@@ -93,7 +93,7 @@ export default function ChatPage() {
             key: c.id,
             recipient: {
               username: other?.username ?? "unknown",
-              avatar: other?.avatarUrl ?? "/default-avatar.png",
+              avatar: other?.avatarUrl ?? "/avatar-default.svg",
               isOnline: false,
             },
             messages: [],
