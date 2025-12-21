@@ -119,17 +119,17 @@ export const postAPI = {
     ),
 
   // Mutations
-  create: async (payload: CreatePostRequest) =>
-    camelize<PostResponse>(await fetchWrapper.post<any>("/Posts", payload, true)),
+  create: (formData: FormData) =>
+  fetchWrapper.post<PostResponse>("/posts", formData, true),
   update: (id: string, payload: UpdatePostRequest) =>
-    fetchWrapper.put<any>(`/Posts/${id}`, payload, true),
+    fetchWrapper.put<any>(`/posts/${id}`, payload, true),
   delete: (id: string) =>
-    fetchWrapper.del<any>(`/Posts/${id}`, undefined, true),
+    fetchWrapper.del<any>(`/posts/${id}`, undefined, true),
 
   uploadMedia: (postId: string, files: File[]) => uploadFiles(postId, files),
 
   toggleReaction: (postId: string, type: ReactionType) =>
-    fetchWrapper.post<any>(`/Posts/${postId}/reactions?type=${encodeURIComponent(type)}`, undefined, true),
+    fetchWrapper.post<any>(`/posts/${postId}/reactions?type=${encodeURIComponent(type)}`, undefined, true),
 };
 
 export default postAPI;

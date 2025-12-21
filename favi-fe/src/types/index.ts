@@ -215,6 +215,7 @@ export type ConversationMemberResponse = {
   username: string;
   displayName?: string;
   avatarUrl?: string;
+  lastActiveAt?: string;
 }
 
 export type ConversationSummaryResponse = {

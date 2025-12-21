@@ -8,19 +8,23 @@ function getAuthHeaders(): Record<string, string> {
 async function handleResponse(res: Response) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw { status: res.status, error: (data as any)?.error || (data as any)?.message || "Request failed" };
+    throw {
+      status: res.status,
+      error: (data as any)?.error || (data as any)?.message || "Request failed",
+    };
   }
   return data;
 }
 
 async function tryRefreshAndRetry(url: string, init: RequestInit): Promise<any> {
-  const refreshToken = typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
+  const refreshToken =
+    typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
   if (!refreshToken) throw { status: 401, message: "No refresh token" };
 
   const refreshRes = await fetch(String(baseUrl) + "/auth/refresh", {
     method: "POST",
-    headers: { "Content-Type": "application/json" }, 
-    body: JSON.stringify(refreshToken),              
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(refreshToken), // backend nhận body là string
   });
 
   if (!refreshRes.ok) throw { status: 401, message: "Refresh token expired" };
@@ -44,19 +48,33 @@ async function tryRefreshAndRetry(url: string, init: RequestInit): Promise<any> 
   return handleResponse(retryRes);
 }
 
-async function request<T>(method: string, path: string, body?: any, auth = true): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  body?: any,
+  auth = true
+): Promise<T> {
   if (!baseUrl) throw new Error("Missing NEXT_PUBLIC_API_URL");
   const url = String(baseUrl) + path;
 
+  const isFormData =
+    typeof FormData !== "undefined" && body instanceof FormData;
+
+  // KHÔNG set Content-Type nếu là FormData
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...(auth ? getAuthHeaders() : {}),
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
   };
 
   const init: RequestInit = {
     method,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body:
+      body === undefined
+        ? undefined
+        : isFormData
+        ? body
+        : JSON.stringify(body),
   };
 
   let res: Response;

@@ -3,6 +3,7 @@ import MessageItem from "./MessageItem";
 
 interface Message {
   id: number;
+  senderId: string;       // <-- thêm
   sender: string;
   text?: string;
   timestamp: string;
@@ -23,7 +24,7 @@ export default function MessageList({ messages, currentUser }: MessageListProps)
           <MessageItem
             key={message.id}
             message={message}
-            isSent={message.sender === currentUser}
+            isSent={message.senderId === currentUser} // so sánh ID, không so sánh username
           />
         ))}
       </div>

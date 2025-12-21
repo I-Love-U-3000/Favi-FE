@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import ChatHeader from "@/components/ChatHeader";
 import ChatList from "@/components/ChatList";
 import MessageInput from "@/components/MessageInput";
@@ -8,13 +8,17 @@ import MessageList from "@/components/MessageList";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/app/supabase-client";
 import chatAPI from "@/lib/api/chatAPI";
-import type { ConversationSummaryResponse, MessageResponse } from "@/types";
+import type {
+  ConversationSummaryResponse,
+  MessageResponse,
+  MessagePageResponse,
+} from "@/types";
 import { useAuth } from "@/components/AuthProvider";
 import { useSearchParams } from "next/navigation";
 
 // --------- INTERNAL CHAT TYPES (làm việc với backend) ---------
 interface ChatMessage {
-  backendId: string;          // id từ backend (Guid)
+  backendId: string; // id từ backend (Guid)
   senderId: string;
   senderUsername: string;
   text?: string;
@@ -27,23 +31,26 @@ interface ChatRecipient {
   username: string;
   avatar: string;
   isOnline: boolean;
+  lastActiveAt?: string;
 }
 
 interface ChatConversation {
-  id: string;                 // conversationId từ backend
-  key: string;                // key cho UI (ở đây = id luôn)
+  id: string; // conversationId từ backend
+  key: string; // key cho UI (ở đây = id luôn)
   recipient: ChatRecipient;
   messages: ChatMessage[];
 }
 
 // --------- UI TYPES cho ChatList / MessageList ---------
 interface UiMessage {
-  id: number;                 // UI-only id (number)
-  sender: string;
-  text: string;               // luôn string, không undefined
+  id: number; // UI-only id (number)
+  senderId: string;
+  sender: string; // username
+  text: string;
   timestamp: string;
   imageUrl?: string;
   stickerUrl?: string;
+  isOwn: boolean;
 }
 
 interface UiConversation {
@@ -59,19 +66,15 @@ export default function ChatPage() {
   const searchParams = useSearchParams();
   const initialConversationId = searchParams.get("conversationId");
 
-  if (!currentUserId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <span className="text-sm opacity-70">
-          Bạn cần đăng nhập để dùng chat.
-        </span>
-      </div>
-    );
-  }
-
+  // ---- TẤT CẢ HOOK LUÔN Ở TOP-LEVEL (KHÔNG RETURN TRƯỚC NỮA) ----
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<ChatConversation | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  const selectedConversation = useMemo(
+    () => conversations.find((c) => c.id === selectedConversationId) ?? null,
+    [conversations, selectedConversationId]
+  );
 
   // ------------- 1. Load danh sách conversations từ backend -------------
   useEffect(() => {
@@ -88,13 +91,22 @@ export default function ChatPage() {
           const other =
             c.members.find((m) => m.profileId !== currentUserId) ?? c.members[0];
 
+          const lastActive = other?.lastActiveAt
+            ? new Date(other.lastActiveAt)
+            : null;
+
+          const isOnline =
+            !!lastActive &&
+            Date.now() - lastActive.getTime() < 5 * 60 * 1000; // 5 phút
+
           return {
             id: c.id,
             key: c.id,
             recipient: {
               username: other?.username ?? "unknown",
               avatar: other?.avatarUrl ?? "/avatar-default.svg",
-              isOnline: false,
+              isOnline,
+              lastActiveAt: other?.lastActiveAt,
             },
             messages: [],
           };
@@ -103,29 +115,32 @@ export default function ChatPage() {
         setConversations(mapped);
 
         // Ưu tiên mở conversationId từ URL nếu có
-        const fromQuery = initialConversationId
-          ? mapped.find((c) => c.id === initialConversationId)
-          : null;
+        const initialConv =
+          (initialConversationId &&
+            mapped.find((c) => c.id === initialConversationId)) ||
+          mapped[0];
 
-        if (fromQuery) {
-          handleConversationSelect(fromQuery.id, fromQuery);
-        } else if (mapped.length > 0) {
-          handleConversationSelect(mapped[0].id, mapped[0]);
+        if (initialConv) {
+          setSelectedConversationId(initialConv.id);
         }
       } catch (e) {
-        console.error(e);
+        console.error("Error fetching conversations", e);
       }
     };
 
     fetchConversations();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId, initialConversationId]);
 
-  // ------------- 2. Load message khi chọn conversation -------------
-  const handleConversationSelect = useCallback(
-    async (conversationId: string, convFromList?: ChatConversation) => {
+  // ------------- 2. Hàm load messages cho 1 conversation -------------
+  const loadMessages = useCallback(
+    async (conversation: ChatConversation) => {
       try {
-        const page = await chatAPI.getMessages(conversationId, 1, 50);
+        const page = (await chatAPI.getMessages(
+          conversation.id,
+          1,
+          50
+        )) as MessagePageResponse;
+
         const apiMessages = page.items as MessageResponse[];
 
         const mappedMsgs: ChatMessage[] = apiMessages.map((m) => ({
@@ -140,30 +155,44 @@ export default function ChatPage() {
           imageUrl: m.mediaUrl ?? undefined,
         }));
 
-        const conv =
-          convFromList ?? conversations.find((c) => c.id === conversationId) ?? null;
-        if (!conv) return;
-
-        const updatedConv: ChatConversation = { ...conv, messages: mappedMsgs };
-        setSelectedConversation(updatedConv);
         setMessages(mappedMsgs);
+
+        // sync lại vào conversations để ChatList có preview
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === conversation.id ? { ...c, messages: mappedMsgs } : c
+          )
+        );
       } catch (e) {
-        console.error(e);
+        console.error("Error loading messages", e);
       }
     },
-    [conversations]
+    []
+  );
+
+  // Khi `selectedConversationId` thay đổi (do click hoặc do initial select) thì load messages
+  useEffect(() => {
+    if (!selectedConversationId) return;
+    const conv = conversations.find((c) => c.id === selectedConversationId);
+    if (!conv) return;
+    loadMessages(conv);
+  }, [selectedConversationId, conversations, loadMessages]);
+
+  const handleConversationSelect = useCallback(
+    (conversationId: string) => {
+      setSelectedConversationId(conversationId);
+    },
+    []
   );
 
   // ------------- 3. Supabase Realtime: subscribe theo conversation hiện tại -------------
   useEffect(() => {
-    if (!selectedConversation) return;
-
-    const conversationId = selectedConversation.id;
+    if (!selectedConversationId) return;
 
     const channel = supabase
-      .channel(`conversation:${conversationId}`, {
+      .channel(`conversation:${selectedConversationId}`, {
         config: {
-          broadcast: { self: true }, // cho phép tự nhận lại event của mình nếu muốn
+          broadcast: { self: true },
         },
       })
       .on(
@@ -180,8 +209,7 @@ export default function ChatPage() {
             createdAt: string;
           };
 
-          // chỉ append nếu đúng conversation đang mở
-          if (m.conversationId !== conversationId) return;
+          if (m.conversationId !== selectedConversationId) return;
 
           const incoming: ChatMessage = {
             backendId: m.id,
@@ -199,6 +227,15 @@ export default function ChatPage() {
             if (prev.some((x) => x.backendId === incoming.backendId)) return prev;
             return [...prev, incoming];
           });
+
+          // update cả conversations & selectedConversation preview
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === selectedConversationId
+                ? { ...c, messages: [...c.messages, incoming] }
+                : c
+            )
+          );
         }
       )
       .subscribe();
@@ -206,18 +243,17 @@ export default function ChatPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedConversation]);
+  }, [selectedConversationId]);
 
-  // ------------- 4. Gửi message: gọi backend + broadcast Supabase -------------
+  // ------------- 4. Gửi message -------------
   const handleSendMessage = useCallback(
     async (text: string) => {
-      if (!selectedConversation) return;
+      if (!selectedConversationId) return;
       const trimmed = text.trim();
       if (!trimmed) return;
 
       try {
-        // 1) Gửi lên backend để lưu DB
-        const sent = (await chatAPI.sendMessage(selectedConversation.id, {
+        const sent = (await chatAPI.sendMessage(selectedConversationId, {
           content: trimmed,
         })) as MessageResponse;
 
@@ -233,54 +269,78 @@ export default function ChatPage() {
           imageUrl: sent.mediaUrl ?? undefined,
         };
 
-        // 2) Append local cho responsive
         setMessages((prev) => [...prev, msg]);
 
-        // 3) Broadcast qua Supabase để các client khác nhận
-        supabase.channel(`conversation:${selectedConversation.id}`).send({
-          type: "broadcast",
-          event: "new-message",
-          payload: {
-            id: sent.id,
-            conversationId: sent.conversationId,
-            senderId: sent.senderId,
-            username: sent.username,
-            content: sent.content,
-            mediaUrl: sent.mediaUrl,
-            createdAt: sent.createdAt,
-          },
-        });
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === selectedConversationId
+              ? { ...c, messages: [...c.messages, msg] }
+              : c
+          )
+        );
+
+        // broadcast cho client khác
+        supabase
+          .channel(`conversation:${selectedConversationId}`)
+          .send({
+            type: "broadcast",
+            event: "new-message",
+            payload: {
+              id: sent.id,
+              conversationId: sent.conversationId,
+              senderId: sent.senderId,
+              username: sent.username,
+              content: sent.content,
+              mediaUrl: sent.mediaUrl,
+              createdAt: sent.createdAt,
+            },
+          });
       } catch (e) {
-        console.error(e);
+        console.error("Error sending message", e);
       }
     },
-    [selectedConversation]
+    [selectedConversationId]
   );
 
-  // --------- 5. Map sang type UI cho ChatList / MessageList ---------
+  // ------------- 5. Map ra UI types -------------
   const uiConversations: UiConversation[] = conversations.map((c) => ({
     key: c.key,
     recipient: c.recipient,
     messages: c.messages.map((m, index) => ({
-      id: index, // UI id (number), không dùng backendId
+      id: index,
+      senderId: m.senderId,
       sender: m.senderUsername,
-      text: m.text ?? "",              // luôn string, không undefined
+      text: m.text ?? "",
       timestamp: m.timestamp,
       imageUrl: m.imageUrl,
       stickerUrl: m.stickerUrl,
+      isOwn: m.senderId === currentUserId,
     })),
   }));
 
   const uiMessages: UiMessage[] = messages.map((m, index) => ({
-    id: index, // UI id (number)
+    id: index,
+    senderId: m.senderId,
     sender: m.senderUsername,
     text: m.text ?? "",
     timestamp: m.timestamp,
     imageUrl: m.imageUrl,
     stickerUrl: m.stickerUrl,
+    isOwn: m.senderId === currentUserId,
   }));
 
   // ------------- 6. Render UI -------------
+  if (!currentUserId) {
+    // Lưu ý: đặt sau tất cả hooks, không còn vi phạm Rules of Hooks
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="text-sm opacity-70">
+          Bạn cần đăng nhập để dùng chat.
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div
       className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center p-6 transition-colors duration-500"
@@ -319,8 +379,9 @@ export default function ChatPage() {
             style={{ color: "var(--text-secondary)" }}
           >
             {selectedConversation?.recipient
-              ? `${t?.("TalkingTo") ?? "Talking to"} @${selectedConversation.recipient.username
-              }`
+              ? `${t?.("TalkingTo") ?? "Talking to"} @${
+                  selectedConversation.recipient.username
+                }`
               : t?.("NoConversation") ?? "No conversation selected"}
           </div>
         </div>
@@ -333,12 +394,11 @@ export default function ChatPage() {
           >
             <ChatList
               userId={currentUserId}
-              onClose={() => { }}
-              // ChatList vẫn xài key để chọn conversation, nên mình truyền key (ở đây = id)
+              onClose={() => {}}
               onSelect={(conversationKey: string) => {
                 const conv = conversations.find((c) => c.key === conversationKey);
                 if (conv) {
-                  handleConversationSelect(conv.id, conv);
+                  handleConversationSelect(conv.id);
                 }
               }}
               conversations={uiConversations}
@@ -351,21 +411,22 @@ export default function ChatPage() {
               <>
                 <ChatHeader
                   recipient={selectedConversation.recipient}
-                  onBack={() => { }}
+                  onBack={() => {}}
                 />
                 <div className="flex-1 overflow-y-auto" style={{ maxHeight: "58vh" }}>
                   <MessageList messages={uiMessages} currentUser={currentUserId} />
                 </div>
                 <MessageInput
                   onSend={handleSendMessage}
-                  onSendImage={() => { }}
-                  onSendSticker={() => { }}
+                  onSendImage={() => {}}
+                  onSendSticker={() => {}}
                 />
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center p-6 text-center">
                 <p style={{ color: "var(--text-secondary)" }}>
-                  {t?.("PickAChat") ?? "Select a conversation to start messaging."}
+                  {t?.("PickAChat") ??
+                    "Select a conversation to start messaging."}
                 </p>
               </div>
             )}

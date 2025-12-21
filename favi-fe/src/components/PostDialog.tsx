@@ -10,6 +10,7 @@ import LocationIQAutoComplete from './LocationIQAutoComplete';
 import 'primereact/resources/themes/lara-light-indigo/theme.css';
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
+import { PostResponse } from '@/types';
 
 interface SelectedPlace {
   placeName: string;
@@ -155,43 +156,94 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
   };
 
   const sharePostSafe = async () => {
-    if (!requireAuth()) return;
-    if (uploading) return;
-    const location =
-      selectedPlace && selectedPlace.coordinates
-        ? {
-            name: selectedPlace.placeName,
-            fullAddress: selectedPlace.fullAddress,
-            latitude: selectedPlace.coordinates[1],
-            longitude: selectedPlace.coordinates[0],
-          }
-        : undefined;
-    let created: { id: string } | null = null;
-    try {
-      setUploading(true);
-      created = await postAPI.create({ caption, tags, privacyLevel, location });
-      if (media.length > 0) {
-        await postAPI.uploadMedia(created.id, media);
+  if (!requireAuth()) return;
+  if (uploading) return;
+
+  // chuẩn hoá caption, tags
+  const cleanedTags = (tags || []).map(t => t.trim()).filter(Boolean);
+  const trimmedCaption = caption.trim();
+
+  // BE yêu cầu: phải có caption hoặc ít nhất 1 tag
+  if (!trimmedCaption && cleanedTags.length === 0) {
+    alert("Bài viết cần có caption hoặc ít nhất 1 tag.");
+    return;
+  }
+
+  const location =
+    selectedPlace && selectedPlace.coordinates
+      ? {
+          name: selectedPlace.placeName,
+          fullAddress: selectedPlace.fullAddress,
+          latitude: selectedPlace.coordinates[1],
+          longitude: selectedPlace.coordinates[0],
+        }
+      : undefined;
+
+  let created: PostResponse | null = null;
+
+  try {
+    setUploading(true);
+
+    const form = new FormData();
+
+    // ⚠️ TÊN FIELD phải trùng với record CreatePostRequest
+    form.append("Caption", trimmedCaption);
+
+    cleanedTags.forEach(tag => {
+      // IEnumerable<string> Tags -> append nhiều lần cùng key "Tags"
+      form.append("Tags", tag);
+    });
+
+    // enum PrivacyLevel -> backend parse từ số
+    form.append("PrivacyLevel", String(privacyLevel));
+
+    if (location) {
+      // Trùng với LocationDto(Name, FullAddress, Latitude, Longitude)
+      form.append("Location.Name", location.name);
+      if (location.fullAddress) {
+        form.append("Location.FullAddress", location.fullAddress);
       }
-      setStep(1);
-      setMedia([]);
-      setCaption('');
-      setTags([]);
-      setPrivacyLevel(PrivacyLevel.Public);
-      setSelectedPlace(null);
-      setPreviewAspect('original');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      onHide();
-      alert('Bai viet da duoc dang!');
-    } catch (e: any) {
-      if (created?.id) {
-        try { await postAPI.delete(created.id); } catch {}
+      if (location.latitude != null) {
+        form.append("Location.Latitude", String(location.latitude));
       }
-      alert(e?.error || e?.message || 'Dang bai that bai');
-    } finally {
-      setUploading(false);
+      if (location.longitude != null) {
+        form.append("Location.Longitude", String(location.longitude));
+      }
     }
-  };
+
+    // ⚠️ Tên phải là "mediaFiles" (trùng tham số [FromForm] List<IFormFile>? mediaFiles)
+    media.forEach(file => {
+      form.append("mediaFiles", file);
+    });
+
+    // Gọi API tạo post
+    created = await postAPI.create(form);
+
+    // Vì đã gửi mediaFiles trong create rồi, KHÔNG cần gọi uploadMedia nữa.
+    // Nếu bạn vẫn muốn flow 2 bước (create trước, upload sau),
+    // thì xóa param mediaFiles khỏi controller Create, chỉ dùng POST /{id}/media.
+
+    // reset UI
+    setStep(1);
+    setMedia([]);
+    setCaption('');
+    setTags([]);
+    setPrivacyLevel(PrivacyLevel.Public);
+    setSelectedPlace(null);
+    setPreviewAspect('original');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    onHide();
+    alert('Bài viết đã được đăng!');
+  } catch (e: any) {
+    // Nếu muốn rollback xoá post khi lỗi (hiện giờ Create đã fail trước nên created thường là null)
+    if (created?.id) {
+      try { await postAPI.delete(created.id); } catch {}
+    }
+    alert(e?.error || e?.message || 'Đăng bài thất bại');
+  } finally {
+    setUploading(false);
+  }
+};
 
   const handleDiscard = () => {
     setStep(1);

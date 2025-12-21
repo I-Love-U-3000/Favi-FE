@@ -3,13 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "primereact/button";
+import { Dialog } from "primereact/dialog";
 import { TabView, TabPanel } from "primereact/tabview";
 import { Tag } from "primereact/tag";
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/routing";
 import { mockUserProfile } from "@/lib/mockTest/mockUserProfile";
 import { mockPost } from "@/lib/mockTest/mockPost";
 import { mockCollection } from "@/lib/mockTest/mockCollection";
-import type { UserProfile, PhotoPost, Collection, PostResponse, SocialLink, SocialKind } from "@/types";
+import type { UserProfile, PhotoPost, Collection, PostResponse, SocialLink, SocialKind, ProfileResponse } from "@/types";
 import profileAPI from "@/lib/api/profileAPI";
 import postAPI from "@/lib/api/postAPI";
 import chatAPI from "@/lib/api/chatAPI";
@@ -19,6 +21,7 @@ import EditProfileDialog, { EditableProfile } from "@/components/EditProfileDial
 import ReportDialog from "@/components/ReportDialog";
 import { useAuth } from "@/components/AuthProvider";
 import { useOverlay } from "@/components/RootProvider";
+import ProfileHoverCard from "@/components/ProfileHoverCard";
 
 /* ========== Helpers ========== */
 function asArray<T>(x: T | T[] | undefined | null): T[] {
@@ -49,12 +52,19 @@ function resolveCollections(ownerId: string): Collection[] {
 }
 
 /* ========== UI bits ========== */
-function Stat({ label, value }: { label: string; value: number | string }) {
+function Stat({ label, value, onClick }: { label: string; value: number | string; onClick?: () => void }) {
+  const clickable = typeof onClick === "function";
   return (
-    <div className="text-center">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!clickable}
+      className={`w-full text-center rounded-lg px-2 py-2 ${clickable ? "hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer" : "cursor-default"} disabled:cursor-default disabled:opacity-100`}
+      style={{ border: "none", background: "transparent" }}
+    >
       <div className="text-xl font-semibold">{value}</div>
       <div className="text-xs opacity-70">{label}</div>
-    </div>
+    </button>
   );
 }
 
@@ -158,8 +168,6 @@ function MoreMenuButton() {
   );
 }
 
-import { Link } from "@/i18n/routing";
-
 function PhotoGrid({ items }: { items: PhotoPost[] }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -210,6 +218,91 @@ function CollectionsGrid({ items }: { items: Collection[] }) {
   );
 }
 
+function FollowUserRow({ profile }: { profile: ProfileResponse }) {
+  const display = profile.displayName || profile.username;
+  const avatarSrc =
+    profile.avatarUrl && profile.avatarUrl.trim().length > 0
+      ? profile.avatarUrl
+      : "/avatar-default.svg";
+
+  return (
+    <Link href={`/profile/${profile.id}`} className="flex items-center gap-3">
+      <ProfileHoverCard
+        user={{
+          id: profile.id,
+          username: profile.username,
+          name: display || "",
+          avatarUrl: avatarSrc !== "/avatar-default.svg" ? avatarSrc : undefined,
+          bio: profile.bio || undefined,
+          followersCount: profile.followersCount ?? undefined,
+          followingCount: profile.followingCount ?? undefined,
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={avatarSrc}
+          alt={display || profile.username}
+          className="w-10 h-10 rounded-full cursor-pointer border"
+        />
+      </ProfileHoverCard>
+      <div>
+        <div className="text-sm font-medium">{display}</div>
+        <div className="text-xs opacity-70">@{profile.username}</div>
+      </div>
+    </Link>
+  );
+}
+
+function FollowListDialog({
+  type,
+  visible,
+  loading,
+  error,
+  profiles,
+  onHide,
+}: {
+  type: "followers" | "following";
+  visible: boolean;
+  loading: boolean;
+  error: string | null;
+  profiles: ProfileResponse[];
+  onHide: () => void;
+}) {
+  const title = type === "followers" ? "Followers" : "Following";
+  return (
+    <Dialog
+      header={title}
+      visible={visible}
+      onHide={onHide}
+      dismissableMask
+      style={{ width: "min(640px, 92vw)" }}
+      contentStyle={{ padding: "1.5rem" }}
+    >
+      {loading ? (
+        <div className="py-2 text-sm opacity-70">Loading...</div>
+      ) : error ? (
+        <div className="py-2 text-sm text-red-500">{error}</div>
+      ) : profiles.length === 0 ? (
+        <div className="py-2 text-sm opacity-70">
+          {type === "followers" ? "No followers yet." : "No following accounts yet."}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {profiles.map((p) => (
+            <div
+              key={p.id}
+              className="rounded-xl p-3"
+              style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+            >
+              <FollowUserRow profile={p} />
+            </div>
+          ))}
+        </div>
+      )}
+    </Dialog>
+  );
+}
+
 /* ========== PAGE (CLIENT) ========== */
 export default function ProfilePage() {
   const t = useTranslations("Profile"); // thay cho getTranslations(server)
@@ -237,6 +330,13 @@ export default function ProfilePage() {
   const [previewImage, setPreviewImage] = useState<{ url: string; alt: string } | null>(null);
   const [links, setLinks] = useState<SocialLink[]>([]);
   const [loadingLinks, setLoadingLinks] = useState(false);
+  const [followDialogType, setFollowDialogType] = useState<"followers" | "following" | null>(null);
+  const [followDialogVisible, setFollowDialogVisible] = useState(false);
+  const [followDialogLoading, setFollowDialogLoading] = useState(false);
+  const [followDialogError, setFollowDialogError] = useState<string | null>(null);
+  const [followersList, setFollowersList] = useState<ProfileResponse[]>([]);
+  const [followingList, setFollowingList] = useState<ProfileResponse[]>([]);
+  const followRequestKeyRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -247,6 +347,7 @@ export default function ProfilePage() {
         const norm = normalizeProfile(p);
         if (!cancelled && norm) setProfile(norm);
         const res = await postAPI.getByProfile(id, 1, 24);
+        const postCount = typeof res.totalCount === "number" ? res.totalCount : (res.items?.length || 0);
         const mapped: PhotoPost[] = (res.items || []).map((x: PostResponse) => ({
           id: x.id,
           imageUrl: x.medias?.[0]?.thumbnailUrl || x.medias?.[0]?.url || "",
@@ -259,6 +360,18 @@ export default function ProfilePage() {
           tags: (x.tags || []).map(t => t.name),
         }));
         if (!cancelled) setPosts(mapped);
+        if (!cancelled) {
+          setProfile(prev => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              stats: {
+                ...(prev.stats || { followers: 0, following: 0, posts: 0 }),
+                posts: postCount,
+              },
+            };
+          });
+        }
         // Collections to be loaded later when endpoint available
         if (!cancelled) setCollections([]);
       } catch (e: any) {
@@ -370,6 +483,67 @@ export default function ProfilePage() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [previewImage]);
+
+  const openFollowDialog = async (kind: "followers" | "following") => {
+    if (!profile) return;
+    setFollowDialogType(kind);
+    setFollowDialogVisible(true);
+    setFollowDialogError(null);
+    setFollowDialogLoading(true);
+    const requestKey = followRequestKeyRef.current + 1;
+    followRequestKeyRef.current = requestKey;
+
+    try {
+      const res = kind === "followers"
+        ? await profileAPI.followers(profile.id, 0, 200)
+        : await profileAPI.followings(profile.id, 0, 200);
+      const items: any[] = Array.isArray(res) ? res : res?.items ?? [];
+      const ids = Array.from(
+        new Set(
+          items
+            .map((f) => (kind === "followers" ? f.followerId : f.followeeId))
+            .filter(Boolean)
+        )
+      ) as string[];
+
+      const profileResults = ids.length
+        ? await Promise.allSettled(ids.map((pid) => profileAPI.getById(pid)))
+        : [];
+
+      if (followRequestKeyRef.current !== requestKey) return;
+
+      const resolved = profileResults
+        .filter(
+          (r): r is PromiseFulfilledResult<ProfileResponse> =>
+            r.status === "fulfilled"
+        )
+        .map((r) => r.value);
+
+      if (kind === "followers") {
+        setFollowersList(resolved);
+      } else {
+        setFollowingList(resolved);
+      }
+    } catch (e: any) {
+      if (followRequestKeyRef.current !== requestKey) return;
+      setFollowDialogError(e?.error || e?.message || "Failed to load list");
+      if (kind === "followers") {
+        setFollowersList([]);
+      } else {
+        setFollowingList([]);
+      }
+    } finally {
+      if (followRequestKeyRef.current === requestKey) {
+        setFollowDialogLoading(false);
+      }
+    }
+  };
+
+  const closeFollowDialog = () => {
+    setFollowDialogVisible(false);
+    setFollowDialogType(null);
+    setFollowDialogError(null);
+  };
 
   const [editOpen, setEditOpen] = useState(false);
   const onSaveProfile = async (p: EditableProfile, files: { avatar?: File | null; cover?: File | null } = {}) => {
@@ -537,6 +711,8 @@ export default function ProfilePage() {
   const primaryName = trimmedDisplayName || profile.username;
   const coverUrl = profile.coverUrl ?? "";
   const avatarUrl = profile.avatarUrl ?? "/avatar-default.svg";
+  const followDialogProfiles = followDialogType === "following" ? followingList : followersList;
+  const followDialogTypeSafe = followDialogType ?? "followers";
 
   return (
     <div className="min-h-screen">
@@ -616,8 +792,16 @@ export default function ProfilePage() {
           <div className="flex flex-col items-start md:items-end gap-3">
             <div className="grid grid-cols-3 gap-4">
               <Stat label="Posts" value={profile.stats?.posts ?? 0} />
-              <Stat label="Followers" value={profile.stats?.followers ?? 0} />
-              <Stat label="Following" value={profile.stats?.following ?? 0} />
+              <Stat
+                label="Followers"
+                value={profile.stats?.followers ?? 0}
+                onClick={() => openFollowDialog("followers")}
+              />
+              <Stat
+                label="Following"
+                value={profile.stats?.following ?? 0}
+                onClick={() => openFollowDialog("following")}
+              />
             </div>
             <ActionButtons profile={profile} onEdit={() => setEditOpen(true)} isOwner={isOwner} />
           </div>
@@ -689,6 +873,14 @@ export default function ProfilePage() {
             </TabPanel>
           </TabView>
         </div>
+        <FollowListDialog
+          type={followDialogTypeSafe}
+          visible={followDialogVisible && !!followDialogType}
+          loading={followDialogLoading}
+          error={followDialogError}
+          profiles={followDialogProfiles}
+          onHide={closeFollowDialog}
+        />
         <EditProfileDialog
           open={editOpen}
           onClose={() => setEditOpen(false)}
