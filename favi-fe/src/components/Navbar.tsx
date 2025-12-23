@@ -102,14 +102,14 @@ export default function Navbar() {
                 <button
                   key={href}
                   onClick={openPostComposer}
-                  className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg transition border hover:-translate-y-[1px]"
-                  style={{
-                    backgroundColor: active ? "rgba(0,0,0,0.04)" : "var(--bg)",
-                    color: "var(--text)",
-                    borderColor: active ? "var(--primary)" : "var(--border)",
-                  }}
+                  className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg transition hover:-translate-y-[1px] ${
+                    active
+                      ? "bg-primary text-white"
+                      : "hover:bg-black dark:hover:bg-white/10 text-var-text"
+                  }`}
+                  style={{ color: active ? undefined : "var(--text)" }}
                 >
-                  <i className={`${item.icon} text-lg opacity-80`} />
+                  <i className={`${item.icon} text-lg ${active ? "" : "opacity-80"}`} />
                   <span className="text-sm font-semibold">{item.label}</span>
                 </button>
               );
@@ -119,14 +119,14 @@ export default function Navbar() {
               <Link
                 key={href}
                 href={href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition border hover:-translate-y-[1px]"
-                style={{
-                  backgroundColor: active ? "rgba(0,0,0,0.04)" : "var(--bg)",
-                  color: "var(--text)",
-                  borderColor: active ? "var(--primary)" : "var(--border)",
-                }}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition hover:-translate-y-[1px] ${
+                  active
+                    ? "bg-black dark:bg-white/15"
+                    : "hover:bg-black dark:hover:bg-white/10"
+                }`}
+                style={{ color: "var(--text)" }}
               >
-                <i className={`${item.icon} text-lg opacity-80`} />
+                <i className={`${item.icon} text-lg ${active ? "" : "opacity-80"}`} />
                 <span className="text-sm font-semibold">{item.label}</span>
               </Link>
             );
