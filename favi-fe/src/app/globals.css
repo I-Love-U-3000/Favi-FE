@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+@theme {
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
 
 :root {
   --bg: var(--surface-b, #f4f4f4);
@@ -13,6 +18,7 @@
   --warning: var(--yellow-500, #fbbf24);
   --input-bg: var(--surface-a, #ffffff);
   --input-border: var(--surface-d, #e5e7eb);
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
 @font-face {
@@ -29,10 +35,56 @@
 html, body {
   background-color: var(--bg);
   color: var(--text);
+  font-family: var(--font-family);
+}
+
+/* Fix Primereact Card border-radius and apply to all cards */
+.p-card {
+  border-radius: 24px !important;
+  overflow: hidden;
+}
+
+.p-card .p-card-body,
+.p-card .p-card-content,
+.p-card .p-card-header {
+  border-radius: inherit !important;
+}
+
+/* Login card with more rounded corners */
+.p-card.rounded-login,
+.p-card.rounded-login > .p-card-body,
+.p-card.rounded-login > .p-card-content {
+  border-radius: 32px !important;
+}
+
+/* Force rounded corners on all Card elements */
+.rounded-login,
+.rounded-login > *,
+.rounded-login .p-card-header,
+.rounded-login .p-card-body,
+.rounded-login .p-card-content {
+  border-radius: 32px !important;
+}
+
+/* First child (header) - top corners only */
+.rounded-login .p-card-header {
+  border-radius: 32px 32px 0 0 !important;
+}
+
+/* Last child (content/body) - bottom corners only */
+.rounded-login .p-card-body,
+.rounded-login .p-card-content {
+  border-radius: 0 0 32px 32px !important;
 }
 
 /* Ensure links inherit text color by default */
 a { color: inherit; }
+
+/* Navbar glass effect - ensure it works */
+aside.backdrop-blur-2xl {
+  -webkit-backdrop-filter: blur(40px);
+  backdrop-filter: blur(40px);
+}
 
 /* Share-sheet style for post composer */
 .p-dialog.share-sheet .p-dialog-content {

@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo, useState, useRef} from "react";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {TabView, TabPanel} from "primereact/tabview";
 import {InputText} from "primereact/inputtext";
@@ -9,9 +9,11 @@ import {Tag as PTag} from "primereact/tag";
 import {useTranslations} from "next-intl";
 import {Checkbox} from "primereact/checkbox";
 import {Slider} from "primereact/slider";
+import {ProgressSpinner} from "primereact/progressspinner";
 
 import {mockPost} from "@/lib/mockTest/mockPost";
-import type {PhotoPost} from "@/types";
+import type {PhotoPost, SearchResult, SearchPostDto} from "@/types";
+import {searchAPI} from "@/lib/api/searchAPI";
 
 /* ==================== Utils & Mock helpers ==================== */
 type Mode = "keyword" | "tag" | "color" | "ai" | "trending" | "combined";
@@ -122,6 +124,14 @@ export default function SearchPage() {
   const [tagsMulti, setTagsMulti] = useState<string[]>([]);
   const [matchAllTags, setMatchAllTags] = useState<boolean>(true);
 
+  // Semantic search state
+  const [semanticResults, setSemanticResults] = useState<PhotoPost[]>([]);
+  const [semanticLoading, setSemanticLoading] = useState(false);
+  const [semanticError, setSemanticError] = useState<string | null>(null);
+  const [semanticPage, setSemanticPage] = useState(1);
+  const [hasMoreSemantic, setHasMoreSemantic] = useState(true);
+  const isSearchingRef = useRef(false);
+
   // Sync URL when inputs change
   useEffect(() => {
     const params = new URLSearchParams(sp.toString());
@@ -141,6 +151,97 @@ export default function SearchPage() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, q, tag, color, aiPrompt, strictColor, colorTolerance]);
+
+  // Semantic search effect
+  useEffect(() => {
+    const performSemanticSearch = async () => {
+      if (mode !== "ai" || !aiPrompt.trim() || isSearchingRef.current) {
+        return;
+      }
+
+      isSearchingRef.current = true;
+      setSemanticLoading(true);
+      setSemanticError(null);
+      setSemanticPage(1);
+      setSemanticResults([]);
+      setHasMoreSemantic(true);
+
+      try {
+        const result = await searchAPI.semanticSearch({
+          query: aiPrompt.trim(),
+          page: 1,
+          pageSize: 20,
+          k: 100,
+        });
+
+        // Convert SearchPostDto to PhotoPost format
+        const convertedPosts: PhotoPost[] = result.posts.map((post: SearchPostDto) => ({
+          id: post.id,
+          imageUrl: post.thumbnailUrl,
+          alt: post.caption,
+          width: 300,
+          height: 300,
+          createdAtISO: new Date().toISOString(),
+          likeCount: 0,
+          commentCount: 0,
+          tags: [],
+        }));
+
+        setSemanticResults(convertedPosts);
+        setHasMoreSemantic(result.posts.length === 20);
+      } catch (error: any) {
+        console.error("Semantic search error:", error);
+        setSemanticError(error?.error || error?.message || "Failed to perform semantic search");
+      } finally {
+        setSemanticLoading(false);
+        isSearchingRef.current = false;
+      }
+    };
+
+    performSemanticSearch();
+  }, [aiPrompt, mode]);
+
+  // Load more semantic search results
+  const loadMoreSemantic = async () => {
+    if (semanticLoading || !hasMoreSemantic || isSearchingRef.current) {
+      return;
+    }
+
+    isSearchingRef.current = true;
+    setSemanticLoading(true);
+
+    try {
+      const nextPage = semanticPage + 1;
+      const result = await searchAPI.semanticSearch({
+        query: aiPrompt.trim(),
+        page: nextPage,
+        pageSize: 20,
+        k: 100,
+      });
+
+      const convertedPosts: PhotoPost[] = result.posts.map((post: SearchPostDto) => ({
+        id: post.id,
+        imageUrl: post.thumbnailUrl,
+        alt: post.caption,
+        width: 300,
+        height: 300,
+        createdAtISO: new Date().toISOString(),
+        likeCount: 0,
+        commentCount: 0,
+        tags: [],
+      }));
+
+      setSemanticResults(prev => [...prev, ...convertedPosts]);
+      setSemanticPage(nextPage);
+      setHasMoreSemantic(result.posts.length === 20);
+    } catch (error: any) {
+      console.error("Load more semantic search error:", error);
+      setSemanticError(error?.error || error?.message || "Failed to load more results");
+    } finally {
+      setSemanticLoading(false);
+      isSearchingRef.current = false;
+    }
+  };
 
   const posts = useMemo(() => asArray<PhotoPost>(mockPost), []);
   const trending = useMemo(() => topTags(posts), [posts]);
@@ -234,11 +335,11 @@ const haystackOf = (p: PhotoPost) => {
       case "keyword": return keywordResults;
       case "tag": return tagResults;
       case "color": return colorResults;
-      case "ai": return aiResults;
+      case "ai": return semanticResults;
       case "trending": return trendingResults;
       case "combined": return combinedResults;
     }
-  }, [mode, keywordResults, tagResults, colorResults, aiResults, trendingResults, combinedResults]);
+  }, [mode, keywordResults, tagResults, colorResults, semanticResults, trendingResults, combinedResults]);
 
   // Quick apply tag/color from chips
   const applyTag = (t: string) => {
@@ -360,9 +461,9 @@ const haystackOf = (p: PhotoPost) => {
                     placeholder="Describe the photo you want: 'sunset over mountains, warm tones, minimalism'"
                     className="w-full min-h-12 p-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-neutral-900/60 outline-none"
                   />
-                  <Button label="Generate" onClick={()=>setMode("ai")} icon="pi pi-magic" />
+                  <Button label="Search" onClick={()=>setMode("ai")} icon="pi pi-magic" />
                 </div>
-                <p className="mt-2 text-xs opacity-60">Prototype: local semantic match over captions & tags.</p>
+                <p className="mt-2 text-xs opacity-60">AI-powered semantic search using embeddings. Describe what you're looking for in natural language.</p>
               </TabPanel>
 
               <TabPanel header={<span className="inline-flex items-center gap-2"><i className="pi pi-chart-line" />Trending</span>}>
@@ -432,7 +533,51 @@ const haystackOf = (p: PhotoPost) => {
       {/* Results */}
       <div className="mx-auto max-w-6xl px-6 mt-8">
         <Section>
-          <ResultGrid items={results} />
+          {/* Loading state for AI mode */}
+          {mode === "ai" && semanticLoading && semanticResults.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <ProgressSpinner />
+              <p className="text-sm opacity-70">Searching with AI...</p>
+            </div>
+          )}
+
+          {/* Error state for AI mode */}
+          {mode === "ai" && semanticError && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-4">
+              <p className="text-sm text-red-600 dark:text-red-400">{semanticError}</p>
+            </div>
+          )}
+
+          {/* Results grid */}
+          {!semanticLoading || semanticResults.length > 0 ? (
+            <ResultGrid items={results} />
+          ) : null}
+
+          {/* Load more button for AI mode */}
+          {mode === "ai" && !semanticLoading && hasMoreSemantic && semanticResults.length > 0 && (
+            <div className="flex justify-center mt-8">
+              <Button
+                label="Load More"
+                icon="pi pi-chevron-down"
+                onClick={loadMoreSemantic}
+                className="p-button-outlined"
+              />
+            </div>
+          )}
+
+          {/* Loading spinner for load more */}
+          {mode === "ai" && semanticLoading && semanticResults.length > 0 && (
+            <div className="flex justify-center mt-8">
+              <ProgressSpinner style={{ width: '32px', height: '32px' }} />
+            </div>
+          )}
+
+          {/* No more results message */}
+          {mode === "ai" && !hasMoreSemantic && semanticResults.length > 0 && (
+            <div className="text-center mt-8 text-sm opacity-50">
+              No more results
+            </div>
+          )}
         </Section>
       </div>
     </div>

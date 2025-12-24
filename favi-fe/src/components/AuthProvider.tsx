@@ -8,6 +8,7 @@ type UserInfo = { id?: string; email?: string; role?: any } | null;
 type AuthContextType = {
   isAuthenticated: boolean;
   isGuest: boolean;
+  isAdmin: boolean;
   user: UserInfo;
   refresh: () => void;
   requireAuth: (onAuthed?: () => void) => boolean;
@@ -73,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextType>(() => ({
     isAuthenticated,
     isGuest,
+    isAdmin: authAPI.isAdmin(),
     user,
     refresh: compute,
     requireAuth,

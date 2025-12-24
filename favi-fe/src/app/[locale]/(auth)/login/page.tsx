@@ -169,12 +169,11 @@ export default function LoginPage() {
       </header>
 
       <Card
-        className="relative z-10 w-full max-w-[560px] rounded-3xl shadow-[0_20px_80px_-20px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
+        className="rounded-login relative z-10 w-full max-w-[420px] shadow-[0_8px_32px_0_rgba(0,0,0,0.25)] backdrop-blur-xl border border-white/20 dark:border-white/10"
         style={{
-          backgroundColor: "var(--bg-secondary)",
-          borderColor: "var(--border)",
+          backgroundColor: "rgba(255, 255, 255, 0.12)",
           color: "var(--text)",
-          borderWidth: "1px",
+          borderRadius: "32px",
         }}
         title={
           <div className="text-center space-y-1">

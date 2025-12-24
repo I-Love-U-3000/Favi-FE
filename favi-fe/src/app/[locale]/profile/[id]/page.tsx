@@ -11,13 +11,15 @@ import { Link } from "@/i18n/routing";
 import { mockUserProfile } from "@/lib/mockTest/mockUserProfile";
 import { mockPost } from "@/lib/mockTest/mockPost";
 import { mockCollection } from "@/lib/mockTest/mockCollection";
-import type { UserProfile, PhotoPost, Collection, PostResponse, SocialLink, SocialKind, ProfileResponse } from "@/types";
+import type { UserProfile, PhotoPost, Collection, CollectionResponse, PostResponse, SocialLink, SocialKind, ProfileResponse } from "@/types";
 import profileAPI from "@/lib/api/profileAPI";
 import postAPI from "@/lib/api/postAPI";
 import chatAPI from "@/lib/api/chatAPI";
+import collectionAPI from "@/lib/api/collectionAPI";
 import { normalizeProfile, writeCachedProfile } from "@/lib/profileCache";
 import CollectionDialog from "@/components/CollectionDialog";
 import EditProfileDialog, { EditableProfile } from "@/components/EditProfileDialog";
+import CollectionReactionButton from "@/components/CollectionReactionButton";
 import ReportDialog from "@/components/ReportDialog";
 import { useAuth } from "@/components/AuthProvider";
 import { useOverlay } from "@/components/RootProvider";
@@ -44,7 +46,7 @@ function resolvePosts(ownerId: string): PhotoPost[] {
   return hasUserId ? list.filter(p => p.userId === ownerId) : list;
 }
 
-function resolveCollections(ownerId: string): Collection[] {
+function resolveCollections(ownerId: string): CollectionResponse[] {
   const list = asArray<Collection>(mockCollection);
   const hasUserId = list.length > 0 && Object.prototype.hasOwnProperty.call(list[0], "userId");
   // @ts-expect-error: userId có thể tồn tại trong mock
@@ -169,6 +171,14 @@ function MoreMenuButton() {
 }
 
 function PhotoGrid({ items }: { items: PhotoPost[] }) {
+  const { openAddToCollectionDialog } = useOverlay();
+
+  const handleAddToCollection = (e: React.MouseEvent, postId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openAddToCollectionDialog(postId);
+  };
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
       {items.map(p => (
@@ -186,10 +196,20 @@ function PhotoGrid({ items }: { items: PhotoPost[] }) {
               <span className="pi pi-heart" /> {p.likeCount}
               <span className="pi pi-comments" /> {p.commentCount}
             </div>
-            <div className="flex gap-1">
-              {p.tags?.slice(0, 2).map(t => (
-                <Tag key={t} value={t} rounded className="!text-[10px]" />
-              ))}
+            <div className="flex gap-1 items-center">
+              <button
+                type="button"
+                onClick={(e) => handleAddToCollection(e, p.id)}
+                className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                title="Add to collection"
+              >
+                <i className="pi pi-bookmark text-sm" />
+              </button>
+              <div className="flex gap-1">
+                {p.tags?.slice(0, 2).map(t => (
+                  <Tag key={t} value={t} rounded className="!text-[10px]" />
+                ))}
+              </div>
             </div>
           </div>
         </Link>
@@ -198,20 +218,39 @@ function PhotoGrid({ items }: { items: PhotoPost[] }) {
   );
 }
 
-function CollectionsGrid({ items }: { items: Collection[] }) {
+function CollectionsGrid({ items }: { items: CollectionResponse[] }) {
+  const FALLBACK_COVER = "https://via.placeholder.com/400x200/6366f1/ffffff?text=Collection";
+
+  const handleReactionChange = (collectionId: string, newReactions: any, setter: (items: CollectionResponse[]) => void) => {
+    setter(items.map(c => c.id === collectionId ? { ...c, reactions: newReactions } : c));
+  };
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
       {items.map(c => (
-        <div key={c.id} className="rounded-2xl overflow-hidden ring-1 ring-black/5 dark:ring-white/10 bg-white/60 dark:bg-neutral-900/60">
-          <div className="relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={c.coverUrl} alt={c.title} className="w-full h-48 object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-            <div className="absolute bottom-3 left-3 text-white">
-              <div className="font-medium">{c.title}</div>
-              <div className="text-xs opacity-80">{c.count} photos</div>
+        <div key={c.id} className="rounded-2xl overflow-hidden ring-1 ring-black/5 dark:ring-white/10 bg-white/60 dark:bg-neutral-900/60 hover:ring-black/10 dark:hover:ring-white/20 transition-all">
+          <Link href={`/collections/${c.id}`} className="block">
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={c.coverImageUrl || FALLBACK_COVER} alt={c.title} className="w-full h-48 object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-3 left-3 right-3 text-white flex items-center justify-between">
+                <div>
+                  <div className="font-medium">{c.title}</div>
+                  <div className="text-xs opacity-80">{c.postCount} photos</div>
+                </div>
+                <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                  <CollectionReactionButton
+                    collectionId={c.id}
+                    reactions={c.reactions}
+                    onReactionChange={(newReactions) => handleReactionChange(c.id, newReactions, () => {})}
+                    size="small"
+                    showCount={false}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
+          </Link>
         </div>
       ))}
     </div>
@@ -321,7 +360,7 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<PhotoPost[]>([]);
-  const [collections, setCollections] = useState<Collection[]>([]);
+  const [collections, setCollections] = useState<CollectionResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -372,8 +411,14 @@ export default function ProfilePage() {
             };
           });
         }
-        // Collections to be loaded later when endpoint available
-        if (!cancelled) setCollections([]);
+        // Fetch user's collections
+        const collectionsRes = await collectionAPI.getByOwner(id, 1, 50);
+        const FALLBACK_COLLECTION_COVER = "https://via.placeholder.com/400x200/6366f1/ffffff?text=Collection";
+        const mappedCollections: CollectionResponse[] = (collectionsRes.items || []).map((c) => ({
+          ...c,
+          coverImageUrl: c.coverImageUrl?.trim() || FALLBACK_COLLECTION_COVER,
+        }));
+        if (!cancelled) setCollections(mappedCollections as any);
       } catch (e: any) {
         if (!cancelled) setError(e?.error || e?.message || 'Failed to load profile');
       } finally {

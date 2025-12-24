@@ -98,6 +98,43 @@ export type PhotoPost = {
   tags?: string[];
 };
 
+// Backend collection DTOs (C# CreateCollectionRequest, UpdateCollectionRequest, CollectionResponse)
+// Note: coverImage file is sent separately as FormData
+export type CreateCollectionRequest = {
+  title: string;
+  description?: string | null;
+  privacyLevel: PrivacyLevel;
+};
+
+export type UpdateCollectionRequest = {
+  title?: string | null;
+  description?: string | null;
+  privacyLevel?: PrivacyLevel;
+};
+
+// For FormData with cover image upload
+export type CreateCollectionFormData = CreateCollectionRequest & {
+  coverImage?: File | null;
+};
+
+export type UpdateCollectionFormData = UpdateCollectionRequest & {
+  coverImage?: File | null;
+};
+
+export type CollectionResponse = {
+  id: string; // Guid
+  ownerProfileId: string; // Guid
+  title: string;
+  description?: string | null;
+  coverImageUrl: string;
+  privacyLevel: PrivacyLevel;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+  postIds: string[]; // Guid[]
+  postCount: number;
+  reactions?: ReactionSummaryDto;
+};
+
 export type Collection = {
   id: string;
   title: string;
@@ -262,7 +299,80 @@ export type SendMessageRequest = {
 }
 
 export type FollowResponse = {
-  followerId: string;  
-  followeeId: string;  
-  createdAt: string;   
+  followerId: string;
+  followeeId: string;
+  createdAt: string;
+};
+
+// Search types
+export type SearchRequest = {
+  query: string;
+  page: number;
+  pageSize: number;
+};
+
+export type SearchPostDto = {
+  id: string; // Guid
+  caption: string;
+  thumbnailUrl: string;
+};
+
+export type SearchTagDto = {
+  id: string; // Guid
+  name: string;
+  postCount: number;
+};
+
+export type SearchResult = {
+  posts: SearchPostDto[];
+  tags: SearchTagDto[];
+};
+
+export type SemanticSearchRequest = {
+  query: string;
+  page?: number;
+  pageSize?: number;
+  k?: number;
+};
+
+// Notification types
+export enum NotificationType {
+  Like = 0,
+  Comment = 1,
+  Follow = 2,
+  System = 3
+}
+
+// Helper to convert numeric type to enum
+export function notificationTypeToString(type: number | NotificationType): string {
+  switch (type) {
+    case 0:
+    case NotificationType.Like:
+      return 'Like';
+    case 1:
+    case NotificationType.Comment:
+      return 'Comment';
+    case 2:
+    case NotificationType.Follow:
+      return 'Follow';
+    case 3:
+    case NotificationType.System:
+      return 'System';
+    default:
+      return 'Like';
+  }
+}
+
+export type NotificationDto = {
+  id: string;
+  type: number | NotificationType;
+  actorProfileId: string;
+  actorUsername: string;
+  actorDisplayName: string | null;
+  actorAvatarUrl: string | null;
+  targetPostId: string | null;
+  targetCommentId: string | null;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
 };

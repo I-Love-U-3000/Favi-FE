@@ -130,6 +130,20 @@ export const authAPI = {
       return null as unknown as T | null;
     }
   },
+
+  // Check if current user is admin
+  isAdmin: (): boolean => {
+    const userInfo = authAPI.getUserInfo<{ id?: string; email?: string; role?: any }>();
+    if (!userInfo?.role) return false;
+
+    // Role can be a string or array
+    const roles = Array.isArray(userInfo.role) ? userInfo.role : [userInfo.role];
+    return roles.some((r: string) =>
+      r.toLowerCase() === "admin" ||
+      r.toLowerCase() === "administrator" ||
+      r.toLowerCase() === "moderator"
+    );
+  },
 };
 
 export default authAPI;

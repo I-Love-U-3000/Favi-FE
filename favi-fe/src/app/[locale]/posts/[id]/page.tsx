@@ -1,6 +1,6 @@
 "use client";
 
-import { notFound, useParams, useRouter } from "next/navigation";
+import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
 import postAPI from "@/lib/api/postAPI";
 import commentAPI from "@/lib/api/commentAPI";
 import useProfile from "@/lib/hooks/useProfile";
@@ -9,6 +9,7 @@ import ProfileHoverCard from "@/components/ProfileHoverCard";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readPostReaction, writePostReaction } from "@/lib/postCache";
 import { useAuth } from "@/components/AuthProvider";
+import { useOverlay } from "@/components/RootProvider";
 import { Button } from "primereact/button";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
@@ -69,7 +70,10 @@ export default function PostPage() {
 
 function PostDetailDataView({ post }: { post: PostResponse }) {
   const { requireAuth } = useAuth();
+  const { openAddToCollectionDialog } = useOverlay();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const highlightCommentId = searchParams?.get("comment");
   const privacy: PrivacyKind = normalizePrivacy(
     (post as any).privacyLevel ?? (post as any).privacy
   );
@@ -314,6 +318,13 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
                   <span className="inline-flex items-center gap-1">
                     <i className="pi pi-comments" /> {commentCount}
                   </span>
+                  <button
+                    className="inline-flex items-center gap-1 hover:opacity-100"
+                    title="Add to collection"
+                    onClick={() => openAddToCollectionDialog(post.id)}
+                  >
+                    <i className="pi pi-bookmark" />
+                  </button>
                   <div className="relative">
                     <button
                       className="inline-flex items-center gap-1 hover:opacity-100"
@@ -364,7 +375,7 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
 
           {/* Right rail: comments (bật hiển thị ở mọi size để test) */}
           <aside className="block space-y-4">
-            <CommentsPanel postId={post.id} onCountChange={setCommentCount} />
+            <CommentsPanel postId={post.id} onCountChange={setCommentCount} highlightCommentId={highlightCommentId} />
           </aside>
         </div>
       </main>
@@ -456,8 +467,8 @@ const flattenFromApi = (roots: CommentTreeResponse[]): CommentResponse[] => {
   return out;
 };
 
-function CommentsPanel({ postId, onCountChange }: { postId: string; onCountChange?: (n: number) => void }) {
-  const { requireAuth, isAuthenticated, user } = useAuth();
+function CommentsPanel({ postId, onCountChange, highlightCommentId }: { postId: string; onCountChange?: (n: number) => void; highlightCommentId?: string | null }) {
+  const { requireAuth, isAuthenticated, user, isAdmin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<CommentResponse[]>([]);
@@ -466,7 +477,35 @@ function CommentsPanel({ postId, onCountChange }: { postId: string; onCountChang
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [expandedRoots, setExpandedRoots] = useState<Record<string, boolean>>({});
+  const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(highlightCommentId || null);
+  const commentsPanelRef = useRef<HTMLDivElement>(null);
   const syncedInitialCount = useRef(false);
+
+  // Scroll to highlighted comment
+  useEffect(() => {
+    if (highlightCommentId && items.length > 0) {
+      setHighlightedCommentId(highlightCommentId);
+      // Expand the root comment if needed
+      const targetComment = items.find(c => getId(c) === highlightCommentId);
+      if (targetComment) {
+        const parentId = getParentId(targetComment);
+        if (parentId) {
+          setExpandedRoots(prev => ({ ...prev, [parentId]: true }));
+        }
+        // Scroll after a short delay to let the expand happen
+        setTimeout(() => {
+          const element = document.getElementById(`comment-${highlightCommentId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 300);
+      }
+      // Remove highlight after 3 seconds
+      setTimeout(() => {
+        setHighlightedCommentId(null);
+      }, 3000);
+    }
+  }, [highlightCommentId, items]);
 
   useEffect(() => {
     if (!syncedInitialCount.current) {
@@ -614,6 +653,8 @@ function CommentsPanel({ postId, onCountChange }: { postId: string; onCountChang
               <div key={rootId}>
                 <CommentRow
                   c={root}
+                  isHighlighted={highlightedCommentId === rootId}
+                  isAdmin={isAdmin}
                   onReply={() => { setReplyToId(rootId); setReplyText(""); }}
                   replying={replyToId === rootId}
                   replyText={replyText}
@@ -634,6 +675,8 @@ function CommentsPanel({ postId, onCountChange }: { postId: string; onCountChang
                         <CommentRow
                           key={rid}
                           c={r}
+                          isHighlighted={highlightedCommentId === rid}
+                          isAdmin={isAdmin}
                           onReply={() => { setReplyToId(rid); setReplyText(""); }}
                           replying={replyToId === rid}
                           replyText={replyText}
@@ -692,6 +735,7 @@ function CommentsPanel({ postId, onCountChange }: { postId: string; onCountChang
 
 function CommentRow({
   c,
+  isHighlighted,
   onReply,
   replying,
   replyText,
@@ -699,11 +743,13 @@ function CommentRow({
   submitReply,
   posting,
   currentUserId,
+  isAdmin,
   onEditComment,
   onDeleteComment,
   requireAuth,
 }: {
   c: CommentResponse;
+  isHighlighted?: boolean;
   onReply: () => void;
   replying: boolean;
   replyText: string;
@@ -711,6 +757,7 @@ function CommentRow({
   submitReply: () => void;
   posting: boolean;
   currentUserId?: string | null;
+  isAdmin?: boolean;
   onEditComment: (commentId: string, content: string) => Promise<void>;
   onDeleteComment: (commentId: string) => Promise<void>;
   requireAuth: () => boolean;
@@ -724,7 +771,7 @@ function CommentRow({
   const displayName = prof.profile?.displayName || c.authorDisplayName || username;
   const avatar = prof.profile?.avatarUrl || c.authorAvatarUrl || "/avatar-default.svg";
   const authorId = prof.profile?.id || c.authorProfileId || null;
-  const canManage = !!currentUserId && !!authorId && currentUserId === authorId;
+  const canManage = isAdmin || (!!currentUserId && !!authorId && currentUserId === authorId);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(c.content ?? "");
   const [saving, setSaving] = useState(false);
@@ -851,7 +898,12 @@ function CommentRow({
   };
 
   return (
-    <div className="flex items-start gap-2">
+    <div
+      id={`comment-${commentId}`}
+      className={`flex items-start gap-3 rounded-lg p-2 transition-all ${
+        isHighlighted ? "bg-yellow-100 dark:bg-yellow-900/30" : ""
+      }`}
+    >
       <ProfileHoverCard
         user={{
           id: prof.profile?.id || c.authorProfileId || c.id,

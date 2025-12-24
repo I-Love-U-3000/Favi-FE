@@ -12,6 +12,8 @@ import ProfileHoverCard from "@/components/ProfileHoverCard";
 import { readPostReaction, writePostReaction } from "@/lib/postCache";
 import { useTranslations } from "next-intl";
 import { PagedResult } from "@/types";
+import { useOverlay } from "@/components/RootProvider";
+import TrendingCollections from "@/components/TrendingCollections";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -36,6 +38,7 @@ export default function HomePage() {
   const t = useTranslations("HomePage");
   const [view, setView] = useState<"list" | "grid">("list");
   const router = useRouter();
+  const { openAddToCollectionDialog } = useOverlay();
   const [quickQ, setQuickQ] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -158,15 +161,28 @@ export default function HomePage() {
                   <Link key={p.id} href={`/posts/${p.id}`} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={p.medias![0].thumbnailUrl || p.medias![0].url} alt={p.caption ?? ""} className="h-44 w-full object-cover transition-transform group-hover:scale-105" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openAddToCollectionDialog(p.id);
+                        }}
+                        className="absolute top-2 right-2 p-2 rounded-full bg-white/80 hover:bg-white text-black shadow-md transition-all"
+                        title="Add to collection"
+                      >
+                        <i className="pi pi-bookmark text-sm" />
+                      </button>
+                    </div>
                   </Link>
                 ))}
               </div>
             )}
           </section>
 
-          {/* Cột phải (ẩn mock) */}
-          <aside className="hidden xl:block" />
+          {/* Cột phải (Trending Collections) */}
+          <TrendingCollections />
         </div>
       </main>
     </div>
@@ -174,10 +190,12 @@ export default function HomePage() {
 }
 
 function PostListItem({ post }: { post: PostResponse }) {
-  const { requireAuth } = useAuth();
+  const { requireAuth, user, isAdmin } = useAuth();
   const router = useRouter();
   const t = useTranslations("HomePage");
   const tReactions = useTranslations("Reactions");
+  const { openAddToCollectionDialog } = useOverlay();
+  const [deleting, setDeleting] = useState(false);
   const author = useProfile(post.authorProfileId);
   const avatar = author.profile?.avatarUrl || "/avatar-default.svg";
   const display = author.profile?.displayName || author.profile?.username || t("FallbackDisplayName");
@@ -298,13 +316,31 @@ function PostListItem({ post }: { post: PostResponse }) {
     return () => window.removeEventListener('storage', onStorage);
   }, [post.id]);
 
+  // Check if current user can delete (is owner or admin)
+  const canDelete = isAdmin || (post.authorProfileId && user?.id === post.authorProfileId);
+
+  const handleDeletePost = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent navigating to post detail
+    if (!confirm("Are you sure you want to delete this post?")) return;
+
+    try {
+      setDeleting(true);
+      await postAPI.delete(post.id);
+      router.refresh();
+    } catch (error: any) {
+      alert(error?.error || error?.message || "Failed to delete post");
+      setDeleting(false);
+    }
+  };
+
   return (
     <article
       className="rounded-2xl overflow-visible ring-1 ring-black/5 cursor-pointer"
       style={{ backgroundColor: 'var(--bg-secondary)' }}
       onClick={() => router.push(`/posts/${post.id}`)}
     >
-      <div className="px-4 py-3 flex items-center gap-3">
+      <div className="px-4 py-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
         <ProfileHoverCard
           user={{
             id: author.profile?.id || post.authorProfileId,
@@ -340,6 +376,19 @@ function PostListItem({ post }: { post: PostResponse }) {
             )}
           </div>
         </div>
+        </div>
+
+        {/* Delete button for owner/admin */}
+        {canDelete && (
+          <button
+            onClick={handleDeletePost}
+            disabled={deleting}
+            className="text-red-500 hover:text-red-700 disabled:opacity-50 p-2"
+            title={deleting ? "Deleting..." : "Delete post"}
+          >
+            <i className={`pi ${deleting ? 'pi-spin pi-spinner' : 'pi-trash'}`}></i>
+          </button>
+        )}
       </div>
 
       {/* Media (slider) */}
@@ -511,6 +560,17 @@ function PostListItem({ post }: { post: PostResponse }) {
 
             <button className="inline-flex items-center gap-1 hover:opacity-100" title={t("ShareActionTitle")} onClick={()=>router.push(`/posts/${post.id}`)}>
               <span className="inline-flex items-center gap-1" title={t("CommentsLabel")}><i className="pi pi-comments" /> {commentCount}</span>
+            </button>
+
+            <button
+              className="inline-flex items-center gap-1 hover:opacity-100"
+              title="Add to collection"
+              onClick={(e) => {
+                e.stopPropagation();
+                openAddToCollectionDialog(post.id);
+              }}
+            >
+              <i className="pi pi-bookmark" />
             </button>
 
             <button className="inline-flex items-center gap-1 hover:opacity-100" title={t("ShareActionTitle")} onClick={()=>setShareOpen(v=>!v)}>
