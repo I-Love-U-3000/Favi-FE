@@ -3,69 +3,110 @@
 import { useMemo, useState } from "react";
 import { Dialog } from "primereact/dialog";
 import { Button } from "primereact/button";
-import { InputTextarea } from "primereact/inputtextarea";
-
-type ReportTarget = "post" | "comment" | "user";
+import { useTranslations } from "next-intl";
+import reportAPI from "@/lib/api/reportAPI";
+import type { ReportTarget } from "@/types";
 
 export default function ReportDialog({
   visible,
   onHide,
   targetType,
+  targetId,
+  reporterProfileId,
   targetName,
 }: {
   visible: boolean;
   onHide: () => void;
   targetType: ReportTarget;
+  targetId: string;
+  reporterProfileId: string;
   targetName?: string;
 }) {
+  const t = useTranslations("ReportDialog");
   const [reason, setReason] = useState<string>("");
   const [details, setDetails] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const reasons = useMemo(() => {
     switch (targetType) {
-      case "user":
+      case 0: // ReportTarget.User
         return [
-          "Impersonation",
-          "Harassment or hate",
-          "Spam or scam",
-          "Underage account",
-          "Other",
+          { key: "Impersonation", label: t("reasonImpersonation") },
+          { key: "Harassment", label: t("reasonHarassment") },
+          { key: "Spam", label: t("reasonSpam") },
+          { key: "Underage", label: t("reasonUnderage") },
+          { key: "Other", label: t("reasonOther") },
         ];
-      case "comment":
+      case 2: // ReportTarget.Comment
         return [
-          "Harassment or hate",
-          "Spam",
-          "Explicit content",
-          "Misinformation",
-          "Other",
+          { key: "Harassment", label: t("reasonHarassment") },
+          { key: "Spam", label: t("reasonSpam") },
+          { key: "Explicit", label: t("reasonExplicit") },
+          { key: "Misinformation", label: t("reasonMisinformation") },
+          { key: "Other", label: t("reasonOther") },
         ];
-      default:
+      default: // ReportTarget.Post, Message, Collection
         return [
-          "Copyright infringement",
-          "Explicit content",
-          "Spam or scam",
-          "Violence or gore",
-          "Other",
+          { key: "Copyright", label: t("reasonCopyright") },
+          { key: "Explicit", label: t("reasonExplicit") },
+          { key: "Spam", label: t("reasonSpam") },
+          { key: "Violence", label: t("reasonViolence") },
+          { key: "Other", label: t("reasonOther") },
         ];
     }
-  }, [targetType]);
+  }, [targetType, t]);
 
   const reset = () => {
     setReason("");
     setDetails("");
+    setError(null);
   };
 
-  const submit = () => {
-    // Mock submit only
-    console.log("Report submitted", { targetType, targetName, reason, details });
-    reset();
-    onHide();
-    alert("Thanks for your report. Our team will review it.");
+  const submit = async () => {
+    if (!reason) return;
+
+    // Combine reason and details into a single reason string
+    const fullReason = details ? `${reason}: ${details}` : reason;
+
+    try {
+      setSubmitting(true);
+      setError(null);
+      await reportAPI.create({
+        reporterProfileId,
+        targetType,
+        targetId,
+        reason: fullReason,
+      });
+      alert(t("submitSuccess"));
+      reset();
+      onHide();
+    } catch (e: any) {
+      setError(e?.error || e?.message || t("submitFailed"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const getTargetTypeName = () => {
+    switch (targetType) {
+      case 0:
+        return t("targetUser");
+      case 2:
+        return t("targetComment");
+      case 3:
+        return t("targetMessage");
+      case 4:
+        return t("targetCollection");
+      case 1:
+      default:
+        return t("targetPost");
+    }
   };
 
   return (
     <Dialog
-      header={`Report ${targetType}${targetName ? ` @${targetName}` : ""}`}
+      header={`${t("title")} ${getTargetTypeName()}${targetName ? ` @${targetName}` : ""}`}
       visible={visible}
       onHide={() => {
         reset();
@@ -74,43 +115,67 @@ export default function ReportDialog({
       style={{ width: "520px", maxWidth: "95vw" }}
       footer={
         <div className="flex justify-end gap-2">
-          <Button label="Cancel" className="p-button-text" onClick={() => { reset(); onHide(); }} />
-          <Button label="Submit" disabled={!reason} onClick={submit} />
+          <Button
+            label={t("cancel")}
+            className="p-button-text"
+            onClick={() => {
+              reset();
+              onHide();
+            }}
+            disabled={submitting}
+          />
+          <Button
+            label={submitting ? t("submitting") : t("submit")}
+            disabled={!reason || submitting}
+            onClick={submit}
+          />
         </div>
       }
     >
       <div className="space-y-4">
+        {error && (
+          <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">
+            {error}
+          </div>
+        )}
+
         <div>
-          <div className="text-sm mb-2">Select a reason</div>
+          <div className="text-sm mb-2">{t("selectReason")}</div>
           <div className="flex flex-wrap gap-2">
             {reasons.map((r) => (
               <button
-                key={r}
+                key={r.key}
                 className={`text-xs px-3 py-1.5 rounded-full border transition ${
-                  reason === r
+                  reason === r.key
                     ? "bg-red-500 text-white border-red-500"
                     : "bg-transparent border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10"
                 }`}
-                onClick={() => setReason(r)}
+                onClick={() => setReason(r.key)}
+                disabled={submitting}
               >
-                {r}
+                {r.label}
               </button>
             ))}
           </div>
         </div>
 
         <div>
-          <div className="text-sm mb-2">Additional details (optional)</div>
-          <InputTextarea
+          <div className="text-sm mb-2">{t("additionalDetails")}</div>
+          <textarea
             value={details}
             onChange={(e) => setDetails(e.target.value)}
             rows={5}
-            className="w-full"
-            placeholder="Add context, links, timestamps…"
+            className="w-full p-3 border rounded-lg text-sm"
+            style={{
+              backgroundColor: "var(--input-bg)",
+              color: "var(--text)",
+              borderColor: "var(--input-border)",
+            }}
+            placeholder={t("detailsPlaceholder")}
+            disabled={submitting}
           />
         </div>
       </div>
     </Dialog>
   );
 }
-

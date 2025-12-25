@@ -296,6 +296,7 @@ export type CreateGroupRequest = {
 export type SendMessageRequest = {
   content?: string;
   mediaUrl?: string;
+  postId?: string;
 }
 
 export type FollowResponse = {
@@ -375,4 +376,43 @@ export type NotificationDto = {
   message: string;
   isRead: boolean;
   createdAt: string;
+};
+
+// Report types
+export enum ReportTarget {
+  User = 0,
+  Post = 1,
+  Comment = 2,
+  Message = 3,
+  Collection = 4,
+}
+
+export enum ReportStatus {
+  Pending = 0,
+  Reviewed = 1,
+  Resolved = 2,
+  Rejected = 3,
+}
+
+export type CreateReportRequest = {
+  reporterProfileId: string;
+  targetType: ReportTarget;
+  targetId: string;
+  reason: string;
+};
+
+export type UpdateReportStatusRequest = {
+  newStatus: ReportStatus;
+};
+
+export type ReportResponse = {
+  id: string;
+  reporterProfileId: string;
+  targetType: ReportTarget;
+  targetId: string;
+  reason: string;
+  status: ReportStatus;
+  createdAt: string;
+  actedAt?: string | null;
+  data?: string | null;
 };

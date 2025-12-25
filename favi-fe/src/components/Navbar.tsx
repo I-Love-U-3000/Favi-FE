@@ -88,8 +88,11 @@ export default function Navbar() {
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="hidden md:inline-flex items-center gap-2 fixed top-3 left-3 z-50 px-3 py-2 rounded-md text-sm shadow-sm backdrop-blur-xl bg-white/10 border border-white/20 hover:bg-white/15 transition"
-          style={{ color: "var(--text)" }}
+          className="hidden md:inline-flex items-center gap-2 fixed top-3 left-3 z-50 px-3 py-2 rounded-md text-sm shadow-[0_8px_32px_0_rgba(0,0,0,0.25)] backdrop-blur-xl border border-white/20 dark:border-white/10 hover:bg-white/5 transition"
+          style={{
+            backgroundColor: "rgba(255, 255, 255, 0.12)",
+            color: "var(--text)"
+          }}
         >
           <i className="pi pi-bars text-sm" />
         </button>
@@ -97,8 +100,11 @@ export default function Navbar() {
       <aside
         className={`fixed top-0 left-0 h-screen w-64 z-40 transition-transform duration-200 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
-        } backdrop-blur-2xl bg-white/15 dark:bg-black/30 border-r border-white/30 dark:border-white/20 shadow-xl`}
-        style={{ color: "var(--text)" }}
+        } backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.25)]`}
+        style={{
+          backgroundColor: "rgba(255, 255, 255, 0.12)",
+          color: "var(--text)"
+        }}
       >
         <div
           className="flex items-center gap-3 px-5 py-4 border-b border-white/10 dark:border-white/5"
@@ -109,8 +115,11 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setIsOpen((prev) => !prev)}
-            className="ml-auto inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs shadow-sm backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/15 transition"
-            style={{ color: "var(--text)" }}
+            className="ml-auto inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs shadow-[0_8px_32px_0_rgba(0,0,0,0.25)] backdrop-blur-md border border-white/20 dark:border-white/10 hover:bg-white/5 transition"
+            style={{
+              backgroundColor: "rgba(255, 255, 255, 0.12)",
+              color: "var(--text)"
+            }}
           >
             <i className="pi pi-bars text-sm" />
           </button>
@@ -202,8 +211,11 @@ export default function Navbar() {
                 </div>
               </div>
               <button
-                className="px-3 py-1.5 rounded-md text-xs font-semibold backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/15 transition"
-                style={{ color: "var(--text)" }}
+                className="px-3 py-1.5 rounded-md text-xs font-semibold backdrop-blur-md border border-white/20 dark:border-white/10 hover:bg-white/5 transition"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.12)",
+                  color: "var(--text)"
+                }}
                 onClick={logout}
               >
                 Logout

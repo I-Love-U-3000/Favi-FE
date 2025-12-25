@@ -99,6 +99,84 @@
   "ChatPage": {
     "Chats": "Đoạn Chat",
     "NoConversation": "Không có đoạn chat",
-    "PickAChat": "Chọn một đoạn chat"
+    "PickAChat": "Chọn một đoạn chat",
+    "TalkingTo": "Đang trò chuyện với"
+  },
+
+  "RecycleBinPage": {
+    "Title": "Thùng rác",
+    "Loading": "Đang tải bài viết đã xoá...",
+    "LoadFailed": "Không thể tải thùng rác.",
+    "Empty": "Thùng rác trống.",
+    "RestoreConfirm": "Khôi phục bài viết này?",
+    "RestoreSuccess": "Đã khôi phục bài viết.",
+    "RestoreFailed": "Không thể khôi phục bài viết.",
+    "PostRestored": "Bài viết đã được khôi phục.",
+    "RestoreAction": "Khôi phục",
+    "CancelAction": "Hủy",
+    "DeletedAt": "Đã xoá vào"
+  },
+
+  "ArchivePage": {
+    "Title": "Bài viết đã lưu trữ",
+    "Loading": "Đang tải bài viết lưu trữ...",
+    "LoadFailed": "Không thể tải bài viết lưu trữ.",
+    "Empty": "Chưa có bài viết nào được lưu trữ.",
+    "UnarchiveConfirm": "Bỏ lưu trữ bài viết này?",
+    "UnarchiveSuccess": "Đã bỏ lưu trữ bài viết.",
+    "UnarchiveFailed": "Không thể bỏ lưu trữ bài viết.",
+    "PostUnarchived": "Bài viết đã được bỏ lưu trữ.",
+    "UnarchiveAction": "Bỏ lưu trữ",
+    "CancelAction": "Hủy",
+    "ArchivedAt": "Đã lưu trữ vào"
+  },
+
+  "PostActions": {
+    "Archive": "Lưu trữ",
+    "Unarchive": "Bỏ lưu trữ",
+    "ArchiveSuccess": "Đã lưu trữ bài viết.",
+    "ArchiveFailed": "Không thể lưu trữ bài viết.",
+    "UnarchiveSuccess": "Đã bỏ lưu trữ bài viết.",
+    "UnarchiveFailed": "Không thể bỏ lưu trữ bài viết."
+  },
+
+  "ReportDialog": {
+    "title": "Báo cáo",
+    "targetPost": "bài viết",
+    "targetComment": "bình luận",
+    "targetUser": "người dùng",
+    "targetMessage": "tin nhắn",
+    "targetCollection": "bộ sưu tập",
+    "selectReason": "Chọn lý do",
+    "additionalDetails": "Thông tin thêm (tùy chọn)",
+    "detailsPlaceholder": "Thêm ngữ cảnh, liên kết, thời gian...",
+    "cancel": "Hủy",
+    "submit": "Gửi",
+    "submitting": "Đang gửi...",
+    "submitSuccess": "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét.",
+    "submitFailed": "Không thể gửi báo cáo. Vui lòng thử lại.",
+    "reasonCopyright": "Vi phạm bản quyền",
+    "reasonHarassment": "Quấy rối hoặc thù ghét",
+    "reasonSpam": "Spam hoặc lừa đảo",
+    "reasonExplicit": "Nội dung nhạy cảm",
+    "reasonViolence": "Bạo lực hoặc máu me",
+    "reasonMisinformation": "Thông tin sai lệch",
+    "reasonUnderage": "Tài khoản người chưa đủ tuổi",
+    "reasonImpersonation": "Mạo danh",
+    "reasonOther": "Khác"
+  },
+
+  "ReportButton": {
+    "report": "Báo cáo",
+    "reportPost": "Báo cáo bài viết",
+    "reportComment": "Báo cáo bình luận",
+    "reportUser": "Báo cáo người dùng"
+  },
+
+  "PostMenu": {
+    "edit": "Chỉnh sửa bài viết",
+    "delete": "Xóa bài viết",
+    "deleting": "Đang xóa...",
+    "deleteConfirm": "Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác."
   }
 }

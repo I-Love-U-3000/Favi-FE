@@ -346,19 +346,6 @@ export default function ChatPage() {
       className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center p-6 transition-colors duration-500"
       style={{ color: "var(--text)" }}
     >
-      <header className="mb-8 text-center select-none relative z-10">
-        <h1
-          className="text-5xl md:text-6xl font-extrabold tracking-tight leading-none"
-          style={{
-            background: "linear-gradient(to right, var(--primary), var(--accent))",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          Favi
-        </h1>
-      </header>
-
       <div
         className="relative z-10 w-full max-w-6xl rounded-3xl shadow-lg overflow-hidden"
         style={{

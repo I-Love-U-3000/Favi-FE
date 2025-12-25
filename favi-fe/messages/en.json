@@ -90,5 +90,82 @@
         "SuggestionsTitle": "Who you may know",
         "Empty": "Empty",
         "Folow": "Follow"
+    },
+
+    "RecycleBinPage": {
+        "Title": "Recycle Bin",
+        "Loading": "Loading deleted posts...",
+        "LoadFailed": "Failed to load recycle bin.",
+        "Empty": "Recycle bin is empty.",
+        "RestoreConfirm": "Restore this post?",
+        "RestoreSuccess": "Post restored successfully.",
+        "RestoreFailed": "Failed to restore post.",
+        "PostRestored": "Post has been restored.",
+        "RestoreAction": "Restore",
+        "CancelAction": "Cancel",
+        "DeletedAt": "Deleted at"
+    },
+
+    "ArchivePage": {
+        "Title": "Archived Posts",
+        "Loading": "Loading archived posts...",
+        "LoadFailed": "Failed to load archived posts.",
+        "Empty": "No archived posts yet.",
+        "UnarchiveConfirm": "Unarchive this post?",
+        "UnarchiveSuccess": "Post unarchived successfully.",
+        "UnarchiveFailed": "Failed to unarchive post.",
+        "PostUnarchived": "Post has been unarchived.",
+        "UnarchiveAction": "Unarchive",
+        "CancelAction": "Cancel",
+        "ArchivedAt": "Archived at"
+    },
+
+    "PostActions": {
+        "Archive": "Archive",
+        "Unarchive": "Unarchive",
+        "ArchiveSuccess": "Post archived successfully.",
+        "ArchiveFailed": "Failed to archive post.",
+        "UnarchiveSuccess": "Post unarchived successfully.",
+        "UnarchiveFailed": "Failed to unarchive post."
+    },
+
+    "ReportDialog": {
+        "title": "Report",
+        "targetPost": "post",
+        "targetComment": "comment",
+        "targetUser": "user",
+        "targetMessage": "message",
+        "targetCollection": "collection",
+        "selectReason": "Select a reason",
+        "additionalDetails": "Additional details (optional)",
+        "detailsPlaceholder": "Add context, links, timestamps…",
+        "cancel": "Cancel",
+        "submit": "Submit",
+        "submitting": "Submitting...",
+        "submitSuccess": "Thanks for your report. Our team will review it.",
+        "submitFailed": "Failed to submit report. Please try again.",
+        "reasonCopyright": "Copyright infringement",
+        "reasonHarassment": "Harassment or hate",
+        "reasonSpam": "Spam or scam",
+        "reasonExplicit": "Explicit content",
+        "reasonViolence": "Violence or gore",
+        "reasonMisinformation": "Misinformation",
+        "reasonUnderage": "Underage account",
+        "reasonImpersonation": "Impersonation",
+        "reasonOther": "Other"
+    },
+
+    "ReportButton": {
+        "report": "Report",
+        "reportPost": "Report post",
+        "reportComment": "Report comment",
+        "reportUser": "Report user"
+    },
+
+    "PostMenu": {
+        "edit": "Edit post",
+        "delete": "Delete post",
+        "deleting": "Deleting...",
+        "deleteConfirm": "Are you sure you want to delete this post? This action cannot be undone."
     }
 }

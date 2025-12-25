@@ -11,6 +11,64 @@ import collectionAPI from "@/lib/api/collectionAPI";
 import { useAuth } from "@/components/AuthProvider";
 import { PrivacyLevel, CollectionResponse } from "@/types";
 
+/* ==================== Image compression helpers ==================== */
+const MAX_TARGET_BYTES = 50 * 1024 * 1024; // 50MB
+const MAX_DIMENSION = 4000;
+
+async function loadImage(file: File): Promise<HTMLImageElement> {
+  const url = URL.createObjectURL(file);
+  try {
+    return await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = url;
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function compressIfNeeded(file: File): Promise<File> {
+  if (file.size <= MAX_TARGET_BYTES) return file;
+
+  try {
+    const img = await loadImage(file);
+
+    // Scale down if too large
+    const scaleBySize = Math.sqrt(MAX_TARGET_BYTES / file.size);
+    const scaleByDim = Math.min(1, MAX_DIMENSION / Math.max(img.width, img.height));
+    const scale = Math.min(scaleBySize, scaleByDim, 1);
+
+    if (!isFinite(scale) || scale >= 1) return file;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.width * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    return await new Promise<File>((resolve) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return resolve(file);
+          const next = new File([blob], file.name.replace(/\.[^/.]+$/, '_scaled.jpg'), {
+            type: blob.type || 'image/jpeg',
+          });
+          resolve(next);
+        },
+        'image/jpeg',
+        0.92
+      );
+    });
+  } catch (e) {
+    console.error('Image compression failed:', e);
+    return file;
+  }
+}
+
 interface CollectionDialogProps {
   visible: boolean;
   onHide: () => void;
@@ -118,7 +176,7 @@ export default function CollectionDialog({
 
   const pickFile = () => fileRef.current?.click();
 
-  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
 
@@ -128,16 +186,24 @@ export default function CollectionDialog({
       return;
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024;
-    if (f.size > maxSize) {
-      alert("Image size must be less than 5MB");
-      return;
-    }
+    try {
+      // Compress image if needed (same algorithm as post upload)
+      const processedFile = await compressIfNeeded(f);
 
-    setCoverImageFile(f);
-    const url = URL.createObjectURL(f);
-    setCoverImageUrl(url);
+      // Show compression info if file was compressed
+      if (processedFile.size < f.size) {
+        const originalMB = (f.size / (1024 * 1024)).toFixed(2);
+        const compressedMB = (processedFile.size / (1024 * 1024)).toFixed(2);
+        console.log(`Image compressed: ${originalMB}MB → ${compressedMB}MB`);
+      }
+
+      setCoverImageFile(processedFile);
+      const url = URL.createObjectURL(processedFile);
+      setCoverImageUrl(url);
+    } catch (error) {
+      console.error("Error processing image:", error);
+      alert("Failed to process image. Please try another file.");
+    }
   };
 
   const removeCoverImage = () => {
@@ -200,9 +266,6 @@ export default function CollectionDialog({
             )}
           </div>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
-          <div className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
-            Accepted formats: JPG, PNG, GIF, WebP (max 5MB)
-          </div>
         </div>
 
         {/* Title */}

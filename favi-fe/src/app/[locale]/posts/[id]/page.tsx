@@ -4,13 +4,17 @@ import { notFound, useParams, useRouter, useSearchParams } from "next/navigation
 import postAPI from "@/lib/api/postAPI";
 import commentAPI from "@/lib/api/commentAPI";
 import useProfile from "@/lib/hooks/useProfile";
-import type { CommentResponse, CommentTreeResponse, PostResponse, ReactionType, ReactionSummaryDto } from "@/types";
+import type { CommentResponse, CommentTreeResponse, PostResponse, ReactionType, ReactionSummaryDto, ReportTarget } from "@/types";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readPostReaction, writePostReaction } from "@/lib/postCache";
 import { useAuth } from "@/components/AuthProvider";
 import { useOverlay } from "@/components/RootProvider";
 import { Button } from "primereact/button";
+import { useTranslations } from "next-intl";
+import ShareToChatDialog from "@/components/ShareToChatDialog";
+import ReportDialog from "@/components/ReportDialog";
+import PostMenuDialog from "@/components/PostMenuDialog";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -69,10 +73,11 @@ export default function PostPage() {
 }
 
 function PostDetailDataView({ post }: { post: PostResponse }) {
-  const { requireAuth } = useAuth();
+  const { requireAuth, user, isAdmin } = useAuth();
   const { openAddToCollectionDialog } = useOverlay();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const tPostActions = useTranslations("PostActions");
   const highlightCommentId = searchParams?.get("comment");
   const privacy: PrivacyKind = normalizePrivacy(
     (post as any).privacyLevel ?? (post as any).privacy
@@ -82,6 +87,23 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
   const avatar = author.profile?.avatarUrl || "/avatar-default.svg";
   const display = author.profile?.displayName || author.profile?.username || "";
   const username = author.profile?.username;
+
+  const canEdit = isAdmin || (user?.id && post.authorProfileId === user.id);
+  const postDetailRef = useRef<HTMLDivElement>(null);
+  const [postDetailHeight, setPostDetailHeight] = useState<number | null>(null);
+
+  // Measure post detail height and sync to comments panel
+  useEffect(() => {
+    const updateHeight = () => {
+      if (postDetailRef.current) {
+        setPostDetailHeight(postDetailRef.current.offsetHeight);
+      }
+    };
+
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, [post]);
 
   const medias = post.medias || [];
   const [idx, setIdx] = useState(0);
@@ -112,7 +134,9 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
     0;
   const [commentCount, setCommentCount] = useState<number>(initialCommentCount);
   const [shareCount, setShareCount] = useState<number>((post as any).shareCount ?? (post as any).shares ?? 0);
-  const [shareOpen, setShareOpen] = useState(false);
+  const [shareToChatOpen, setShareToChatOpen] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const tReport = useTranslations("ReportButton");
   // reaction picker like feed
   const [pickerOpen, setPickerOpen] = useState(false);
   let pickerTimer: number | null = null as any;
@@ -156,47 +180,60 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
         <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
           {/* Media + caption */}
           <section
+            ref={postDetailRef}
             className="rounded-2xl overflow-visible ring-1 ring-black/5"
             style={{ backgroundColor: "var(--bg-secondary)" }}
           >
-            <div className="px-4 py-3 flex items-center gap-3">
-              <ProfileHoverCard
-                user={{
-                  id: author.profile?.id || post.authorProfileId,
-                  username: username || "",
-                  name: display || username || "",
-                  avatarUrl: avatar,
-                  bio: author.profile?.bio || undefined,
-                  followersCount: author.profile?.stats?.followers,
-                  followingCount: author.profile?.stats?.following,
-                }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={avatar}
-                  alt={username || display || ""}
-                  className="w-10 h-10 rounded-full border cursor-pointer"
-                  onClick={() => router.push(`/profile/${author.profile?.id || post.authorProfileId}`)}
-                />
-              </ProfileHoverCard>
-              <div className="min-w-0">
-                <div className="text-sm font-medium">{display || username}</div>
-                {username && <div className="text-xs opacity-70">@{username}</div>}
-                <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-600">
-                  {/* Privacy */}
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 bg-white/70">
-                    <i className={`${PRIVACY_ICON_MAP[privacy]} text-xs`} />
-                  </span>
-
-                  {/* Location (nếu có) */}
-                  {post.location?.name && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 bg-white/70 max-w-[200px] truncate">
-                      <i className="pi pi-map-marker text-xs" />
-                      <span className="truncate">{post.location.name}</span>
+            <div className="px-4 py-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <ProfileHoverCard
+                  user={{
+                    id: author.profile?.id || post.authorProfileId,
+                    username: username || "",
+                    name: display || username || "",
+                    avatarUrl: avatar,
+                    bio: author.profile?.bio || undefined,
+                    followersCount: author.profile?.stats?.followers,
+                    followingCount: author.profile?.stats?.following,
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={avatar}
+                    alt={username || display || ""}
+                    className="w-10 h-10 rounded-full border cursor-pointer"
+                    onClick={() => router.push(`/profile/${author.profile?.id || post.authorProfileId}`)}
+                  />
+                </ProfileHoverCard>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">{display || username}</div>
+                  {username && <div className="text-xs opacity-70">@{username}</div>}
+                  <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-600">
+                    {/* Privacy */}
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 bg-white/70">
+                      <i className={`${PRIVACY_ICON_MAP[privacy]} text-xs`} />
                     </span>
-                  )}
+
+                    {/* Location (nếu có) */}
+                    {post.location?.name && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 bg-white/70 max-w-[200px] truncate">
+                        <i className="pi pi-map-marker text-xs" />
+                        <span className="truncate">{post.location.name}</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
+
+              {/* Edit/Delete/Archive buttons for owner */}
+              {canEdit && (
+                <PostMenuDialog
+                  postId={post.id}
+                  onEdit={() => router.push(`/posts/${post.id}/edit`)}
+                  onDeleted={() => router.push("/home")}
+                  onArchived={() => router.push("/home")}
+                />
+              )}
             </div>
 
             {medias[0]?.url && (
@@ -325,49 +362,20 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
                   >
                     <i className="pi pi-bookmark" />
                   </button>
-                  <div className="relative">
-                    <button
-                      className="inline-flex items-center gap-1 hover:opacity-100"
-                      title="Share"
-                      onClick={() => setShareOpen((v) => !v)}
-                    >
-                      <i className="pi pi-share-alt" /> {shareCount}
-                    </button>
-                    {shareOpen && (
-                      <div className="absolute right-0 mt-2 z-[100] bg-white dark:bg-neutral-900 border rounded-lg shadow p-2 flex flex-col text-sm">
-                        <button
-                          className="px-3 py-1 text-left hover:bg-black/5"
-                          onClick={() => {
-                            alert("Share to chat (todo)");
-                            setShareOpen(false);
-                            setShareCount((c) => c + 1);
-                          }}
-                        >
-                          Share to chat
-                        </button>
-                        <button
-                          className="px-3 py-1 text-left hover:bg-black/5"
-                          onClick={() => {
-                            alert("Share to your profile (todo)");
-                            setShareOpen(false);
-                            setShareCount((c) => c + 1);
-                          }}
-                        >
-                          Share to profile
-                        </button>
-                        <button
-                          className="px-3 py-1 text-left hover:bg-black/5"
-                          onClick={() => {
-                            navigator.clipboard?.writeText(window.location.origin + `/posts/${post.id}`);
-                            setShareOpen(false);
-                            setShareCount((c) => c + 1);
-                          }}
-                        >
-                          Copy link
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    className="inline-flex items-center gap-1 hover:opacity-100"
+                    title="Share"
+                    onClick={() => setShareToChatOpen(true)}
+                  >
+                    <i className="pi pi-share-alt" /> {shareCount}
+                  </button>
+                  <button
+                    className="inline-flex items-center gap-1 hover:opacity-100 text-red-500"
+                    title={tReport("reportPost")}
+                    onClick={() => setReportDialogOpen(true)}
+                  >
+                    <i className="pi pi-flag" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -375,7 +383,7 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
 
           {/* Right rail: comments (bật hiển thị ở mọi size để test) */}
           <aside className="block space-y-4">
-            <CommentsPanel postId={post.id} onCountChange={setCommentCount} highlightCommentId={highlightCommentId} />
+            <CommentsPanel postId={post.id} onCountChange={setCommentCount} highlightCommentId={highlightCommentId} height={postDetailHeight} />
           </aside>
         </div>
       </main>
@@ -415,6 +423,26 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
           </div>
         </div>
       )}
+
+      {/* Share to Chat Dialog */}
+      <ShareToChatDialog
+        visible={shareToChatOpen}
+        postId={post.id}
+        onShared={() => {
+          setShareCount((c) => c + 1);
+        }}
+        onClose={() => setShareToChatOpen(false)}
+      />
+
+      {/* Report Dialog */}
+      <ReportDialog
+        visible={reportDialogOpen}
+        onHide={() => setReportDialogOpen(false)}
+        targetType={1 as ReportTarget} // ReportTarget.Post = 1
+        targetId={post.id}
+        reporterProfileId={user?.id || ""}
+        targetName={username || display}
+      />
     </div>
   );
 }
@@ -467,8 +495,9 @@ const flattenFromApi = (roots: CommentTreeResponse[]): CommentResponse[] => {
   return out;
 };
 
-function CommentsPanel({ postId, onCountChange, highlightCommentId }: { postId: string; onCountChange?: (n: number) => void; highlightCommentId?: string | null }) {
+function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { postId: string; onCountChange?: (n: number) => void; highlightCommentId?: string | null; height?: number | null }) {
   const { requireAuth, isAuthenticated, user, isAdmin } = useAuth();
+  const tReport = useTranslations("ReportButton");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<CommentResponse[]>([]);
@@ -478,6 +507,8 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId }: { postId: 
   const [replyText, setReplyText] = useState("");
   const [expandedRoots, setExpandedRoots] = useState<Record<string, boolean>>({});
   const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(highlightCommentId || null);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
   const commentsPanelRef = useRef<HTMLDivElement>(null);
   const syncedInitialCount = useRef(false);
 
@@ -631,12 +662,19 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId }: { postId: 
   }, [requireAuth, onCountChange]);
 
   return (
-    <div className="rounded-2xl ring-1 ring-black/5" style={{ backgroundColor: "var(--bg-secondary)", overflow: "visible" }}>
+    <div
+      className="rounded-2xl ring-1 ring-black/5 flex flex-col"
+      style={{
+        backgroundColor: "var(--bg-secondary)",
+        overflow: "visible",
+        height: height ? `${height}px` : undefined
+      }}
+    >
       <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
         <div className="text-sm font-semibold">Comments</div>
       </div>
 
-      <div className="max-h-[58vh] overflow-auto p-3">
+      <div className="flex-1 overflow-auto p-3" style={{ minHeight: 0 }}>
         {loading && <div className="text-xs opacity-70">Loading…</div>}
         {error && <div className="text-xs text-red-500">{error}</div>}
         {!loading && roots.length === 0 && <div className="text-xs opacity-70">No comments.</div>}
@@ -665,6 +703,7 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId }: { postId: 
                   onEditComment={handleUpdateComment}
                   onDeleteComment={handleDeleteComment}
                   requireAuth={requireAuth}
+                  onReport={(id, name) => { setReportTarget({ id, name }); setReportDialogOpen(true); }}
                 />
 
                 {visible.length > 0 && (
@@ -687,6 +726,7 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId }: { postId: 
                           onEditComment={handleUpdateComment}
                           onDeleteComment={handleDeleteComment}
                           requireAuth={requireAuth}
+                          onReport={(id, name) => { setReportTarget({ id, name }); setReportDialogOpen(true); }}
                         />
                       );
                     })}
@@ -729,6 +769,21 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId }: { postId: 
           </button>
         </div>
       </div>
+
+      {/* Report Dialog */}
+      {reportTarget && (
+        <ReportDialog
+          visible={reportDialogOpen}
+          onHide={() => {
+            setReportDialogOpen(false);
+            setReportTarget(null);
+          }}
+          targetType={2 as ReportTarget} // ReportTarget.Comment = 2
+          targetId={reportTarget.id}
+          reporterProfileId={user?.id || ""}
+          targetName={reportTarget.name}
+        />
+      )}
     </div>
   );
 }
@@ -747,6 +802,7 @@ function CommentRow({
   onEditComment,
   onDeleteComment,
   requireAuth,
+  onReport,
 }: {
   c: CommentResponse;
   isHighlighted?: boolean;
@@ -761,8 +817,10 @@ function CommentRow({
   onEditComment: (commentId: string, content: string) => Promise<void>;
   onDeleteComment: (commentId: string) => Promise<void>;
   requireAuth: () => boolean;
+  onReport?: (commentId: string, authorName: string) => void;
 }) {
   const router = useRouter();
+  const tReport = useTranslations("ReportButton");
   const prof = useProfile(c.authorProfileId);
   const commentId = getId(c);
 
@@ -999,6 +1057,14 @@ function CommentRow({
                 {deleting ? "Đang xóa…" : "Xóa"}
               </button>
             </>
+          )}
+          {!canManage && onReport && (
+            <button
+              className="text-xs text-red-500 opacity-80 hover:opacity-100"
+              onClick={() => onReport(commentId, displayName || username || "")}
+            >
+              {tReport("report")}
+            </button>
           )}
         </div>
 

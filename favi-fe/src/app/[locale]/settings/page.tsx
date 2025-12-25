@@ -1,14 +1,75 @@
 "use client";
 
+import { useState } from "react";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
+import { Dropdown } from "primereact/dropdown";
+import { Divider } from "primereact/divider";
+
+type PrivacyLevel = "Public" | "Followers" | "Followees" | "Private";
+
+interface PrivacyOption {
+  label: string;
+  value: PrivacyLevel;
+  description: string;
+}
+
+const PRIVACY_OPTIONS: PrivacyOption[] = [
+  {
+    label: "Public",
+    value: "Public",
+    description: "Anyone can view",
+  },
+  {
+    label: "Followers",
+    value: "Followers",
+    description: "Only people who follow you can view",
+  },
+  {
+    label: "Followees",
+    value: "Followees",
+    description: "Only people you follow can view",
+  },
+  {
+    label: "Private",
+    value: "Private",
+    description: "Only you can view",
+  },
+];
 
 export default function SettingsPage() {
+  const [profilePrivacy, setProfilePrivacy] = useState<PrivacyLevel>("Public");
+  const [followersPrivacy, setFollowersPrivacy] = useState<PrivacyLevel>("Public");
+  const [followeesPrivacy, setFolloweesPrivacy] = useState<PrivacyLevel>("Public");
+
+  const selectedOptionTemplate = (option: PrivacyOption, props: any) => {
+    if (option) {
+      return (
+        <div className="flex flex-col">
+          <span>{option.label}</span>
+        </div>
+      );
+    }
+    return <span>{props.placeholder}</span>;
+  };
+
+  const optionTemplate = (option: PrivacyOption) => {
+    return (
+      <div className="flex flex-col">
+        <span className="font-medium">{option.label}</span>
+        <span className="text-xs opacity-70">{option.description}</span>
+      </div>
+    );
+  };
+
   return (
-    <div className="max-w-3xl mx-auto p-6">
+    <div className="max-w-3xl mx-auto p-6" style={{ color: "var(--text)" }}>
       <h1 className="text-2xl font-semibold mb-6">Settings</h1>
 
-      <section className="rounded-2xl p-4 mb-6" style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
+      <section
+        className="rounded-2xl p-4 mb-6"
+        style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+      >
         <h2 className="text-lg font-medium mb-3">Appearance</h2>
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="space-y-1">
@@ -19,7 +80,10 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl p-4 mb-6" style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
+      <section
+        className="rounded-2xl p-4 mb-6"
+        style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+      >
         <h2 className="text-lg font-medium mb-3">Language</h2>
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="space-y-1">
@@ -30,9 +94,90 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl p-4" style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
-        <h2 className="text-lg font-medium mb-3">Privacy</h2>
-        <div className="text-sm opacity-70">Mock options – wire up later</div>
+      <section
+        className="rounded-2xl p-4"
+        style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+      >
+        <h2 className="text-lg font-medium mb-4">Privacy</h2>
+        <div className="text-sm opacity-70 mb-6">
+          Control who can view your profile and who you follow
+        </div>
+
+        {/* Profile Privacy */}
+        <div className="space-y-2 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <div className="text-sm font-medium">Who can view your profile</div>
+              <div className="text-xs opacity-70">
+                {PRIVACY_OPTIONS.find((opt) => opt.value === profilePrivacy)?.description}
+              </div>
+            </div>
+            <Dropdown
+              value={profilePrivacy}
+              onChange={(e) => setProfilePrivacy(e.value)}
+              options={PRIVACY_OPTIONS}
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Select privacy level"
+              valueTemplate={selectedOptionTemplate}
+              itemTemplate={optionTemplate}
+              className="w-48"
+              style={{ backgroundColor: "var(--bg)", border: "1px solid var(--border)" }}
+            />
+          </div>
+        </div>
+
+        <Divider />
+
+        {/* Followers Privacy */}
+        <div className="space-y-2 mb-6 mt-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <div className="text-sm font-medium">Who can view your followers</div>
+              <div className="text-xs opacity-70">
+                {PRIVACY_OPTIONS.find((opt) => opt.value === followersPrivacy)?.description}
+              </div>
+            </div>
+            <Dropdown
+              value={followersPrivacy}
+              onChange={(e) => setFollowersPrivacy(e.value)}
+              options={PRIVACY_OPTIONS}
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Select privacy level"
+              valueTemplate={selectedOptionTemplate}
+              itemTemplate={optionTemplate}
+              className="w-48"
+              style={{ backgroundColor: "var(--bg)", border: "1px solid var(--border)" }}
+            />
+          </div>
+        </div>
+
+        <Divider />
+
+        {/* Followees Privacy */}
+        <div className="space-y-2 mt-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <div className="text-sm font-medium">Who can view your followees</div>
+              <div className="text-xs opacity-70">
+                {PRIVACY_OPTIONS.find((opt) => opt.value === followeesPrivacy)?.description}
+              </div>
+            </div>
+            <Dropdown
+              value={followeesPrivacy}
+              onChange={(e) => setFolloweesPrivacy(e.value)}
+              options={PRIVACY_OPTIONS}
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Select privacy level"
+              valueTemplate={selectedOptionTemplate}
+              itemTemplate={optionTemplate}
+              className="w-48"
+              style={{ backgroundColor: "var(--bg)", border: "1px solid var(--border)" }}
+            />
+          </div>
+        </div>
       </section>
     </div>
   );

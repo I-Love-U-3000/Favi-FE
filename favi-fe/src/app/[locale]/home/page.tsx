@@ -7,13 +7,16 @@ import { useAuth } from "@/components/AuthProvider";
 import useProfile from "@/lib/hooks/useProfile";
 import { useRouter, Link } from "@/i18n/routing";
 import postAPI from "@/lib/api/postAPI";
-import type { PostResponse, ReactionType } from "@/types";
+import type { PostResponse, ReactionType, ReportTarget } from "@/types";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import { readPostReaction, writePostReaction } from "@/lib/postCache";
 import { useTranslations } from "next-intl";
 import { PagedResult } from "@/types";
 import { useOverlay } from "@/components/RootProvider";
 import TrendingCollections from "@/components/TrendingCollections";
+import ShareToChatDialog from "@/components/ShareToChatDialog";
+import PostMenuDialog from "@/components/PostMenuDialog";
+import ReportDialog from "@/components/ReportDialog";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -141,8 +144,8 @@ export default function HomePage() {
             <div className="mt-6 flex items-center justify-between">
               <div className="text-sm opacity-70">{t("FeedTitle")}</div>
               <div className="inline-flex rounded-full p-1 bg-black/5">
-                <button onClick={() => setView("list")} className={`px-3 py-1.5 text-xs rounded-full ${view==="list"?"bg-white shadow ring-1 ring-black/10":"opacity-70 hover:opacity-100"}`}>{t("ViewList")}</button>
-                <button onClick={() => setView("grid")} className={`px-3 py-1.5 text-xs rounded-full ${view==="grid"?"bg-white shadow ring-1 ring-black/10":"opacity-70 hover:opacity-100"}`}>{t("ViewGrid")}</button>
+                <button onClick={() => setView("list")} className={`px-3 py-1.5 text-xs rounded-full ${view==="list"?"bg-white shadow ring-1 ring-black/10 text-gray-900":"opacity-70 hover:opacity-100"}`}>{t("ViewList")}</button>
+                <button onClick={() => setView("grid")} className={`px-3 py-1.5 text-xs rounded-full ${view==="grid"?"bg-white shadow ring-1 ring-black/10 text-gray-900":"opacity-70 hover:opacity-100"}`}>{t("ViewGrid")}</button>
               </div>
             </div>
 
@@ -194,8 +197,8 @@ function PostListItem({ post }: { post: PostResponse }) {
   const router = useRouter();
   const t = useTranslations("HomePage");
   const tReactions = useTranslations("Reactions");
+  const tPostActions = useTranslations("PostActions");
   const { openAddToCollectionDialog } = useOverlay();
-  const [deleting, setDeleting] = useState(false);
   const author = useProfile(post.authorProfileId);
   const avatar = author.profile?.avatarUrl || "/avatar-default.svg";
   const display = author.profile?.displayName || author.profile?.username || t("FallbackDisplayName");
@@ -235,6 +238,7 @@ function PostListItem({ post }: { post: PostResponse }) {
   };
   const totalReacts = Object.values(byType).reduce((a,b)=>a+b,0);
   const [shareOpen, setShareOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const commentSource = (
     post.commentsCount ??
     (post as any).commentCount ??
@@ -319,20 +323,6 @@ function PostListItem({ post }: { post: PostResponse }) {
   // Check if current user can delete (is owner or admin)
   const canDelete = isAdmin || (post.authorProfileId && user?.id === post.authorProfileId);
 
-  const handleDeletePost = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent navigating to post detail
-    if (!confirm("Are you sure you want to delete this post?")) return;
-
-    try {
-      setDeleting(true);
-      await postAPI.delete(post.id);
-      router.refresh();
-    } catch (error: any) {
-      alert(error?.error || error?.message || "Failed to delete post");
-      setDeleting(false);
-    }
-  };
-
   return (
     <article
       className="rounded-2xl overflow-visible ring-1 ring-black/5 cursor-pointer"
@@ -378,16 +368,16 @@ function PostListItem({ post }: { post: PostResponse }) {
         </div>
         </div>
 
-        {/* Delete button for owner/admin */}
+        {/* Edit/Delete/Archive buttons for owner/admin */}
         {canDelete && (
-          <button
-            onClick={handleDeletePost}
-            disabled={deleting}
-            className="text-red-500 hover:text-red-700 disabled:opacity-50 p-2"
-            title={deleting ? "Deleting..." : "Delete post"}
-          >
-            <i className={`pi ${deleting ? 'pi-spin pi-spinner' : 'pi-trash'}`}></i>
-          </button>
+          <div onClick={(e) => e.stopPropagation()}>
+            <PostMenuDialog
+              postId={post.id}
+              onEdit={() => router.push(`/posts/${post.id}/edit`)}
+              onDeleted={() => router.refresh()}
+              onArchived={() => router.refresh()}
+            />
+          </div>
         )}
       </div>
 
@@ -573,17 +563,52 @@ function PostListItem({ post }: { post: PostResponse }) {
               <i className="pi pi-bookmark" />
             </button>
 
-            <button className="inline-flex items-center gap-1 hover:opacity-100" title={t("ShareActionTitle")} onClick={()=>setShareOpen(v=>!v)}>
+            <button
+              className="inline-flex items-center gap-1 hover:opacity-100"
+              title="Share"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShareOpen(true);
+              }}
+            >
               <i className="pi pi-share-alt" /> {shareCount}
             </button>
-            {shareOpen && (
-              <div className="absolute translate-y-10 right-0 z-[70] bg-white dark:bg-neutral-900 border rounded-lg shadow p-2 flex flex-col text-sm">
-                <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{alert(t("ShareMenuChatTodo")); setShareOpen(false);}}>{t("ShareMenuChat")}</button>
-                <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{alert(t("ShareMenuProfileTodo")); setShareOpen(false);}}>{t("ShareMenuProfile")}</button>
-                <button className="px-3 py-1 text-left hover:bg-black/5" onClick={()=>{navigator.clipboard?.writeText(window.location.origin + `/posts/${post.id}`); alert(t("CopyLinkSuccess")); setShareOpen(false);}}>{t("ShareMenuCopy")}</button>
-              </div>
+
+            {!canDelete && (
+              <button
+                className="inline-flex items-center gap-1 hover:opacity-100 text-red-500"
+                title="Report post"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setReportOpen(true);
+                }}
+              >
+                <i className="pi pi-flag" />
+              </button>
             )}
           </div>
+
+          {/* Share Dialog */}
+          <ShareToChatDialog
+            visible={shareOpen}
+            postId={post.id}
+            onShared={() => {
+              // Optionally update share count
+            }}
+            onClose={() => setShareOpen(false)}
+          />
+
+          {/* Report Dialog */}
+          {!canDelete && (
+            <ReportDialog
+              visible={reportOpen}
+              onHide={() => setReportOpen(false)}
+              targetType={1 as ReportTarget} // ReportTarget.Post = 1
+              targetId={post.id}
+              reporterProfileId={user?.id || ""}
+              targetName={username || display}
+            />
+          )}
         </div>
       </div>
     </article>

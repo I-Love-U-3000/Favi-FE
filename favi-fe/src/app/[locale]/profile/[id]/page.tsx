@@ -11,7 +11,7 @@ import { Link } from "@/i18n/routing";
 import { mockUserProfile } from "@/lib/mockTest/mockUserProfile";
 import { mockPost } from "@/lib/mockTest/mockPost";
 import { mockCollection } from "@/lib/mockTest/mockCollection";
-import type { UserProfile, PhotoPost, Collection, CollectionResponse, PostResponse, SocialLink, SocialKind, ProfileResponse } from "@/types";
+import type { UserProfile, PhotoPost, Collection, CollectionResponse, PostResponse, SocialLink, SocialKind, ProfileResponse, ReportTarget } from "@/types";
 import profileAPI from "@/lib/api/profileAPI";
 import postAPI from "@/lib/api/postAPI";
 import chatAPI from "@/lib/api/chatAPI";
@@ -70,10 +70,29 @@ function Stat({ label, value, onClick }: { label: string; value: number | string
   );
 }
 
-function ActionButtons({ profile, onEdit, isOwner }: { profile: UserProfile; onEdit: () => void; isOwner: boolean }) {
-  const [following, setFollowing] = useState(!!profile.isFollowing);
+function ActionButtons({
+  profile,
+  onEdit,
+  isOwner,
+  isUserFollowing,
+  onFollowChange,
+  currentUserId,
+}: {
+  profile: UserProfile;
+  onEdit: () => void;
+  isOwner: boolean;
+  isUserFollowing: boolean;
+  onFollowChange?: (isFollowing: boolean) => void;
+  currentUserId?: string | null;
+}) {
+  const [following, setFollowing] = useState(isUserFollowing);
   const [reportOpen, setReportOpen] = useState(false);
   const router = useRouter();
+
+  // Sync local state when prop changes
+  useEffect(() => {
+    setFollowing(isUserFollowing);
+  }, [isUserFollowing]);
 
   const handleMessageClick = async () => {
     try {
@@ -83,6 +102,21 @@ function ActionButtons({ profile, onEdit, isOwner }: { profile: UserProfile; onE
       router.push(`/chat?conversationId=${conv.id}`);
     } catch (e: any) {
       alert(e?.error || e?.message || "Failed to start conversation");
+    }
+  };
+
+  const handleFollowClick = async () => {
+    try {
+      if (following) {
+        await profileAPI.unfollow(profile.id);
+      } else {
+        await profileAPI.follow(profile.id);
+      }
+      const newFollowingState = !following;
+      setFollowing(newFollowingState);
+      onFollowChange?.(newFollowingState);
+    } catch (e: any) {
+      alert(e?.error || e?.message || 'Action failed');
     }
   };
 
@@ -98,20 +132,9 @@ function ActionButtons({ profile, onEdit, isOwner }: { profile: UserProfile; onE
   return (
     <div className="flex gap-2 items-center">
       <Button
-        label={following ? "Following" : "Follow"}
-        className={following ? "" : "p-button-rounded"}
-        onClick={async () => {
-          try {
-            if (following) {
-              await profileAPI.unfollow(profile.id);
-            } else {
-              await profileAPI.follow(profile.id);
-            }
-            setFollowing(v => !v);
-          } catch (e: any) {
-            alert(e?.error || e?.message || 'Action failed');
-          }
-        }}
+        label={following ? "Unfollow" : "Follow"}
+        className={following ? "p-button-outlined" : "p-button-rounded"}
+        onClick={handleFollowClick}
       />
       <Button
         icon="pi pi-envelope"
@@ -120,7 +143,14 @@ function ActionButtons({ profile, onEdit, isOwner }: { profile: UserProfile; onE
       />
       <Button icon="pi pi-flag" className="p-button-text" onClick={() => setReportOpen(true)} />
       <MoreMenuButton />
-      <ReportDialog visible={reportOpen} onHide={() => setReportOpen(false)} targetType="user" targetName={profile.username} />
+      <ReportDialog
+        visible={reportOpen}
+        onHide={() => setReportOpen(false)}
+        targetType={0 as ReportTarget} // ReportTarget.User = 0
+        targetId={profile.id}
+        reporterProfileId={currentUserId || ""}
+        targetName={profile.username}
+      />
     </div>
   );
 }
@@ -128,6 +158,7 @@ function ActionButtons({ profile, onEdit, isOwner }: { profile: UserProfile; onE
 function MoreMenuButton() {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (!open) return;
@@ -139,28 +170,33 @@ function MoreMenuButton() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  const handleAction = (label: string) => {
+  const handleAction = (key: string) => {
     setOpen(false);
-    alert(`${label} is coming soon.`);
+    if (key === "archive") {
+      router.push("/archive");
+    } else if (key === "trash") {
+      router.push("/recycle-bin");
+    }
   };
 
   const options = [
-    { key: "archive", label: "Kho lưu trữ" },
-    { key: "trash", label: "Thùng rác" },
+    { key: "archive", label: "Kho lưu trữ", icon: "pi pi-archive" },
+    { key: "trash", label: "Thùng rác", icon: "pi pi-trash" },
   ];
 
   return (
     <div className="relative" ref={wrapperRef}>
       <Button icon="pi pi-ellipsis-h" className="p-button-text" aria-label="More options" onClick={() => setOpen(v => !v)} />
       {open && (
-        <div className="absolute right-0 mt-2 z-20 w-44 overflow-hidden rounded-xl border bg-white shadow-lg dark:bg-neutral-900 text-sm">
+        <div className="absolute right-0 mt-2 z-20 w-48 overflow-hidden rounded-xl border bg-white shadow-lg dark:bg-neutral-900 text-sm">
           {options.map(option => (
             <button
               key={option.key}
               type="button"
-              className="block w-full px-4 py-2 text-left hover:bg-black/5 dark:hover:bg-white/10"
-              onClick={() => handleAction(option.label)}
+              className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-black/5 dark:hover:bg-white/10"
+              onClick={() => handleAction(option.key)}
             >
+              <i className={`${option.icon} text-gray-500 dark:text-gray-400`} />
               {option.label}
             </button>
           ))}
@@ -376,6 +412,7 @@ export default function ProfilePage() {
   const [followersList, setFollowersList] = useState<ProfileResponse[]>([]);
   const [followingList, setFollowingList] = useState<ProfileResponse[]>([]);
   const followRequestKeyRef = useRef(0);
+  const [isUserFollowing, setIsUserFollowing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -411,6 +448,22 @@ export default function ProfilePage() {
             };
           });
         }
+
+        // Check if current user is following this profile by fetching followers
+        if (user?.id && user.id !== id) {
+          try {
+            const followersRes = await profileAPI.followers(id, 0, 200);
+            const items: any[] = Array.isArray(followersRes) ? followersRes : followersRes?.items ?? [];
+            const followerIds = items
+              .map((f) => f.followerId)
+              .filter(Boolean);
+            const isFollowing = followerIds.includes(user.id);
+            if (!cancelled) setIsUserFollowing(isFollowing);
+          } catch (err) {
+            console.error("Failed to check follow status:", err);
+          }
+        }
+
         // Fetch user's collections
         const collectionsRes = await collectionAPI.getByOwner(id, 1, 50);
         const FALLBACK_COLLECTION_COVER = "https://via.placeholder.com/400x200/6366f1/ffffff?text=Collection";
@@ -426,7 +479,7 @@ export default function ProfilePage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, user?.id]);
 
   const detectSocialKindFromUrl = (url: string): SocialKind | "Website" => {
     let host = "";
@@ -848,7 +901,14 @@ export default function ProfilePage() {
                 onClick={() => openFollowDialog("following")}
               />
             </div>
-            <ActionButtons profile={profile} onEdit={() => setEditOpen(true)} isOwner={isOwner} />
+            <ActionButtons
+              profile={profile}
+              onEdit={() => setEditOpen(true)}
+              isOwner={isOwner}
+              isUserFollowing={isUserFollowing}
+              onFollowChange={(isFollowing) => setIsUserFollowing(isFollowing)}
+              currentUserId={user?.id}
+            />
           </div>
         </div>
 
