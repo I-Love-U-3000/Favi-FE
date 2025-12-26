@@ -84,12 +84,22 @@ export default function LoginPage() {
           return;
         }
 
-        await authAPI.loginWithIdentifier(id, pwd);
+        console.log('===== LOGIN START =====');
+        const result = await authAPI.loginWithIdentifier(id, pwd);
+        console.log('===== LOGIN COMPLETE =====');
+        console.log('Login result:', result);
+
         setGuestMode(false);
         showToast("success", "Đăng nhập thành công");
         refresh();
 
         const userInfo = authAPI.getUserInfo<{ id?: string }>();
+        console.log('===== USER INFO FROM LOCALSTORAGE =====');
+        console.log('Full userInfo:', userInfo);
+        console.log('Has role?', userInfo && 'role' in userInfo);
+        console.log('Role value:', (userInfo as any)?.role);
+        console.log('======================================');
+
         if (userInfo?.id) {
           try {
             await profileAPI.getById(userInfo.id);

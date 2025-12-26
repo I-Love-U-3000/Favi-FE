@@ -71,25 +71,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return true;
   }, [isAuthenticated]);
 
-  const value = useMemo<AuthContextType>(() => ({
-    isAuthenticated,
-    isGuest,
-    isAdmin: authAPI.isAdmin(),
-    user,
-    refresh: compute,
-    requireAuth,
-    logout,
-    setGuestMode: (enable: boolean) => {
-      try {
-        if (enable) {
-          localStorage.setItem("guest_mode", "1");
-        } else {
-          localStorage.removeItem("guest_mode");
-        }
-      } catch {}
-      compute();
-    },
-  }), [isAuthenticated, isGuest, user, compute, requireAuth, logout]);
+  const value = useMemo<AuthContextType>(() => {
+    const isAdminResult = authAPI.isAdmin();
+    console.log('[AuthProvider] Computed auth context:', {
+      isAuthenticated,
+      isGuest,
+      isAdmin: isAdminResult,
+      user
+    });
+
+    return {
+      isAuthenticated,
+      isGuest,
+      isAdmin: isAdminResult,
+      user,
+      refresh: compute,
+      requireAuth,
+      logout,
+      setGuestMode: (enable: boolean) => {
+        try {
+          if (enable) {
+            localStorage.setItem("guest_mode", "1");
+          } else {
+            localStorage.removeItem("guest_mode");
+          }
+        } catch {}
+        compute();
+      },
+    };
+  }, [isAuthenticated, isGuest, user, compute, requireAuth, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

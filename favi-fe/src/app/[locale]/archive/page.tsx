@@ -29,7 +29,14 @@ export default function ArchivePage() {
       setError(null);
       try {
         const result: PagedResult<PostResponse> = await postAPI.getArchived(1, 50);
-        setPosts(result.items || []);
+
+        // Fetch full post data for each archived post (including media)
+        const archivedPosts = result.items || [];
+        const fullPosts = await Promise.all(
+          archivedPosts.map((post) => postAPI.getById(post.id))
+        );
+
+        setPosts(fullPosts);
       } catch (e: any) {
         setError(e?.error || e?.message || t("LoadFailed"));
       } finally {

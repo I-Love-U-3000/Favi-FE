@@ -5,6 +5,27 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/**
+ * Recursively convert PascalCase keys to camelCase
+ * Handles nested objects and arrays
+ */
+function toCamelCase(obj: any): any {
+  if (obj === null || typeof obj !== "object") {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(toCamelCase);
+  }
+
+  return Object.keys(obj).reduce((acc, key) => {
+    // Convert PascalCase to camelCase
+    const camelKey = key.charAt(0).toLowerCase() + key.slice(1);
+    acc[camelKey] = toCamelCase(obj[key]);
+    return acc;
+  }, {} as Record<string, any>);
+}
+
 async function handleResponse(res: Response) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -13,7 +34,8 @@ async function handleResponse(res: Response) {
       error: (data as any)?.error || (data as any)?.message || "Request failed",
     };
   }
-  return data;
+  // Convert backend PascalCase to frontend camelCase
+  return toCamelCase(data);
 }
 
 async function tryRefreshAndRetry(url: string, init: RequestInit): Promise<any> {

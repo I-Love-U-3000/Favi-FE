@@ -343,7 +343,7 @@ function PostListItem({ post }: { post: PostResponse }) {
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={avatar} alt={username || display} className="w-9 h-9 rounded-full border cursor-pointer" />
+          <img src={avatar} alt={username || display} className="w-9 h-9 rounded-full border cursor-pointer" onClick={(e) => e.stopPropagation()} />
         </ProfileHoverCard>
 
         <div className="min-w-0">
@@ -354,12 +354,12 @@ function PostListItem({ post }: { post: PostResponse }) {
 
           {/* 🔹 Privacy + Location chips (giống Post detail) */}
           <div className="mt-1 flex items-center gap-2 text-[11px] text-gray-600">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 bg-white/70 dark:bg-neutral-800/70">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 bg-white/70 dark:bg-neutral-800/70" onClick={(e) => e.stopPropagation()}>
               <i className={`${PRIVACY_ICON_MAP[privacy]} text-xs`} />
             </span>
 
             {post.location?.name && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 bg-white/70 dark:bg-neutral-800/70 max-w-[180px] truncate">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 bg-white/70 dark:bg-neutral-800/70 max-w-[180px] truncate" onClick={(e) => e.stopPropagation()}>
                 <i className="pi pi-map-marker text-xs" />
                 <span className="truncate">{post.location.name}</span>
               </span>
@@ -501,7 +501,7 @@ function PostListItem({ post }: { post: PostResponse }) {
         {tags.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {tags.map((t) => (
-              <span key={t} className="px-2 py-1 text-xs rounded-full" style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}>#{t}</span>
+              <span key={t} className="px-2 py-1 text-xs rounded-full cursor-pointer" style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} onClick={(e) => e.stopPropagation()}>#{t}</span>
             ))}
           </div>
         )}

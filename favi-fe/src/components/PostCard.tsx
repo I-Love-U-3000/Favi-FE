@@ -32,13 +32,14 @@ export default function PostCard({ post }: { post: PostResponse }) {
       onClick={() => router.push(`/posts/${post.id}`)}
     >
       {/* Media preview */}
-      {medias.length > 0 ? (
+      {medias.length > 0 && medias[0]?.url ? (
         <div className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={medias[0].thumbnailUrl || medias[0].url}
+            src={medias[0].url}
             alt={post.caption ?? ""}
             className="w-full h-48 object-cover"
+            loading="lazy"
           />
           {medias.length > 1 && (
             <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
@@ -63,6 +64,7 @@ export default function PostCard({ post }: { post: PostResponse }) {
             style={{
               borderColor: "var(--border)",
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <i className={`${PRIVACY_ICON_MAP[privacy]} text-xs`} />
           </span>
@@ -72,6 +74,7 @@ export default function PostCard({ post }: { post: PostResponse }) {
               style={{
                 borderColor: "var(--border)",
               }}
+              onClick={(e) => e.stopPropagation()}
             >
               <i className="pi pi-map-marker text-xs" />
               <span className="truncate max-w-[150px]">{post.location.name}</span>
@@ -92,11 +95,12 @@ export default function PostCard({ post }: { post: PostResponse }) {
             {post.tags.slice(0, 3).map((tag) => (
               <span
                 key={tag.id}
-                className="text-xs px-2 py-1 rounded-full"
+                className="text-xs px-2 py-1 rounded-full cursor-pointer"
                 style={{
                   backgroundColor: "var(--accent)",
                   color: "var(--text)",
                 }}
+                onClick={(e) => e.stopPropagation()}
               >
                 #{tag.name}
               </span>
@@ -109,11 +113,11 @@ export default function PostCard({ post }: { post: PostResponse }) {
 
         {/* Stats */}
         <div className="flex items-center gap-3 text-xs opacity-70">
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 cursor-pointer" onClick={(e) => e.stopPropagation()}>
             <i className="pi pi-heart" />
             {post.reactions?.total ?? 0}
           </span>
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 cursor-pointer" onClick={(e) => e.stopPropagation()}>
             <i className="pi pi-comment" />
             {post.commentsCount ?? 0}
           </span>

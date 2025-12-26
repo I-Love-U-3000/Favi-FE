@@ -22,24 +22,37 @@ const NAV: Item[] = [
   { label: "Settings", href: "/settings", icon: "pi pi-cog" },
 ];
 
+const ADMIN_NAV: Item[] = [
+  { label: "Admin Panel", href: "/admin/dashboard", icon: "pi pi-shield" },
+];
+
 export default function Navbar() {
   const pathname = usePathname();
-  const { isAuthenticated, isGuest, user, logout } = useAuth();
+  const { isAuthenticated, isGuest, isAdmin, user, logout } = useAuth();
   const me = useProfile(user?.id);
   const { openPostComposer, openCollectionComposer, openNotificationDialog } = useOverlay();
   const { unreadCount } = useNotifications();
   const [isOpen, setIsOpen] = useState(true);
   const menuRef = useRef<Menu>(null);
 
+  // Debug logging
+  console.log('[Navbar] Auth state:', { isAuthenticated, isAdmin, user });
+  console.log('[Navbar] Will show admin link?', isAdmin);
+
   const navItems = useMemo(() => {
-    if (isAuthenticated) return NAV;
+    if (isAuthenticated) {
+      if (isAdmin) {
+        return [...ADMIN_NAV, ...NAV];
+      }
+      return NAV;
+    }
     return [
       { label: "Home", href: "/home", icon: "pi pi-home" },
       { label: "Explore", href: "/search", icon: "pi pi-search" },
       { label: "Đăng nhập", href: "/login", icon: "pi pi-sign-in" },
       { label: "Đăng ký", href: "/register", icon: "pi pi-user-plus" },
     ];
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isAdmin]);
 
   const createMenuItems = [
     {
@@ -180,7 +193,8 @@ export default function Navbar() {
           {isAuthenticated && (
             <button
               onClick={handleCreateClick}
-              className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg transition hover:-translate-y-[1px] bg-primary text-white"
+              className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg transition hover:-translate-y-[1px] bg-black dark:bg-white/15 hover:bg-black dark:hover:bg-white/10"
+              style={{ color: "var(--text)" }}
             >
               <i className="pi pi-plus-circle text-lg" />
               <span className="text-sm font-semibold">Create</span>

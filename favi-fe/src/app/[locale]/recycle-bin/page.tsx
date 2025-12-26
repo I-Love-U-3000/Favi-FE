@@ -29,7 +29,14 @@ export default function RecycleBinPage() {
       setError(null);
       try {
         const result: PagedResult<PostResponse> = await postAPI.getRecycleBin(1, 50);
-        setPosts(result.items || []);
+
+        // Fetch full post data for each recycled post (including media)
+        const recycledPosts = result.items || [];
+        const fullPosts = await Promise.all(
+          recycledPosts.map((post) => postAPI.getById(post.id))
+        );
+
+        setPosts(fullPosts);
       } catch (e: any) {
         setError(e?.error || e?.message || t("LoadFailed"));
       } finally {

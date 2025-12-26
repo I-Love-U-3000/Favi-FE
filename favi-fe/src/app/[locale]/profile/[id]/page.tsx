@@ -6,6 +6,7 @@ import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
 import { TabView, TabPanel } from "primereact/tabview";
 import { Tag } from "primereact/tag";
+import { InputText } from "primereact/inputtext";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { mockUserProfile } from "@/lib/mockTest/mockUserProfile";
@@ -180,7 +181,7 @@ function MoreMenuButton() {
   };
 
   const options = [
-    { key: "archive", label: "Kho lưu trữ", icon: "pi pi-archive" },
+    { key: "archive", label: "Kho lưu trữ", icon: "pi pi-box" },
     { key: "trash", label: "Thùng rác", icon: "pi pi-trash" },
   ];
 
@@ -344,6 +345,24 @@ function FollowListDialog({
   onHide: () => void;
 }) {
   const title = type === "followers" ? "Followers" : "Following";
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Reset search when dialog opens/closes or type changes
+  useEffect(() => {
+    if (!visible) {
+      setSearchQuery("");
+    }
+  }, [visible]);
+
+  // Filter profiles based on search query
+  const filteredProfiles = profiles.filter((p) => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    const displayName = (p.displayName || "").toLowerCase();
+    const username = (p.username || "").toLowerCase();
+    return displayName.includes(query) || username.includes(query);
+  });
+
   return (
     <Dialog
       header={title}
@@ -353,6 +372,18 @@ function FollowListDialog({
       style={{ width: "min(640px, 92vw)" }}
       contentStyle={{ padding: "1.5rem" }}
     >
+      {/* Search Input */}
+      {!loading && !error && profiles.length > 0 && (
+        <div className="mb-4">
+          <InputText
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={`Search ${type === "followers" ? "followers" : "following"}...`}
+            className="w-full"
+          />
+        </div>
+      )}
+
       {loading ? (
         <div className="py-2 text-sm opacity-70">Loading...</div>
       ) : error ? (
@@ -361,9 +392,13 @@ function FollowListDialog({
         <div className="py-2 text-sm opacity-70">
           {type === "followers" ? "No followers yet." : "No following accounts yet."}
         </div>
+      ) : filteredProfiles.length === 0 ? (
+        <div className="py-2 text-sm opacity-70">
+          No results found for "{searchQuery}"
+        </div>
       ) : (
         <div className="space-y-3">
-          {profiles.map((p) => (
+          {filteredProfiles.map((p) => (
             <div
               key={p.id}
               className="rounded-xl p-3"
@@ -888,8 +923,7 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex flex-col items-start md:items-end gap-3">
-            <div className="grid grid-cols-3 gap-4">
-              <Stat label="Posts" value={profile.stats?.posts ?? 0} />
+            <div className="grid grid-cols-2 gap-4">
               <Stat
                 label="Followers"
                 value={profile.stats?.followers ?? 0}
@@ -915,11 +949,11 @@ export default function ProfilePage() {
         {/* TABS */}
         <div className="mt-8 mb-20">
           <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
-            <TabPanel header="Posts">
+            <TabPanel header={`Posts (${posts.length})`}>
               <PhotoGrid items={posts} />
             </TabPanel>
 
-            <TabPanel header="Collections">
+            <TabPanel header={`Collections (${collections.length})`}>
               {isOwner && (
                 <div className="flex justify-end mb-4">
                   <Button label="New collection" icon="pi pi-images" onClick={() => setNewCollectionOpen(true)} />
