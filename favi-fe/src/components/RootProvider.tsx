@@ -8,6 +8,7 @@ import InstagramPostDialog from "@/components/PostDialog";
 import CollectionDialog from "@/components/CollectionDialog";
 import AddToCollectionDialog from "@/components/AddToCollectionDialog";
 import NotificationDialog from "@/components/NotificationDialog";
+import StoryDialog from "@/components/StoryDialog";
 import { CollectionResponse } from "@/types";
 
 type OverlayContextType = {
@@ -19,6 +20,8 @@ type OverlayContextType = {
   closePostComposer: () => void;
   openCollectionComposer: (collection?: CollectionResponse | null) => void;
   closeCollectionComposer: () => void;
+  openStoryComposer: () => void;
+  closeStoryComposer: () => void;
   openAddToCollectionDialog: (postId: string) => void;
   closeAddToCollectionDialog: () => void;
   openNotificationDialog: () => void;
@@ -31,6 +34,7 @@ export const RootProvider = ({ children }: { children: React.ReactNode }) => {
   const toastRef = useRef<Toast | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [collectionComposerOpen, setCollectionComposerOpen] = useState(false);
+  const [storyComposerOpen, setStoryComposerOpen] = useState(false);
   const [addToCollectionDialogOpen, setAddToCollectionDialogOpen] = useState(false);
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   const [editingCollection, setEditingCollection] = useState<CollectionResponse | null>(null);
@@ -52,6 +56,9 @@ export const RootProvider = ({ children }: { children: React.ReactNode }) => {
     setEditingCollection(null);
     setCollectionComposerOpen(false);
   }, []);
+
+  const openStoryComposer = useCallback(() => setStoryComposerOpen(true), []);
+  const closeStoryComposer = useCallback(() => setStoryComposerOpen(false), []);
 
   const openAddToCollectionDialog = useCallback((postId: string) => {
     setSelectedPostId(postId);
@@ -77,6 +84,8 @@ export const RootProvider = ({ children }: { children: React.ReactNode }) => {
         closePostComposer,
         openCollectionComposer,
         closeCollectionComposer,
+        openStoryComposer,
+        closeStoryComposer,
         openAddToCollectionDialog,
         closeAddToCollectionDialog,
         openNotificationDialog,
@@ -100,6 +109,9 @@ export const RootProvider = ({ children }: { children: React.ReactNode }) => {
         onHide={closeCollectionComposer}
         collection={editingCollection}
       />
+
+      {/* Global Story Composer */}
+      <StoryDialog visible={storyComposerOpen} onHide={closeStoryComposer} />
 
       {/* Global Add to Collection Dialog */}
       {selectedPostId && (

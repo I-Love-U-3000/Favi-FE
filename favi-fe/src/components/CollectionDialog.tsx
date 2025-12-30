@@ -218,6 +218,7 @@ export default function CollectionDialog({
       visible={visible}
       onHide={handleHide}
       style={{ width: 640, maxWidth: "95vw" }}
+      className="rounded-xl"
       footer={
         <div className="flex justify-end gap-2">
           <Button label="Cancel" className="p-button-text" onClick={handleHide} disabled={loading} />
@@ -238,7 +239,7 @@ export default function CollectionDialog({
               }}
             >
               {coverImageUrl === DEFAULT_COVER_IMAGE && (
-                <span className="text-gray-400 text-sm">No cover image</span>
+                <span className="text-sm" style={{ color: "var(--text-secondary)" }}>No cover image</span>
               )}
             </div>
             {coverImageFile && (

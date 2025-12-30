@@ -32,9 +32,10 @@ export default function SelectionDialog({
       visible={visible}
       onHide={onClose}
       modal
-      className="w-[320px] max-w-full"
+      className="w-[320px] max-w-full rounded-xl"
       contentClassName="p-0"
     >
+      <style>{`.selection-option:hover { background-color: var(--bg) !important; }`}</style>
       <div className="flex flex-col">
         {options.map((opt) => {
           const active = opt.value === value;
@@ -43,11 +44,12 @@ export default function SelectionDialog({
               key={opt.value}
               type="button"
               className={classNames(
-                "flex items-start gap-3 px-4 py-3 text-left transition",
+                "flex items-start gap-3 px-4 py-3 text-left transition selection-option",
                 active
                   ? "bg-primary/10 text-primary"
-                  : "hover:bg-black/5 dark:hover:bg-white/5"
+                  : ""
               )}
+              style={{ color: active ? 'var(--primary)' : 'var(--text)' }}
               onClick={() => {
                 onSelect(opt.value);
                 onClose();

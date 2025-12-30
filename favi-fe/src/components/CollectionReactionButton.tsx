@@ -21,6 +21,7 @@ interface CollectionReactionButtonProps {
   collectionId: string;
   reactions?: ReactionSummaryDto;
   onReactionChange?: (newReactions: ReactionSummaryDto | null) => void;
+  onCountClick?: () => void;
   size?: "small" | "normal";
   showCount?: boolean;
 }
@@ -29,6 +30,7 @@ export default function CollectionReactionButton({
   collectionId,
   reactions,
   onReactionChange,
+  onCountClick,
   size = "small",
   showCount = true,
 }: CollectionReactionButtonProps) {
@@ -69,11 +71,19 @@ export default function CollectionReactionButton({
     return () => window.removeEventListener('storage', onStorage);
   }, [collectionId]);
 
-  // Sync with server data when it changes (update cache if server has newer data)
+  // Sync with server data when it changes
   useEffect(() => {
-    if (reactions && reactions.currentUserReaction !== undefined) {
-      setUserReaction(reactions.currentUserReaction ?? null);
+    if (!reactions) return;
+
+    // Always update byType counts from server
+    if (reactions.byType) {
       setByType(reactions.byType as any);
+    }
+
+    // Only update userReaction if it's explicitly provided (not undefined)
+    // This allows the API to optionally include currentUserReaction
+    if ('currentUserReaction' in reactions && reactions.currentUserReaction !== undefined) {
+      setUserReaction(reactions.currentUserReaction ?? null);
     }
   }, [reactions]);
 
@@ -91,28 +101,30 @@ export default function CollectionReactionButton({
     if (!requireAuth()) return;
     try {
       const prev = userReaction;
-      // Optimistic update (like posts do)
-      setByType(prevCounts => {
-        const next = { ...prevCounts };
-        if (prev && next[prev] > 0) next[prev] -= 1;
-        if (prev !== type) next[type] = (next[type] || 0) + 1;
-        return next;
-      });
-      setUserReaction(prev === type ? null : type);
+
+      // Compute the next state FIRST for cache and parent notification
+      const nextByType = { ...byType };
+      if (prev && nextByType[prev] > 0) nextByType[prev] -= 1;
+      if (prev !== type) nextByType[type] = (nextByType[type] || 0) + 1;
+      const nextUserReaction = prev === type ? null : type;
+
+      // Optimistic update
+      setByType(nextByType);
+      setUserReaction(nextUserReaction);
 
       await collectionAPI.toggleReaction(collectionId, type);
 
       // Persist latest reaction snapshot for cross-view consistency
-      const snapshot = { ...byType } as Record<ReactionType, number>;
-      if (prev && snapshot[prev] > 0) snapshot[prev] -= 1;
-      if (prev !== type) snapshot[type] = (snapshot[type] || 0) + 1;
-      writeCollectionReaction(collectionId, { byType: snapshot, currentUserReaction: prev === type ? null : type });
+      writeCollectionReaction(collectionId, {
+        byType: nextByType,
+        currentUserReaction: nextUserReaction,
+      });
 
       // Notify parent component
       onReactionChange?.({
-        byType: snapshot,
-        total: Object.values(snapshot).reduce((a, b) => a + b, 0),
-        currentUserReaction: prev === type ? null : type,
+        byType: nextByType,
+        total: Object.values(nextByType).reduce((a, b) => a + b, 0),
+        currentUserReaction: nextUserReaction,
       });
     } catch (e) {
       // On error, reload from server next time
@@ -171,9 +183,14 @@ export default function CollectionReactionButton({
       </div>
 
       {showCount && totalReactions > 0 && (
-        <span className="ml-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onCountClick?.(); }}
+          className="ml-2 text-xs cursor-pointer hover:opacity-80"
+          style={{ color: "var(--text-secondary)" }}
+        >
           {totalReactions}
-        </span>
+        </button>
       )}
     </div>
   );

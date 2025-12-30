@@ -107,6 +107,7 @@ export default function EditProfileDialog({
       visible={open}
       onHide={onClose}
       style={{ width: 720, maxWidth: '95vw' }}
+      className="rounded-xl"
       footer={
         <div className="flex justify-end gap-2">
           <Button label="Cancel" className="p-button-text" onClick={onClose} />

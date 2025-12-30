@@ -29,7 +29,9 @@ export function NotificationsPanel() {
   };
 
   return (
-    <div className="relative" style={{ color: "var(--text)" }}>
+    <>
+      <style>{`.notif-item-panel:hover { background-color: var(--bg) !important; }`}</style>
+      <div className="relative" style={{ color: "var(--text)" }}>
       {/* Header */}
       <div
         className="p-4"
@@ -83,12 +85,14 @@ export function NotificationsPanel() {
               setPage((p) => p + 1);
               loadMoreNotifications();
             }}
-            className="w-full p-3 text-center text-sm text-blue-500 hover:bg-black/5 dark:hover:bg-white/5"
+            className="w-full p-3 text-center text-sm notif-item-panel transition-colors"
+            style={{ color: 'var(--primary)' }}
           >
             Load more
           </button>
         )}
       </div>
     </div>
+    </>
   );
 }

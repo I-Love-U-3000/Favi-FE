@@ -21,6 +21,7 @@ import { normalizeProfile, writeCachedProfile } from "@/lib/profileCache";
 import CollectionDialog from "@/components/CollectionDialog";
 import EditProfileDialog, { EditableProfile } from "@/components/EditProfileDialog";
 import CollectionReactionButton from "@/components/CollectionReactionButton";
+import CollectionReactorsDialog from "@/components/CollectionReactorsDialog";
 import ReportDialog from "@/components/ReportDialog";
 import { useAuth } from "@/components/AuthProvider";
 import { useOverlay } from "@/components/RootProvider";
@@ -281,6 +282,7 @@ function CollectionsGrid({ items }: { items: CollectionResponse[] }) {
                     collectionId={c.id}
                     reactions={c.reactions}
                     onReactionChange={(newReactions) => handleReactionChange(c.id, newReactions, () => {})}
+                    onCountClick={() => { setSelectedCollectionId(c.id); setReactorsDialogOpen(true); }}
                     size="small"
                     showCount={false}
                   />
@@ -448,6 +450,8 @@ export default function ProfilePage() {
   const [followingList, setFollowingList] = useState<ProfileResponse[]>([]);
   const followRequestKeyRef = useRef(0);
   const [isUserFollowing, setIsUserFollowing] = useState(false);
+  const [reactorsDialogOpen, setReactorsDialogOpen] = useState(false);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -954,11 +958,6 @@ export default function ProfilePage() {
             </TabPanel>
 
             <TabPanel header={`Collections (${collections.length})`}>
-              {isOwner && (
-                <div className="flex justify-end mb-4">
-                  <Button label="New collection" icon="pi pi-images" onClick={() => setNewCollectionOpen(true)} />
-                </div>
-              )}
               <CollectionsGrid items={collections} />
             </TabPanel>
 
@@ -1073,6 +1072,13 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {selectedCollectionId && (
+        <CollectionReactorsDialog
+          visible={reactorsDialogOpen}
+          onHide={() => setReactorsDialogOpen(false)}
+          collectionId={selectedCollectionId}
+        />
+      )}
     </div>
   );
 }

@@ -173,6 +173,12 @@
     "reportUser": "Báo cáo người dùng"
   },
 
+  "Stories": {
+    "Loading": "Đang tải...",
+    "Views": "Lượt xem tin",
+    "NoViewsYet": "Chưa có lượt xem nào"
+  },
+
   "PostMenu": {
     "edit": "Chỉnh sửa bài viết",
     "delete": "Xóa bài viết",

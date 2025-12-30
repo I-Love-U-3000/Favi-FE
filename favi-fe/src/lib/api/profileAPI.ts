@@ -45,8 +45,8 @@ async function uploadProfileAsset(path: string, file: File): Promise<PostMediaRe
     const data = await refreshRes.json();
     const newAccess = data?.accessToken ?? data?.access_token;
     const newRefresh = data?.refreshToken ?? data?.refresh_token;
-    if (newAccess) localStorage.setItem("access_token", newAccess);
-    if (newRefresh) localStorage.setItem("refresh_token", newRefresh);
+    if (newAccess && typeof window !== "undefined") localStorage.setItem("access_token", newAccess);
+    if (newRefresh && typeof window !== "undefined") localStorage.setItem("refresh_token", newRefresh);
     res = await doUpload(newAccess);
   }
 

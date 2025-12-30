@@ -416,3 +416,56 @@ export type ReportResponse = {
   actedAt?: string | null;
   data?: string | null;
 };
+
+// Story types
+export type CreateStoryRequest = {
+  privacyLevel: PrivacyLevel;
+};
+
+export type StoryResponse = {
+  id: string;
+  profileId: string;
+  profileUsername: string;
+  profileAvatarUrl: string | null;
+  mediaUrl: string;
+  thumbnailUrl: string | null;
+  createdAt: string;
+  expiresAt: string;
+  privacy: PrivacyLevel;
+  isArchived: boolean;
+  viewCount: number;
+  hasViewed: boolean;
+};
+
+export type StoryFeedResponse = {
+  profileId: string;
+  profileUsername: string;
+  profileAvatarUrl: string | null;
+  stories: StoryResponse[];
+};
+
+export type StoryViewerResponse = {
+  viewerId: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  viewedAt: string;
+};
+
+export type PostReactionResponse = {
+  profileId: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  reactionType: ReactionType;
+  createdAt: string;
+};
+
+export type CollectionReactionResponse = {
+  profileId: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  reactionType: ReactionType;
+  createdAt: string;
+};

@@ -169,6 +169,12 @@
         "deleteConfirm": "Are you sure you want to delete this post? This action cannot be undone."
     },
 
+    "Stories": {
+        "Loading": "Loading...",
+        "Views": "Story Views",
+        "NoViewsYet": "No views yet"
+    },
+
     "AdminPanel": {
         "Title": "Admin Panel",
         "Dashboard": "Dashboard",

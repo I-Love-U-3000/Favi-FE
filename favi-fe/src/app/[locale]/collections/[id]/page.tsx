@@ -10,6 +10,7 @@ import { Button } from "primereact/button";
 import { useAuth } from "@/components/AuthProvider";
 import { useOverlay } from "@/components/RootProvider";
 import CollectionReactionButton from "@/components/CollectionReactionButton";
+import CollectionReactorsDialog from "@/components/CollectionReactorsDialog";
 
 import collectionAPI from "@/lib/api/collectionAPI";
 import postAPI from "@/lib/api/postAPI"; // ⚠️ đổi path nếu bạn khác
@@ -83,6 +84,7 @@ export default function CollectionDetail({ params }: Props) {
   const [coll, setColl] = useState<CollectionResponse | null>(null);
   const [posts, setPosts] = useState<PhotoPost[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [reactorsDialogOpen, setReactorsDialogOpen] = useState(false);
 
   const privacyLabel = useMemo(() => {
     if (!coll) return "";
@@ -206,6 +208,7 @@ export default function CollectionDetail({ params }: Props) {
               onReactionChange={(newReactions) => {
                 setColl({ ...coll, reactions: newReactions ?? undefined });
               }}
+              onCountClick={() => setReactorsDialogOpen(true)}
               size="normal"
               showCount={true}
             />
@@ -358,6 +361,14 @@ export default function CollectionDetail({ params }: Props) {
           </div>
         )}
       </div>
+
+      {coll && (
+        <CollectionReactorsDialog
+          visible={reactorsDialogOpen}
+          onHide={() => setReactorsDialogOpen(false)}
+          collectionId={coll.id}
+        />
+      )}
     </div>
   );
 }

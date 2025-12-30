@@ -373,13 +373,15 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
 
   const HeaderBar = () => (
     <div className="flex items-center justify-between w-full">
+      <style>{`.post-back-btn:hover { background-color: var(--bg) !important; }`}</style>
       <div className="flex items-center gap-2">
         {step === 1 ? (
-          <span className="font-semibold">Tạo bài đăng</span>
+          <span className="font-semibold" style={{ color: 'var(--text)' }}>Tạo bài đăng</span>
         ) : step === 2 ? (
           <button
             type="button"
-            className="px-2 py-1 rounded hover:bg-black/5"
+            className="px-2 py-1 rounded post-back-btn transition-colors"
+            style={{ color: 'var(--text)' }}
             onClick={goBackFromCrop}
           >
             ←
@@ -387,13 +389,14 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
         ) : (
           <button
             type="button"
-            className="px-2 py-1 rounded hover:bg-black/5"
+            className="px-2 py-1 rounded post-back-btn transition-colors"
+            style={{ color: 'var(--text)' }}
             onClick={goBackFromDetails}
           >
             ←
           </button>
         )}
-        <span className="font-semibold">
+        <span className="font-semibold" style={{ color: 'var(--text)' }}>
           {step === 1 ? '' : step === 2 ? 'Crop' : 'Chi tiết'}
         </span>
       </div>
@@ -459,10 +462,18 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
       }}
       header={<HeaderBar />}
       style={{ width: '95vw', maxWidth: '980px', height: '90vh', maxHeight: '820px' }}
-      className="rounded-xl overflow-hidden"
+      className="rounded-xl overflow-hidden glass"
       contentClassName="!p-0"
-      headerClassName="!py-2 !px-3 border-b"
+      headerClassName="!py-2 !px-3 border-b border-white/10 dark:border-white/5"
     >
+      {/* Soft highlight layer to make the glass feel deeper */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-xl"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06))",
+        }}
+      />
       {/* progress bar */}
       {uploading && (
         <div className="w-full h-1 relative overflow-hidden" style={{ backgroundColor: 'var(--border)' }}>

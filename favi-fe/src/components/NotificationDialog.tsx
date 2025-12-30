@@ -126,9 +126,11 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
         </div>
       }
       style={{ width: "90vw", maxWidth: "600px", height: "80vh" }}
+      className="rounded-xl"
       contentClassName="!p-0"
       headerClassName="!py-3 !px-4 border-b"
     >
+      <style>{`.notif-item:hover { background-color: var(--bg) !important; }`}</style>
       <div className="flex flex-col h-full" style={{ color: "var(--text)" }}>
         {/* Unread count banner */}
         {unreadCount > 0 && (
@@ -155,7 +157,7 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
                 <button
                   key={notification.id}
                   onClick={() => handleClickNotification(notification)}
-                  className="w-full text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                  className="w-full text-left notif-item transition-colors"
                   style={{
                     backgroundColor: !notification.isRead ? "var(--bg-highlight)" : "transparent",
                   }}
@@ -202,7 +204,8 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
                 setPage((p) => p + 1);
                 loadMoreNotifications();
               }}
-              className="w-full p-3 text-center text-sm text-blue-500 hover:bg-black/5 dark:hover:bg-white/5"
+              className="w-full p-3 text-center text-sm notif-item transition-colors"
+              style={{ color: 'var(--primary)' }}
             >
               Load more
             </button>

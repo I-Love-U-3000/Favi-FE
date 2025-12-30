@@ -5,6 +5,7 @@ import type {
   CollectionResponse,
   CreateCollectionFormData,
   UpdateCollectionFormData,
+  CollectionReactionResponse,
 } from "@/types";
 
 // Helper to build FormData for collection operations
@@ -42,16 +43,16 @@ export const collectionAPI = {
     return fetchWrapper.put<CollectionResponse>(`/collections/${id}`, formData, true);
   },
 
-  getById: (id: string) => fetchWrapper.get<CollectionResponse>(`/collections/${id}`, false),
+  getById: (id: string) => fetchWrapper.get<CollectionResponse>(`/collections/${id}`, true),
 
   getByOwner: (ownerId: string, page = 1, pageSize = 20) =>
     fetchWrapper.get<{ items: CollectionResponse[]; page: number; pageSize: number; totalCount: number }>(
-      `/collections/owner/${ownerId}?page=${page}&pageSize=${pageSize}`, false
+      `/collections/owner/${ownerId}?page=${page}&pageSize=${pageSize}`, true
     ),
 
   getTrending: (page = 1, pageSize = 20) =>
     fetchWrapper.get<{ items: CollectionResponse[]; page: number; pageSize: number; totalCount: number }>(
-      `/collections/trending?page=${page}&pageSize=${pageSize}`, false
+      `/collections/trending?page=${page}&pageSize=${pageSize}`, true
     ),
 
   getPosts: (collectionId: string, page = 1, pageSize = 20) =>
@@ -69,6 +70,9 @@ export const collectionAPI = {
 
   toggleReaction: (collectionId: string, type: string) =>
     fetchWrapper.post<any>(`/collections/${collectionId}/reactions?type=${type}`, undefined, true),
+
+  getReactors: async (collectionId: string) =>
+    fetchWrapper.get<CollectionReactionResponse[]>(`/collections/${collectionId}/reactors`, true),
 };
 
 export default collectionAPI;

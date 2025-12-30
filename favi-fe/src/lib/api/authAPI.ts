@@ -57,8 +57,10 @@ function persistAuth(res: SupabaseAuthResponse) {
   console.log('Access token (first 50 chars):', access?.substring(0, 50) + '...');
   console.log('Response user object:', res.user);
 
-  if (access) localStorage.setItem("access_token", access);
-  if (refresh) localStorage.setItem("refresh_token", refresh);
+  if (typeof window !== "undefined") {
+    if (access) localStorage.setItem("access_token", access);
+    if (refresh) localStorage.setItem("refresh_token", refresh);
+  }
 
   // user_info dùng cho UI nhanh
   const decoded = decodeJWT(access);
@@ -73,7 +75,9 @@ function persistAuth(res: SupabaseAuthResponse) {
   console.log('Final user_info being stored:', user_info);
   console.log('====================================');
 
-  localStorage.setItem("user_info", JSON.stringify(user_info));
+  if (typeof window !== "undefined") {
+    localStorage.setItem("user_info", JSON.stringify(user_info));
+  }
 }
 
 export const authAPI = {
@@ -93,6 +97,7 @@ export const authAPI = {
 
   // Nếu bạn dùng /auth/refresh ở BE: body là chuỗi token
   refresh: async () => {
+    if (typeof window === "undefined") throw new Error("Cannot refresh on server");
     const rt = localStorage.getItem("refresh_token");
     if (!rt) throw new Error("No refresh token");
 
@@ -111,9 +116,11 @@ export const authAPI = {
   },
 
   logout: () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("user_info");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user_info");
+    }
   },
 
   // Register new account -> returns SupabaseAuthResponse like login
@@ -130,14 +137,19 @@ export const authAPI = {
   },
 
   isAuthenticated: (): boolean => {
+    if (typeof window === "undefined") return false;
     const token = localStorage.getItem("access_token");
     const decoded = decodeJWT(token);
     return !!token && !isExpired(decoded);
   },
 
-  getToken: () => localStorage.getItem("access_token"),
+  getToken: () => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("access_token");
+  },
 
   getUserInfo: <T = { id?: string; email?: string; role?: any }>() => {
+    if (typeof window === "undefined") return null as unknown as T | null;
     const raw = localStorage.getItem("user_info");
     if (!raw) return null as unknown as T | null;
     try {
@@ -152,6 +164,9 @@ export const authAPI = {
 
   // Debug helper to check current auth state
   debugAuthState: () => {
+    if (typeof window === "undefined") {
+      return { token: null, userInfo: null, decoded: null };
+    }
     const token = localStorage.getItem("access_token");
     const userInfo = authAPI.getUserInfo();
     const decoded = decodeJWT(token);

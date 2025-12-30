@@ -408,10 +408,12 @@ const EditPostDialog: React.FC<EditPostDialogProps> = ({ visible, onHide, postId
 
   const HeaderBar = () => (
     <div className="flex items-center justify-between w-full">
+      <style>{`.edit-post-close:hover { background-color: var(--bg) !important; }`}</style>
       <div className="flex items-center gap-2">
         <button
           type="button"
-          className="px-2 py-1 rounded hover:bg-black/5"
+          className="px-2 py-1 rounded edit-post-close transition-colors"
+          style={{ color: 'var(--text)' }}
           onClick={() => {
             resetAll();
             onHide();
@@ -419,7 +421,7 @@ const EditPostDialog: React.FC<EditPostDialogProps> = ({ visible, onHide, postId
         >
           ✕
         </button>
-        <span className="font-semibold">Chỉnh sửa bài viết</span>
+        <span className="font-semibold" style={{ color: 'var(--text)' }}>Chỉnh sửa bài viết</span>
       </div>
 
       <div className="flex items-center gap-2">

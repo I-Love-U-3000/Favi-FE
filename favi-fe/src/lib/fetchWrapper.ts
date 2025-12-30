@@ -55,8 +55,8 @@ async function tryRefreshAndRetry(url: string, init: RequestInit): Promise<any> 
   const newAccess = refreshData?.accessToken ?? refreshData?.access_token;
   const newRefresh = refreshData?.refreshToken ?? refreshData?.refresh_token;
 
-  if (newAccess) localStorage.setItem("access_token", newAccess);
-  if (newRefresh) localStorage.setItem("refresh_token", newRefresh);
+  if (newAccess && typeof window !== "undefined") localStorage.setItem("access_token", newAccess);
+  if (newRefresh && typeof window !== "undefined") localStorage.setItem("refresh_token", newRefresh);
 
   const retryInit: RequestInit = {
     ...init,
@@ -111,8 +111,10 @@ async function request<T>(
       return await tryRefreshAndRetry(url, init);
     } catch (err) {
       console.warn("Token refresh failed", err);
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+      }
       throw err;
     }
   }

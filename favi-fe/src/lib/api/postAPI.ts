@@ -6,6 +6,7 @@ import type {
   PostMediaResponse,
   PagedResult,
   ReactionType,
+  PostReactionResponse,
 } from "@/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
@@ -61,8 +62,8 @@ async function uploadFiles(postId: string, files: File[]): Promise<PostMediaResp
     const data = await refreshRes.json();
     const newAccess = data?.accessToken ?? data?.access_token;
     const newRefresh = data?.refreshToken ?? data?.refresh_token;
-    if (newAccess) localStorage.setItem("access_token", newAccess);
-    if (newRefresh) localStorage.setItem("refresh_token", newRefresh);
+    if (newAccess && typeof window !== "undefined") localStorage.setItem("access_token", newAccess);
+    if (newRefresh && typeof window !== "undefined") localStorage.setItem("refresh_token", newRefresh);
 
     // retry upload with new access
     res = await doUpload(newAccess);
@@ -130,6 +131,11 @@ export const postAPI = {
 
   toggleReaction: (postId: string, type: ReactionType) =>
     fetchWrapper.post<any>(`/posts/${postId}/reactions?type=${encodeURIComponent(type)}`, undefined, true),
+
+  getReactors: async (postId: string) =>
+    camelize<PostReactionResponse[]>(
+      await fetchWrapper.get<any>(`/posts/${postId}/reactors`, true)
+    ),
 
   // ---------- Recycle Bin ----------
   restore: (id: string) =>

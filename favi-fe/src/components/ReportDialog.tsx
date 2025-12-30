@@ -113,6 +113,7 @@ export default function ReportDialog({
         onHide();
       }}
       style={{ width: "520px", maxWidth: "95vw" }}
+      className="rounded-xl"
       footer={
         <div className="flex justify-end gap-2">
           <Button
@@ -140,16 +141,18 @@ export default function ReportDialog({
         )}
 
         <div>
-          <div className="text-sm mb-2">{t("selectReason")}</div>
+          <style>{`.report-reason-btn:hover { background-color: var(--bg) !important; }`}</style>
+          <div className="text-sm mb-2" style={{ color: 'var(--text)' }}>{t("selectReason")}</div>
           <div className="flex flex-wrap gap-2">
             {reasons.map((r) => (
               <button
                 key={r.key}
-                className={`text-xs px-3 py-1.5 rounded-full border transition ${
-                  reason === r.key
-                    ? "bg-red-500 text-white border-red-500"
-                    : "bg-transparent border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10"
-                }`}
+                className="text-xs px-3 py-1.5 rounded-full border transition report-reason-btn"
+                style={{
+                  backgroundColor: reason === r.key ? 'var(--error)' : 'transparent',
+                  borderColor: reason === r.key ? 'var(--error)' : 'var(--border)',
+                  color: reason === r.key ? 'white' : 'var(--text)'
+                }}
                 onClick={() => setReason(r.key)}
                 disabled={submitting}
               >

@@ -41,9 +41,10 @@ export function NotificationItem({ notification, onMarkAsRead }: NotificationIte
   const timeAgo = new Date(notification.createdAt).toLocaleString();
 
   return (
+    <style>{`.notif-item-panel:hover { background-color: var(--bg) !important; }`}</style>
     <div
       onClick={handleClick}
-      className={`p-4 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer ${
+      className={`p-4 notif-item-panel transition-colors cursor-pointer ${
         !notification.isRead ? "bg-blue-50 dark:bg-blue-900/20" : ""
       }`}
       style={{ color: "var(--text)" }}

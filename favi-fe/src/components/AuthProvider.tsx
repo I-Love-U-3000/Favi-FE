@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     authAPI.logout();
-    try { localStorage.removeItem("guest_mode"); } catch {}
+    try { if (typeof window !== "undefined") localStorage.removeItem("guest_mode"); } catch {}
     compute();
     // Redirect to login page (locale-aware)
     router.push("/login");
@@ -90,10 +90,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       setGuestMode: (enable: boolean) => {
         try {
-          if (enable) {
-            localStorage.setItem("guest_mode", "1");
-          } else {
-            localStorage.removeItem("guest_mode");
+          if (typeof window !== "undefined") {
+            if (enable) {
+              localStorage.setItem("guest_mode", "1");
+            } else {
+              localStorage.removeItem("guest_mode");
+            }
           }
         } catch {}
         compute();

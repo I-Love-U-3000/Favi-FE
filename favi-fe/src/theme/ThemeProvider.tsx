@@ -1,7 +1,7 @@
 "use client";
 
 import { ThemeProvider as NextThemeProvider, useTheme } from "next-themes";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { THEMES, ThemeKey, DEFAULT_THEME_KEY } from "./themes";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
@@ -22,9 +22,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 function ThemeLoader({ children }: { children: React.ReactNode }) {
   const { theme } = useTheme();
   const prevClass = useRef<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Defer theme loading until client-side mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
-    if (typeof document === "undefined") return;
+    if (!mounted || typeof document === "undefined") return;
     const key = (theme as ThemeKey) || DEFAULT_THEME_KEY;
     const info = THEMES[key] || THEMES[DEFAULT_THEME_KEY];
     const linkId = "prime-theme-link";
@@ -76,7 +82,7 @@ function ThemeLoader({ children }: { children: React.ReactNode }) {
     return () => {
       if (link) link.onload = null;
     };
-  }, [theme]);
+  }, [theme, mounted]);
 
   return <>{children}</>;
 }

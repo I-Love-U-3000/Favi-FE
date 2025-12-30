@@ -136,6 +136,7 @@ export default function ShareToChatDialog({
       onHide={onClose}
       modal
       style={{ width: '500px', maxWidth: '95vw' }}
+      className="rounded-xl"
       footer={
         <div className="flex justify-end gap-2">
           <Button
@@ -151,12 +152,13 @@ export default function ShareToChatDialog({
         {/* Share to Profile Section */}
         {user && (
           <div>
+            <style>{`.share-chat-btn:hover { background-color: var(--bg) !important; }`}</style>
             <button
               type="button"
               onClick={handleShareToProfile}
               disabled={sharingToProfile || sharing !== null}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50"
-              style={{ borderColor: "var(--border)" }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition share-chat-btn disabled:opacity-50"
+              style={{ borderColor: "var(--border)", color: "var(--text)" }}
             >
               <i className="pi pi-user text-2xl" style={{ color: "var(--primary)" }} />
               <div className="flex-1">
@@ -233,11 +235,13 @@ export default function ShareToChatDialog({
               </div>
             ) : (
               <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+                <style>{`.share-chat-btn:hover { background-color: var(--bg) !important; }`}</style>
                 {filteredConversations.map((conv) => (
                   <button
                     key={conv.id}
                     type="button"
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left transition hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left transition share-chat-btn disabled:opacity-50"
+                    style={{ color: 'var(--text)' }}
                     onClick={() => handleShare(conv.id)}
                     disabled={sharing === conv.id || sharingToProfile}
                   >
