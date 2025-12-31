@@ -46,6 +46,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posts, setPosts] = useState<PostResponse[]>([]);
+  const [nsfwConfirmedGridPosts, setNsfwConfirmedGridPosts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -129,7 +130,30 @@ export default function HomePage() {
                 {gridPosts.map((p) => (
                   <Link key={p.id} href={`/posts/${p.id}`} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.medias![0].thumbnailUrl || p.medias![0].url} alt={p.caption ?? ""} className="h-44 w-full object-cover transition-transform group-hover:scale-105" />
+                    <img
+                      src={p.medias![0].thumbnailUrl || p.medias![0].url}
+                      alt={p.caption ?? ""}
+                      className={`h-44 w-full object-cover transition-transform group-hover:scale-105 ${p.isNSFW && !nsfwConfirmedGridPosts.has(p.id) ? 'blur-2xl scale-110' : ''}`}
+                    />
+
+                    {/* NSFW overlay */}
+                    {p.isNSFW && !nsfwConfirmedGridPosts.has(p.id) && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setNsfwConfirmedGridPosts(prev => new Set(prev).add(p.id));
+                          }}
+                          className="px-3 py-1.5 bg-black/70 hover:bg-black/80 text-white text-xs rounded-lg backdrop-blur-sm transition-colors"
+                        >
+                          <i className="pi pi-eye mr-1" />
+                          Show NSFW
+                        </button>
+                      </div>
+                    )}
+
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         type="button"
@@ -176,6 +200,8 @@ function PostListItem({ post }: { post: PostResponse }) {
 
   const medias = post.medias || [];
   const [mediaIdx, setMediaIdx] = useState(0);
+  const [showNSFW, setShowNSFW] = useState(false);
+  const isNSFW = post.isNSFW === true;
   useEffect(() => {
     if (mediaIdx >= medias.length) setMediaIdx(0);
   }, [medias.length]);
@@ -428,12 +454,29 @@ function PostListItem({ post }: { post: PostResponse }) {
                 <img
                   src={medias[mediaIdx]?.url}
                   alt={post.caption ?? ""}
-                  className="w-full h-[260px] sm:h-[320px] md:h-[380px] object-cover cursor-zoom-in"
+                  className={`w-full h-[260px] sm:h-[320px] md:h-[380px] object-cover cursor-zoom-in ${isNSFW && !showNSFW ? 'blur-3xl scale-110' : ''}`}
                   onClick={() => {
+                    if (isNSFW && !showNSFW) return;
                     setImageViewerOpen(true);
                     setZoomScale(1);
                   }}
                 />
+
+                {/* NSFW overlay */}
+                {isNSFW && !showNSFW && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowNSFW(true);
+                      }}
+                      className="px-4 py-2 bg-black/70 hover:bg-black/80 text-white text-sm rounded-lg backdrop-blur-sm transition-colors"
+                    >
+                      <i className="pi pi-eye mr-2" />
+                      Show NSFW content
+                    </button>
+                  </div>
+                )}
 
                 {/* media controls */}
                 {medias.length > 1 && (
@@ -724,7 +767,7 @@ function PostListItem({ post }: { post: PostResponse }) {
             <img
               src={medias[mediaIdx]?.url}
               alt={post.caption ?? ""}
-              className="mx-auto"
+              className={`mx-auto ${isNSFW && !showNSFW ? 'blur-3xl' : ''}`}
               style={{
                 maxHeight: "85vh",
                 maxWidth: "90vw",
@@ -733,8 +776,31 @@ function PostListItem({ post }: { post: PostResponse }) {
                 transition: "transform 140ms ease",
                 cursor: zoomScale > 1 ? "zoom-out" : "zoom-in",
               }}
-              onClick={() => setZoomScale((z) => (z > 1 ? 1 : 1.7))}
+              onClick={() => {
+                if (isNSFW && !showNSFW) {
+                  setShowNSFW(true);
+                } else {
+                  setZoomScale((z) => (z > 1 ? 1 : 1.7));
+                }
+              }}
             />
+
+            {/* NSFW overlay in viewer */}
+            {isNSFW && !showNSFW && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowNSFW(true);
+                  }}
+                  className="px-6 py-3 bg-black/70 hover:bg-black/80 text-white rounded-lg backdrop-blur-sm transition-colors flex items-center gap-2"
+                >
+                  <i className="pi pi-eye" />
+                  Show NSFW content
+                </button>
+              </div>
+            )}
+
             <div className="absolute bottom-3 left-3 text-white text-xs glass-chip px-2 py-1 rounded-full">
               {mediaIdx + 1}/{medias.length}
             </div>

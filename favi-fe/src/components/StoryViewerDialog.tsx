@@ -30,6 +30,12 @@ export default function StoryViewerDialog({
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(false);
   const [viewersDialogVisible, setViewersDialogVisible] = useState(false);
+  const [nsfwConfirmedStories, setNsfwConfirmedStories] = useState<Set<string>>(new Set());
+
+  const isNSFWConfirmed = (storyId: string) => nsfwConfirmedStories.has(storyId);
+  const confirmNSFW = (storyId: string) => {
+    setNsfwConfirmedStories(prev => new Set(prev).add(storyId));
+  };
 
   // Lock body scroll and prevent key events when dialog is open
   useEffect(() => {
@@ -52,7 +58,11 @@ export default function StoryViewerDialog({
 
   // Load stories when dialog opens
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      // Reset NSFW confirmations when dialog closes
+      setNsfwConfirmedStories(new Set());
+      return;
+    }
 
     const loadStories = async () => {
       setLoading(true);
@@ -240,7 +250,7 @@ export default function StoryViewerDialog({
             currentStory.mediaUrl.endsWith(".webm") ? (
               <video
                 src={currentStory.mediaUrl}
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover ${currentStory.isNSFW && !isNSFWConfirmed(currentStory.id) ? 'blur-3xl' : ''}`}
                 style={{ maxHeight: "100vh" }}
                 autoPlay
                 playsInline
@@ -251,9 +261,25 @@ export default function StoryViewerDialog({
               <img
                 src={currentStory.thumbnailUrl || currentStory.mediaUrl}
                 alt="Story"
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover ${currentStory.isNSFW && !isNSFWConfirmed(currentStory.id) ? 'blur-3xl' : ''}`}
                 style={{ maxHeight: "100vh" }}
               />
+            )}
+
+            {/* NSFW overlay */}
+            {currentStory.isNSFW && !isNSFWConfirmed(currentStory.id) && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    confirmNSFW(currentStory.id);
+                  }}
+                  className="px-6 py-3 bg-black/70 hover:bg-black/80 text-white rounded-lg backdrop-blur-sm transition-colors flex items-center gap-2"
+                >
+                  <i className="pi pi-eye" />
+                  Show NSFW content
+                </button>
+              </div>
             )}
 
             {/* Tap zones */}

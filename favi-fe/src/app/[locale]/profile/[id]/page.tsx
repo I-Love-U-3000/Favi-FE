@@ -256,7 +256,7 @@ function PhotoGrid({ items }: { items: PhotoPost[] }) {
   );
 }
 
-function CollectionsGrid({ items }: { items: CollectionResponse[] }) {
+function CollectionsGrid({ items, onCountClick }: { items: CollectionResponse[]; onCountClick: (collectionId: string) => void }) {
   const FALLBACK_COVER = "https://via.placeholder.com/400x200/6366f1/ffffff?text=Collection";
 
   const handleReactionChange = (collectionId: string, newReactions: any, setter: (items: CollectionResponse[]) => void) => {
@@ -282,7 +282,7 @@ function CollectionsGrid({ items }: { items: CollectionResponse[] }) {
                     collectionId={c.id}
                     reactions={c.reactions}
                     onReactionChange={(newReactions) => handleReactionChange(c.id, newReactions, () => {})}
-                    onCountClick={() => { setSelectedCollectionId(c.id); setReactorsDialogOpen(true); }}
+                    onCountClick={() => onCountClick(c.id)}
                     size="small"
                     showCount={false}
                   />
@@ -958,7 +958,7 @@ export default function ProfilePage() {
             </TabPanel>
 
             <TabPanel header={`Collections (${collections.length})`}>
-              <CollectionsGrid items={collections} />
+              <CollectionsGrid items={collections} onCountClick={(id) => { setSelectedCollectionId(id); setReactorsDialogOpen(true); }} />
             </TabPanel>
 
             <TabPanel header="Links">

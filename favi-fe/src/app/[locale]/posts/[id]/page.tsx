@@ -107,6 +107,8 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
 
   const medias = post.medias || [];
   const [idx, setIdx] = useState(0);
+  const [showNSFW, setShowNSFW] = useState(false);
+  const isNSFW = post.isNSFW === true;
   useEffect(() => {
     if (idx >= medias.length) setIdx(0);
   }, [medias.length]);
@@ -239,7 +241,33 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
             {medias[0]?.url && (
               <div className="relative rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={medias[idx]?.url} alt={post.caption ?? ""} className="w-full h-[60vh] max-h-[640px] object-cover cursor-zoom-in" onClick={() => { setViewerOpen(true); setZoom(1); }} />
+                <img
+                  src={medias[idx]?.url}
+                  alt={post.caption ?? ""}
+                  className={`w-full h-[60vh] max-h-[640px] object-cover cursor-zoom-in ${isNSFW && !showNSFW ? 'blur-3xl scale-110' : ''}`}
+                  onClick={() => {
+                    if (isNSFW && !showNSFW) return;
+                    setViewerOpen(true);
+                    setZoom(1);
+                  }}
+                />
+
+                {/* NSFW overlay */}
+                {isNSFW && !showNSFW && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowNSFW(true);
+                      }}
+                      className="px-4 py-2 bg-black/70 hover:bg-black/80 text-white text-sm rounded-lg backdrop-blur-sm transition-colors"
+                    >
+                      <i className="pi pi-eye mr-2" />
+                      Show NSFW content
+                    </button>
+                  </div>
+                )}
+
                 {medias.length > 1 && (
                   <>
                     <button
@@ -415,10 +443,33 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
             <img
               src={medias[idx]?.url}
               alt={post.caption ?? ''}
-              className="mx-auto"
+              className={`mx-auto ${isNSFW && !showNSFW ? 'blur-3xl' : ''}`}
               style={{ maxHeight: '85vh', maxWidth: '90vw', objectFit: 'contain', transform: `scale(${zoom})`, transition: 'transform 140ms ease', cursor: zoom > 1 ? 'zoom-out' : 'zoom-in' }}
-              onClick={() => setZoom(z => (z > 1 ? 1 : 1.7))}
+              onClick={() => {
+                if (isNSFW && !showNSFW) {
+                  setShowNSFW(true);
+                } else {
+                  setZoom(z => (z > 1 ? 1 : 1.7));
+                }
+              }}
             />
+
+            {/* NSFW overlay in viewer */}
+            {isNSFW && !showNSFW && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowNSFW(true);
+                  }}
+                  className="px-6 py-3 bg-black/70 hover:bg-black/80 text-white rounded-lg backdrop-blur-sm transition-colors flex items-center gap-2"
+                >
+                  <i className="pi pi-eye" />
+                  Show NSFW content
+                </button>
+              </div>
+            )}
+
             <div className="absolute bottom-3 left-3 text-white text-xs bg-black/40 px-2 py-1 rounded-full">{idx + 1}/{medias.length}</div>
           </div>
         </div>

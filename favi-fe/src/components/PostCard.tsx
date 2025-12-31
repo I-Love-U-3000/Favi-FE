@@ -2,6 +2,7 @@
 
 import { useRouter } from "@/i18n/routing";
 import type { PostResponse } from "@/types";
+import { useState } from "react";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -24,6 +25,8 @@ export default function PostCard({ post }: { post: PostResponse }) {
   const privacy: PrivacyKind = normalizePrivacy(
     (post as any).privacyLevel ?? (post as any).privacy
   );
+  const [showNSFW, setShowNSFW] = useState(false);
+  const isNSFW = post.isNSFW === true;
 
   return (
     <div
@@ -38,13 +41,28 @@ export default function PostCard({ post }: { post: PostResponse }) {
           <img
             src={medias[0].url}
             alt={post.caption ?? ""}
-            className="w-full h-48 object-cover"
+            className={`w-full h-48 object-cover ${isNSFW && !showNSFW ? 'blur-2xl scale-110' : ''}`}
             loading="lazy"
           />
           {medias.length > 1 && (
             <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
               <i className="pi pi-clone mr-1" />
               {medias.length}
+            </div>
+          )}
+          {/* NSFW overlay */}
+          {isNSFW && !showNSFW && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowNSFW(true);
+                }}
+                className="px-4 py-2 bg-black/70 hover:bg-black/80 text-white text-sm rounded-lg backdrop-blur-sm transition-colors"
+              >
+                <i className="pi pi-eye mr-2" />
+                Show NSFW content
+              </button>
             </div>
           )}
         </div>

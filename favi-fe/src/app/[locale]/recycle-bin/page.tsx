@@ -17,6 +17,7 @@ export default function RecycleBinPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [restoring, setRestoring] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -61,6 +62,27 @@ export default function RecycleBinPage() {
       alert(e?.error || e?.message || t("RestoreFailed"));
     } finally {
       setRestoring(prev => {
+        const next = new Set(prev);
+        next.delete(postId);
+        return next;
+      });
+    }
+  };
+
+  const handlePermanentDelete = async (postId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent navigation
+    if (!confirm("Are you sure you want to permanently delete this post? This action cannot be undone.")) return;
+
+    try {
+      setDeleting(prev => new Set(prev).add(postId));
+      await postAPI.permanentDelete(postId);
+      // Remove the deleted post from the list
+      setPosts(posts.filter(p => p.id !== postId));
+      alert("Post has been permanently deleted.");
+    } catch (e: any) {
+      alert(e?.error || e?.message || "Failed to delete post permanently.");
+    } finally {
+      setDeleting(prev => {
         const next = new Set(prev);
         next.delete(postId);
         return next;
@@ -118,8 +140,8 @@ export default function RecycleBinPage() {
                 className="relative rounded-xl overflow-hidden ring-1 ring-black/5 group"
                 style={{ backgroundColor: 'var(--bg-secondary)' }}
               >
-                {/* Restore button overlay */}
-                <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Buttons overlay */}
+                <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                   <button
                     onClick={(e) => handleRestore(post.id, e)}
                     disabled={restoring.has(post.id)}
@@ -137,6 +159,26 @@ export default function RecycleBinPage() {
                       <>
                         <i className="pi pi-undo" />
                         {t("RestoreAction")}
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={(e) => handlePermanentDelete(post.id, e)}
+                    disabled={deleting.has(post.id)}
+                    className="px-3 py-2 rounded-lg text-sm font-medium shadow-lg disabled:opacity-50 flex items-center gap-2"
+                    style={{
+                      backgroundColor: '#ef4444',
+                      color: 'white'
+                    }}
+                  >
+                    {deleting.has(post.id) ? (
+                      <>
+                        <i className="pi pi-spin pi-spinner" />
+                      </>
+                    ) : (
+                      <>
+                        <i className="pi pi-trash" />
+                        Delete Forever
                       </>
                     )}
                   </button>

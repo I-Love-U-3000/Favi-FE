@@ -209,6 +209,7 @@ export type PostResponse = {
   reactions: ReactionSummaryDto;
   commentsCount: number;
   location?: LocationDto | null;
+  isNSFW?: boolean;
 };
 
 export type PagedResult<T> = {
@@ -433,6 +434,7 @@ export type StoryResponse = {
   expiresAt: string;
   privacy: PrivacyLevel;
   isArchived: boolean;
+  isNSFW?: boolean;
   viewCount: number;
   hasViewed: boolean;
 };

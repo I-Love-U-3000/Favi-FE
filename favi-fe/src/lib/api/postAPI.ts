@@ -141,6 +141,9 @@ export const postAPI = {
   restore: (id: string) =>
     fetchWrapper.post<any>(`/posts/${id}/restore`, undefined, true),
 
+  permanentDelete: (id: string) =>
+    fetchWrapper.del<any>(`/posts/${id}/permanent`, undefined, true),
+
   getRecycleBin: async (page = 1, pageSize = 20) =>
     camelize<PagedResult<PostResponse>>(
       await fetchWrapper.get<any>(`/posts/recycle-bin?page=${page}&pageSize=${pageSize}`, true)

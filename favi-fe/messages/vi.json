@@ -66,7 +66,8 @@
     "ShareMenuChatTodo": "Tính năng chia sẻ lên chat sẽ sớm có mặt.",
     "ShareMenuProfileTodo": "Tính năng chia sẻ lên trang cá nhân sẽ sớm có mặt.",
     "CopyLinkSuccess": "Đã sao chép liên kết",
-    "ReactIconAlt": "biểu tượng cảm xúc"
+    "ReactIconAlt": "biểu tượng cảm xúc",
+    "ViewReactors": "Xem cảm xúc"
   },
 
   "Reactions": {
@@ -75,7 +76,9 @@
     "Haha": "Haha",
     "Wow": "Wow",
     "Sad": "Buồn",
-    "Angry": "Phẫn nộ"
+    "Angry": "Phẫn nộ",
+    "NoReactionsYet": "Chưa có cảm xúc nào",
+    "Reactions": "Cảm xúc"
   },
 
   "Common": {
