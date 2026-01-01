@@ -31,6 +31,8 @@ export default function StoryViewerDialog({
   const [loading, setLoading] = useState(false);
   const [viewersDialogVisible, setViewersDialogVisible] = useState(false);
   const [nsfwConfirmedStories, setNsfwConfirmedStories] = useState<Set<string>>(new Set());
+  const [archiving, setArchiving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const isNSFWConfirmed = (storyId: string) => nsfwConfirmedStories.has(storyId);
   const confirmNSFW = (storyId: string) => {
@@ -167,6 +169,66 @@ export default function StoryViewerDialog({
     }
   };
 
+  const handleArchive = async () => {
+    if (!currentStory) return;
+    try {
+      setArchiving(true);
+      await storyAPI.archive(currentStory.id);
+      // Remove the archived story from the current feed
+      setStoryFeeds(prev => prev.map((feed, idx) => {
+        if (idx === currentFeedIndex) {
+          return {
+            ...feed,
+            stories: feed.stories.filter(s => s.id !== currentStory.id)
+          };
+        }
+        return feed;
+      }));
+      // Move to next story or close if no more stories
+      if (currentFeed.stories.length > 1) {
+        nextStory();
+      } else {
+        onHide();
+      }
+    } catch (e: any) {
+      console.error("Failed to archive story:", e);
+      alert(e?.error || e?.message || "Failed to archive story");
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!currentStory) return;
+    if (!confirm("Are you sure you want to delete this story? This action cannot be undone.")) return;
+
+    try {
+      setDeleting(true);
+      await storyAPI.delete(currentStory.id);
+      // Remove the deleted story from the current feed
+      setStoryFeeds(prev => prev.map((feed, idx) => {
+        if (idx === currentFeedIndex) {
+          return {
+            ...feed,
+            stories: feed.stories.filter(s => s.id !== currentStory.id)
+          };
+        }
+        return feed;
+      }));
+      // Move to next story or close if no more stories
+      if (currentFeed.stories.length > 1) {
+        nextStory();
+      } else {
+        onHide();
+      }
+    } catch (e: any) {
+      console.error("Failed to delete story:", e);
+      alert(e?.error || e?.message || "Failed to delete story");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const currentFeed = storyFeeds[currentFeedIndex];
   const currentStory = currentFeed?.stories[currentStoryIndex];
 
@@ -233,13 +295,54 @@ export default function StoryViewerDialog({
               </div>
             </div>
           </button>
-          <button
-            onClick={onHide}
-            className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-full"
-            aria-label="Close"
-          >
-            <i className="pi pi-times text-lg" />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Action buttons for story owner */}
+            {user?.id === currentStory.profileId && (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <button
+                  onClick={handleArchive}
+                  disabled={archiving}
+                  className="px-3 py-1.5 bg-blue-500/80 hover:bg-blue-500 text-white text-xs rounded-full flex items-center gap-1 transition-colors disabled:opacity-50"
+                  title="Archive story"
+                >
+                  {archiving ? (
+                    <>
+                      <i className="pi pi-spin pi-spinner" />
+                    </>
+                  ) : (
+                    <>
+                      <i className="pi pi-box" />
+                      Archive
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="px-3 py-1.5 bg-red-500/80 hover:bg-red-500 text-white text-xs rounded-full flex items-center gap-1 transition-colors disabled:opacity-50"
+                  title="Delete story"
+                >
+                  {deleting ? (
+                    <>
+                      <i className="pi pi-spin pi-spinner" />
+                    </>
+                  ) : (
+                    <>
+                      <i className="pi pi-trash" />
+                      Delete
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+            <button
+              onClick={onHide}
+              className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-full"
+              aria-label="Close"
+            >
+              <i className="pi pi-times text-lg" />
+            </button>
+          </div>
         </div>
 
         {/* Story media - Full screen */}

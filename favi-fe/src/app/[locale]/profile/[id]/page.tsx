@@ -12,9 +12,10 @@ import { Link } from "@/i18n/routing";
 import { mockUserProfile } from "@/lib/mockTest/mockUserProfile";
 import { mockPost } from "@/lib/mockTest/mockPost";
 import { mockCollection } from "@/lib/mockTest/mockCollection";
-import type { UserProfile, PhotoPost, Collection, CollectionResponse, PostResponse, SocialLink, SocialKind, ProfileResponse, ReportTarget } from "@/types";
+import type { UserProfile, PhotoPost, Collection, CollectionResponse, PostResponse, SocialLink, SocialKind, ProfileResponse, ReportTarget, StoryResponse } from "@/types";
 import profileAPI from "@/lib/api/profileAPI";
 import postAPI from "@/lib/api/postAPI";
+import storyAPI from "@/lib/api/storyAPI";
 import chatAPI from "@/lib/api/chatAPI";
 import collectionAPI from "@/lib/api/collectionAPI";
 import { normalizeProfile, writeCachedProfile } from "@/lib/profileCache";
@@ -434,6 +435,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<PhotoPost[]>([]);
   const [collections, setCollections] = useState<CollectionResponse[]>([]);
+  const [stories, setStories] = useState<StoryResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -511,6 +513,15 @@ export default function ProfilePage() {
           coverImageUrl: c.coverImageUrl?.trim() || FALLBACK_COLLECTION_COVER,
         }));
         if (!cancelled) setCollections(mappedCollections as any);
+
+        // Fetch user's active stories
+        try {
+          const profileStories = await storyAPI.getByProfile(id);
+          if (!cancelled) setStories(profileStories);
+        } catch {
+          // Stories are optional, don't fail if loading fails
+          if (!cancelled) setStories([]);
+        }
       } catch (e: any) {
         if (!cancelled) setError(e?.error || e?.message || 'Failed to load profile');
       } finally {
@@ -955,6 +966,46 @@ export default function ProfilePage() {
           <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
             <TabPanel header={`Posts (${posts.length})`}>
               <PhotoGrid items={posts} />
+            </TabPanel>
+
+            <TabPanel header={`Stories (${stories.length})`}>
+              {stories.length === 0 ? (
+                <div className="text-center py-12 text-sm opacity-70">
+                  <i className="pi pi-inbox text-4xl mb-2" />
+                  <p>No stories yet</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {stories.map((story) => (
+                    <div
+                      key={story.id}
+                      className="relative aspect-[9/16] rounded-xl overflow-hidden ring-1 ring-black/5 group cursor-pointer"
+                      style={{ backgroundColor: 'var(--bg-secondary)' }}
+                    >
+                      {/* Story media */}
+                      {story.mediaUrl.endsWith('.mp4') || story.mediaUrl.endsWith('.mov') || story.mediaUrl.endsWith('.webm') ? (
+                        <video
+                          src={story.mediaUrl}
+                          className="w-full h-full object-cover"
+                          muted
+                        />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={story.thumbnailUrl || story.mediaUrl}
+                          alt="Story"
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+
+                      {/* Time overlay */}
+                      <div className="absolute bottom-2 left-2 right-2 text-white text-xs">
+                        {new Date(story.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </TabPanel>
 
             <TabPanel header={`Collections (${collections.length})`}>
