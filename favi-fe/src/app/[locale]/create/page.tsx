@@ -13,9 +13,6 @@ export default function CreatePage() {
         {!open && <Button label="Open composer" onClick={() => setOpen(true)} />}
       </div>
       <InstagramPostDialog visible={open} onHide={() => setOpen(false)} />
-      {!open && (
-        <p className="text-sm opacity-70 mt-6">Click "Open composer" to start uploading photos.</p>
-      )}
     </div>
   );
 }

@@ -52,17 +52,32 @@ function persistAuth(res: SupabaseAuthResponse) {
   const access = res.access_token;
   const refresh = res.refresh_token;
 
-  if (access) localStorage.setItem("access_token", access);
-  if (refresh) localStorage.setItem("refresh_token", refresh);
+  console.log('=== AUTH RESPONSE FROM BACKEND ===');
+  console.log('Full response:', res);
+  console.log('Access token (first 50 chars):', access?.substring(0, 50) + '...');
+  console.log('Response user object:', res.user);
+
+  if (typeof window !== "undefined") {
+    if (access) localStorage.setItem("access_token", access);
+    if (refresh) localStorage.setItem("refresh_token", refresh);
+  }
 
   // user_info dùng cho UI nhanh
   const decoded = decodeJWT(access);
+  console.log('Decoded JWT payload:', decoded);
+
   const user_info = {
     id: decoded?.sub ?? res.user?.id,
     email: decoded?.email ?? res.user?.email,
     role: decoded?.role ?? res.user?.role,
   };
-  localStorage.setItem("user_info", JSON.stringify(user_info));
+
+  console.log('Final user_info being stored:', user_info);
+  console.log('====================================');
+
+  if (typeof window !== "undefined") {
+    localStorage.setItem("user_info", JSON.stringify(user_info));
+  }
 }
 
 export const authAPI = {
@@ -82,9 +97,11 @@ export const authAPI = {
 
   // Nếu bạn dùng /auth/refresh ở BE: body là chuỗi token
   refresh: async () => {
+    if (typeof window === "undefined") throw new Error("Cannot refresh on server");
     const rt = localStorage.getItem("refresh_token");
     if (!rt) throw new Error("No refresh token");
 
+    console.log('=== REFRESH TOKEN REQUEST ===');
     const url = `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`;
     const res = await fetch(url, {
       method: "POST",
@@ -93,19 +110,25 @@ export const authAPI = {
     });
     if (!res.ok) throw new Error("Refresh token expired");
     const data = (await res.json()) as SupabaseAuthResponse;
+    console.log('Refresh response:', data);
     persistAuth(data);
     return data;
   },
 
   logout: () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("user_info");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user_info");
+    }
   },
 
   // Register new account -> returns SupabaseAuthResponse like login
   register: async (payload: { username: string; email: string; password: string }) => {
+    console.log('=== REGISTER REQUEST ===');
+    console.log('Payload:', { ...payload, password: '***' });
     const res = await fetchWrapper.post<SupabaseAuthResponse>("/auth/register", payload, false);
+    console.log('Register response:', res);
     // In case backend returns tokens on successful registration, persist them
     if (res && (res as any).access_token) {
       persistAuth(res);
@@ -114,14 +137,19 @@ export const authAPI = {
   },
 
   isAuthenticated: (): boolean => {
+    if (typeof window === "undefined") return false;
     const token = localStorage.getItem("access_token");
     const decoded = decodeJWT(token);
     return !!token && !isExpired(decoded);
   },
 
-  getToken: () => localStorage.getItem("access_token"),
+  getToken: () => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("access_token");
+  },
 
   getUserInfo: <T = { id?: string; email?: string; role?: any }>() => {
+    if (typeof window === "undefined") return null as unknown as T | null;
     const raw = localStorage.getItem("user_info");
     if (!raw) return null as unknown as T | null;
     try {
@@ -129,6 +157,67 @@ export const authAPI = {
     } catch {
       return null as unknown as T | null;
     }
+  },
+
+  // Check if current user is admin
+  // Backend enum: User=0, Moderator=1, Admin=2
+
+  // Debug helper to check current auth state
+  debugAuthState: () => {
+    if (typeof window === "undefined") {
+      return { token: null, userInfo: null, decoded: null };
+    }
+    const token = localStorage.getItem("access_token");
+    const userInfo = authAPI.getUserInfo();
+    const decoded = decodeJWT(token);
+
+    console.log('=== CURRENT AUTH STATE ===');
+    console.log('Access token exists:', !!token);
+    console.log('Access token (first 50 chars):', token?.substring(0, 50) + '...');
+    console.log('Decoded JWT:', decoded);
+    console.log('User info from localStorage:', userInfo);
+    console.log('Is admin?', authAPI.isAdmin());
+    console.log('==========================');
+    return { token, userInfo, decoded };
+  },
+
+  isAdmin: (): boolean => {
+    const userInfo = authAPI.getUserInfo<{ id?: string; email?: string; role?: any }>();
+
+    // Debug: log what we have
+    console.log('[isAdmin] User info from localStorage:', userInfo);
+
+    // ⚠️ TEMPORARY FIX: Hardcode admin email
+    // TODO: Remove this once backend sends correct role
+    if (userInfo?.email === 'nnguyenminhquang786@gmail.com') {
+      console.log('[isAdmin] Temporary fix: User is admin by email');
+      return true;
+    }
+
+    if (!userInfo?.role) {
+      console.log('[isAdmin] No role found in user info');
+      return false;
+    }
+
+    // Role can be a number (enum), string, or array
+    const roles = Array.isArray(userInfo.role) ? userInfo.role : [userInfo.role];
+    const isAdminOrMod = roles.some((r: any) => {
+      // Handle numeric enum values: 0=User, 1=Moderator, 2=Admin
+      if (typeof r === 'number') {
+        return r === 2 || r === 1; // Admin or Moderator
+      }
+      // Handle string values
+      if (typeof r === 'string') {
+        const roleLower = r.toLowerCase();
+        return roleLower === 'admin' ||
+               roleLower === 'administrator' ||
+               roleLower === 'moderator';
+      }
+      return false;
+    });
+
+    console.log('[isAdmin] Result:', isAdminOrMod, 'Role:', userInfo.role);
+    return isAdminOrMod;
   },
 };
 

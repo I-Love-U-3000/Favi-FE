@@ -5,6 +5,11 @@ import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { ConfirmPopup, confirmPopup } from "primereact/confirmpopup";
 import { Tooltip } from "primereact/tooltip";
 import InstagramPostDialog from "@/components/PostDialog";
+import CollectionDialog from "@/components/CollectionDialog";
+import AddToCollectionDialog from "@/components/AddToCollectionDialog";
+import NotificationDialog from "@/components/NotificationDialog";
+import StoryDialog from "@/components/StoryDialog";
+import { CollectionResponse } from "@/types";
 
 type OverlayContextType = {
   toastRef: React.RefObject<Toast | null>;
@@ -13,6 +18,14 @@ type OverlayContextType = {
   confirmPopup: typeof confirmPopup;
   openPostComposer: () => void;
   closePostComposer: () => void;
+  openCollectionComposer: (collection?: CollectionResponse | null) => void;
+  closeCollectionComposer: () => void;
+  openStoryComposer: () => void;
+  closeStoryComposer: () => void;
+  openAddToCollectionDialog: (postId: string) => void;
+  closeAddToCollectionDialog: () => void;
+  openNotificationDialog: () => void;
+  closeNotificationDialog: () => void;
 };
 
 const OverlayContext = createContext<OverlayContextType | null>(null);
@@ -20,6 +33,12 @@ const OverlayContext = createContext<OverlayContextType | null>(null);
 export const RootProvider = ({ children }: { children: React.ReactNode }) => {
   const toastRef = useRef<Toast | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [collectionComposerOpen, setCollectionComposerOpen] = useState(false);
+  const [storyComposerOpen, setStoryComposerOpen] = useState(false);
+  const [addToCollectionDialogOpen, setAddToCollectionDialogOpen] = useState(false);
+  const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
+  const [editingCollection, setEditingCollection] = useState<CollectionResponse | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   const showToast: OverlayContextType["showToast"] = (options) => {
     toastRef.current?.show(options);
@@ -27,6 +46,32 @@ export const RootProvider = ({ children }: { children: React.ReactNode }) => {
 
   const openPostComposer = useCallback(() => setComposerOpen(true), []);
   const closePostComposer = useCallback(() => setComposerOpen(false), []);
+
+  const openCollectionComposer = useCallback((collection?: CollectionResponse | null) => {
+    setEditingCollection(collection || null);
+    setCollectionComposerOpen(true);
+  }, []);
+
+  const closeCollectionComposer = useCallback(() => {
+    setEditingCollection(null);
+    setCollectionComposerOpen(false);
+  }, []);
+
+  const openStoryComposer = useCallback(() => setStoryComposerOpen(true), []);
+  const closeStoryComposer = useCallback(() => setStoryComposerOpen(false), []);
+
+  const openAddToCollectionDialog = useCallback((postId: string) => {
+    setSelectedPostId(postId);
+    setAddToCollectionDialogOpen(true);
+  }, []);
+
+  const closeAddToCollectionDialog = useCallback(() => {
+    setSelectedPostId(null);
+    setAddToCollectionDialogOpen(false);
+  }, []);
+
+  const openNotificationDialog = useCallback(() => setNotificationDialogOpen(true), []);
+  const closeNotificationDialog = useCallback(() => setNotificationDialogOpen(false), []);
 
   return (
     <OverlayContext.Provider
@@ -37,6 +82,14 @@ export const RootProvider = ({ children }: { children: React.ReactNode }) => {
         confirmPopup: confirmPopup,
         openPostComposer,
         closePostComposer,
+        openCollectionComposer,
+        closeCollectionComposer,
+        openStoryComposer,
+        closeStoryComposer,
+        openAddToCollectionDialog,
+        closeAddToCollectionDialog,
+        openNotificationDialog,
+        closeNotificationDialog,
       }}
     >
       {/* Global overlays */}
@@ -49,6 +102,28 @@ export const RootProvider = ({ children }: { children: React.ReactNode }) => {
 
       {/* Global Post Composer as share-sheet style */}
       <InstagramPostDialog visible={composerOpen} onHide={closePostComposer} />
+
+      {/* Global Collection Composer */}
+      <CollectionDialog
+        visible={collectionComposerOpen}
+        onHide={closeCollectionComposer}
+        collection={editingCollection}
+      />
+
+      {/* Global Story Composer */}
+      <StoryDialog visible={storyComposerOpen} onHide={closeStoryComposer} />
+
+      {/* Global Add to Collection Dialog */}
+      {selectedPostId && (
+        <AddToCollectionDialog
+          visible={addToCollectionDialogOpen}
+          onHide={closeAddToCollectionDialog}
+          postId={selectedPostId}
+        />
+      )}
+
+      {/* Global Notification Dialog */}
+      <NotificationDialog visible={notificationDialogOpen} onHide={closeNotificationDialog} />
     </OverlayContext.Provider>
   );
 };

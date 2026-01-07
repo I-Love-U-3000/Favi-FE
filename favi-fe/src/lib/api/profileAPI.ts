@@ -1,5 +1,5 @@
 import { fetchWrapper } from "@/lib/fetchWrapper";
-import type { PostMediaResponse } from "@/types";
+import type { PostMediaResponse, ProfileResponse, SocialKind, FollowResponse } from "@/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -45,8 +45,8 @@ async function uploadProfileAsset(path: string, file: File): Promise<PostMediaRe
     const data = await refreshRes.json();
     const newAccess = data?.accessToken ?? data?.access_token;
     const newRefresh = data?.refreshToken ?? data?.refresh_token;
-    if (newAccess) localStorage.setItem("access_token", newAccess);
-    if (newRefresh) localStorage.setItem("refresh_token", newRefresh);
+    if (newAccess && typeof window !== "undefined") localStorage.setItem("access_token", newAccess);
+    if (newRefresh && typeof window !== "undefined") localStorage.setItem("refresh_token", newRefresh);
     res = await doUpload(newAccess);
   }
 
@@ -55,7 +55,7 @@ async function uploadProfileAsset(path: string, file: File): Promise<PostMediaRe
     try {
       const err = await res.json();
       message = err?.message || err?.error || message;
-    } catch {}
+    } catch { }
     throw new Error(message);
   }
 
@@ -63,7 +63,14 @@ async function uploadProfileAsset(path: string, file: File): Promise<PostMediaRe
 }
 
 export const profileAPI = {
-  getById: (id: string) => fetchWrapper.get<any>(`/profiles/${id}`, false),
+  getById: (id: string) => fetchWrapper.get<ProfileResponse>(`/profiles/${id}`, true),
+  getRecommendations: (skip?: number, take?: number) => {
+    const q: string[] = [];
+    if (typeof skip === "number") q.push(`skip=${skip}`);
+    if (typeof take === "number") q.push(`take=${take}`);
+    const qs = q.length ? `?${q.join("&")}` : "";
+    return fetchWrapper.get<ProfileResponse[]>(`/profiles/recommendations${qs}`, true);
+  },
   getAvatar: (id: string) => fetchWrapper.get<string>(`/profiles/avatar/${id}`, false),
   getPoster: (id: string) => fetchWrapper.get<string>(`/profiles/poster/${id}`, false),
   uploadAvatar: (file: File) => uploadProfileAsset("/profiles/avatar", file),
@@ -77,7 +84,7 @@ export const profileAPI = {
       const { normalizeProfile, writeCachedProfile } = await import("@/lib/profileCache");
       const norm = normalizeProfile(res);
       if (norm?.id) writeCachedProfile(norm.id, norm);
-    } catch {}
+    } catch { }
     return res;
   },
 
@@ -85,27 +92,30 @@ export const profileAPI = {
 
   unfollow: (targetId: string) => fetchWrapper.del<any>(`/profiles/follow/${targetId}`, undefined, true),
 
-  followers: (id: string, skip?: number, take?: number) => {
+  followers: async (id: string, skip?: number, take?: number) => {
     const q: string[] = [];
     if (skip !== undefined) q.push(`skip=${skip}`);
     if (take !== undefined) q.push(`take=${take}`);
     const qs = q.length ? `?${q.join("&")}` : "";
-    return fetchWrapper.get<any>(`/profiles/${id}/followers${qs}`, false);
+    const res = await fetchWrapper.get<any>(`/profiles/${id}/followers${qs}`, true);
+    // Backend returns PascalCase so normalize to camelCase for UI consumption
+    return camelize<FollowResponse[] | { items: FollowResponse[] }>(res);
   },
 
-  followings: (id: string, skip?: number, take?: number) => {
+  followings: async (id: string, skip?: number, take?: number) => {
     const q: string[] = [];
     if (skip !== undefined) q.push(`skip=${skip}`);
     if (take !== undefined) q.push(`take=${take}`);
     const qs = q.length ? `?${q.join("&")}` : "";
-    return fetchWrapper.get<any>(`/profiles/${id}/followings${qs}`, false);
+    const res = await fetchWrapper.get<any>(`/profiles/${id}/followings${qs}`, true);
+    return camelize<FollowResponse[] | { items: FollowResponse[] }>(res);
   },
 
   getLinksPublic: (id: string) => fetchWrapper.get<any>(`/profiles/${id}/links`, false),
 
   getMyLinks: () => fetchWrapper.get<any>("/profiles/me/links", true),
 
-  addLink: (dto: { type: string; url: string; label?: string }) =>
+  addLink: (dto: { socialKind: SocialKind | "Website" | string; url: string; label?: string }) =>
     fetchWrapper.post<any>("/profiles/links", dto, true),
 
   removeLink: (linkId: string) =>

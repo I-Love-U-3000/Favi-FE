@@ -88,10 +88,12 @@ export default function AuthCallbackPage() {
         }
         let redirectTo = "/";
         try {
-          const saved = localStorage.getItem("redirectTo");
-          if (saved) {
-            redirectTo = saved;
-            localStorage.removeItem("redirectTo");
+          if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("redirectTo");
+            if (saved) {
+              redirectTo = saved;
+              localStorage.removeItem("redirectTo");
+            }
           }
         } catch {
           /* ignore */

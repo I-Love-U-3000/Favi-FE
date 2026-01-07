@@ -33,33 +33,34 @@ interface ChatListProps {
 export default function ChatList({ userId, onClose, onSelect, conversations }: ChatListProps) {
   // Derive lastMessage from the latest message in messages
   const getLastMessage = (conv: Conversation) => {
-    return conv.messages.length > 0
-      ? conv.messages[conv.messages.length - 1].text
-      : "No messages yet";
+    if (conv.messages.length === 0) {
+      return "No messages yet";
+    }
+    const lastMsg = conv.messages[conv.messages.length - 1];
+    return lastMsg.text || (lastMsg.imageUrl ? "[Image]" : "[Media]");
   };
 
   const itemTemplate = (option: Conversation) => {
-    const [, toId] = option.key.split("-");
     return (
       <div
-        className="flex items-center gap-2 p-2 hover:bg-gray-600 rounded transition-colors cursor-pointer"
-        onClick={() => onSelect(toId)}
+        className="flex items-center gap-2 p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors cursor-pointer"
+        onClick={() => onSelect(option.key)}
         suppressHydrationWarning
+        style={{ color: "var(--text)" }}
       >
         <Avatar className="h-8 w-8">
           <img src={option.recipient.avatar} alt={option.recipient.username} className="rounded-full" />
         </Avatar>
-        <div>
-          <div className="font-semibold">{option.recipient.username}</div>
-          <div className="text-xs text-gray-400">{getLastMessage(option)}</div>
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold truncate">{option.recipient.username}</div>
+          <div className="text-xs truncate" style={{ color: "var(--text-secondary)" }}>{getLastMessage(option)}</div>
         </div>
       </div>
     );
   };
 
   const onConversationSelect = (e: { value: Conversation }) => {
-    const [, toId] = e.value.key.split("-");
-    onSelect(toId);
+    onSelect(e.value.key);
     onClose();
   };
 
@@ -71,7 +72,13 @@ export default function ChatList({ userId, onClose, onSelect, conversations }: C
       itemTemplate={itemTemplate}
       optionLabel="key"
       className="w-full"
-      style={{ maxHeight: "calc(100vh - 100px)", overflowY: "auto" }}
+      style={{
+        maxHeight: "calc(100vh - 100px)",
+        overflowY: "auto",
+        backgroundColor: "var(--bg-secondary)",
+        color: "var(--text)",
+        border: "none"
+      }}
     />
   );
 }

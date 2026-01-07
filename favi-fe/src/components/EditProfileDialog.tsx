@@ -4,9 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
-import { Chips } from "primereact/chips";
 import { Button } from "primereact/button";
 import AvatarCircle from "./AvatarCircle";
+
+export type EditableSocialLink = {
+  id?: string;
+  url: string;
+};
 
 export type EditableProfile = {
   id: string;
@@ -17,7 +21,7 @@ export type EditableProfile = {
   location?: string;
   avatarUrl?: string | null;
   coverUrl?: string | null;
-  interests?: string[];
+  socialLinks?: EditableSocialLink[];
 };
 
 export default function EditProfileDialog({
@@ -103,6 +107,7 @@ export default function EditProfileDialog({
       visible={open}
       onHide={onClose}
       style={{ width: 720, maxWidth: '95vw' }}
+      className="rounded-xl"
       footer={
         <div className="flex justify-end gap-2">
           <Button label="Cancel" className="p-button-text" onClick={onClose} />
@@ -168,11 +173,53 @@ export default function EditProfileDialog({
             </div>
             <div>
               <div className="text-sm mb-1">Location</div>
-              <InputText value={draft.location ?? ''} onChange={(e) => setDraft({ ...draft, location: e.target.value })} className="w-full" />
+              <InputText value={draft.location ?? ""} onChange={(e) => setDraft({ ...draft, location: e.target.value })} className="w-full" />
             </div>
             <div className="md:col-span-2">
-              <div className="text-sm mb-1">Interests</div>
-              <Chips value={draft.interests ?? []} onChange={(e) => setDraft({ ...draft, interests: e.value ?? [] })} separator="," className="w-full" />
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm">Social links</span>
+                <Button
+                  type="button"
+                  icon="pi pi-plus"
+                  className="p-button-text p-button-sm"
+                  onClick={() =>
+                    setDraft((prev) => ({
+                      ...prev,
+                      socialLinks: [...(prev.socialLinks ?? []), { url: "" }],
+                    }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                {(draft.socialLinks ?? []).map((link, index) => (
+                  <div key={link.id ?? index} className="flex gap-2 items-center">
+                    <InputText
+                      value={link.url}
+                      onChange={(e) => {
+                        const next = [...(draft.socialLinks ?? [])];
+                        next[index] = { ...next[index], url: e.target.value };
+                        setDraft({ ...draft, socialLinks: next });
+                      }}
+                      placeholder="https://example.com/you"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      icon="pi pi-trash"
+                      className="p-button-text p-button-danger"
+                      onClick={() => {
+                        const next = (draft.socialLinks ?? []).filter((_, i) => i !== index);
+                        setDraft({ ...draft, socialLinks: next });
+                      }}
+                    />
+                  </div>
+                ))}
+                {(!draft.socialLinks || draft.socialLinks.length === 0) && (
+                  <div className="text-xs opacity-70">
+                    Paste links to your website or social profiles.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

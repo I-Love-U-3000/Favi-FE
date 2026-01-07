@@ -6,10 +6,22 @@ import { RootProvider } from "@/components/RootProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import { NextIntlClientProvider } from "next-intl";
 import NavGate from "@/components/NavGate";
+import { Inter } from "next/font/google";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Favi",
   description: "Capture the mood.",
+  icons: {
+    icon: "/favi-logo.png",
+    shortcut: "/favi-logo.png",
+    apple: "/favi-logo.png",
+  },
 };
 
 export default function RootLayout({
@@ -18,8 +30,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <body className="font-sans antialiased">
         <NextIntlClientProvider>
           <ThemeProvider>
             <Toast />

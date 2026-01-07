@@ -53,14 +53,18 @@ export function normalizeProfile(input: any): UserProfile | null {
     }
     return undefined;
   };
-  const id = get(input, "id", "profileId", "profile_id");
+  const id = get(input, "id", "Id", "profileId", "profile_id");
   if (!id) return null;
-  const username = get(input, "username");
-  const displayName = get(input, "displayName", "display_name", "name") ?? username ?? "";
-  const avatarUrl = get(input, "avatarUrl", "avatar_url", "avatarURL", "avatar");
-  const coverUrl = get(input, "coverUrl", "cover_url");
-  const bio = get(input, "bio");
-  const stats = get(input, "stats") ?? { posts: 0, followers: 0, following: 0 };
+  const username = get(input, "username", "Username");
+  const displayName = get(input, "displayName", "DisplayName", "display_name", "name") ?? username ?? "";
+  const avatarUrl = get(input, "avatarUrl", "AvatarUrl", "avatar_url", "avatarURL", "avatar");
+  const coverUrl = get(input, "coverUrl", "CoverUrl", "cover_url");
+  const bio = get(input, "bio", "Bio");
+
+  const statsRaw = get(input, "stats", "Stats") ?? {};
+  const postsCount = get(input, "postsCount", "PostsCount", "posts", "Posts") ?? statsRaw?.posts;
+  const followersCount = get(input, "followersCount", "FollowersCount") ?? statsRaw?.followers;
+  const followingCount = get(input, "followingCount", "FollowingCount") ?? statsRaw?.following;
 
   return {
     id,
@@ -72,15 +76,13 @@ export function normalizeProfile(input: any): UserProfile | null {
     website: get(input, "website") ?? null,
     location: get(input, "location") ?? null,
     stats: {
-      posts: Number(stats?.posts ?? 0),
-      followers: Number(stats?.followers ?? 0),
-      following: Number(stats?.following ?? 0),
-      likes: stats?.likes !== undefined ? Number(stats.likes) : undefined,
+      posts: Number(postsCount ?? 0),
+      followers: Number(followersCount ?? 0),
+      following: Number(followingCount ?? 0),
+      likes: statsRaw?.likes !== undefined ? Number(statsRaw.likes) : undefined,
     },
     isMe: get(input, "isMe", "is_me"),
     isFollowing: get(input, "isFollowing", "is_following"),
-    joinedAtISO: get(input, "joinedAtISO", "joined_at", "joinedAt"),
-    interests: get(input, "interests") ?? undefined,
+    joinedAtISO: get(input, "joinedAtISO", "joined_at", "joinedAt", "createdAt", "CreatedAt"),
   } as UserProfile;
 }
-

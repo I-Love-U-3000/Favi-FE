@@ -3,13 +3,13 @@
 import authAPI from "@/lib/api/authAPI";
 import { useState, useRef, useCallback, FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/routing";
 import { Card } from "primereact/card";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Divider } from "primereact/divider";
 import { Toast } from "primereact/toast";
-import LoginBackdrop from "@/components/LoginRegisterBackground";
+import { AuthBackground } from "@/components/AuthBackground";
 import { supabase } from "@/app/supabase-client";
 import { useTranslations } from "next-intl";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
@@ -146,26 +146,21 @@ export default function RegisterPage() {
 
   return (
     <div
-      className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center p-6 transition-colors duration-500"
-      style={{ color: "var(--text)" }}
-    >
-      <LoginBackdrop />
+      className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center p-6">
+      <AuthBackground/>
       <Toast ref={toastRef} />
 
-      <div className="top-4 right-4 z-20 flex items-center gap-3">
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-3">
         <ThemeSwitcher />
         <LanguageSwitcher />
       </div>
 
-      <header className="mb-10 text-center select-none relative z-10">
+      <header className="mb-10 text-center pointer-events-none select-none relative z-10">
         <h1
-          className="text-6xl md:text-7xl font-extrabold tracking-tight leading-none"
-          style={{
-            background: "linear-gradient(to right, var(--primary), var(--accent))",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
+          className="text-6xl md:text-7xl font-extrabold tracking-tight leading-none
+               bg-clip-text text-transparent
+               bg-gradient-to-r from-cyan-400 via-violet-500 to-emerald-400
+               drop-shadow-sm">
           Favi
         </h1>
         <p
@@ -177,16 +172,15 @@ export default function RegisterPage() {
       </header>
 
       <Card
-        className="relative z-10 w-full max-w-[560px] rounded-3xl shadow-lg"
+        className="rounded-login relative z-10 w-full max-w-[420px] shadow-[0_8px_32px_0_rgba(0,0,0,0.25)] backdrop-blur-xl border border-white/20 dark:border-white/10"
         style={{
-          backgroundColor: "var(--bg-secondary)",
-          borderColor: "var(--border)",
+          backgroundColor: "rgba(255, 255, 255, 0.12)",
           color: "var(--text)",
-          borderWidth: "1px",
+          borderRadius: "32px",
         }}
         title={
           <div className="text-center space-y-1">
-            <div className="text-2xl md:text-3xl font-bold tracking-tight">
+            <div className="text-2xl md:text-3xl font-bold tracking-tight" style={{ color: "var(--text)" }}>
               {t("Welcome")}
             </div>
             <div className="text-sm md:text-base" style={{ color: "var(--text-secondary)" }}>
@@ -214,6 +208,9 @@ export default function RegisterPage() {
                 required
               />
             </div>
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+              3-32 ký tự, không chứa khoảng trắng.
+            </p>
           </div>
 
           {/* Email */}
@@ -250,7 +247,7 @@ export default function RegisterPage() {
                 type={showPassword ? "text" : "password"}
                 value={values.password}
                 onChange={(e) => onChange("password", e.target.value)}
-                placeholder="�-?�-?�-?�-?�-?�-?�-?�-?"
+                placeholder="●●●●●●●●"
                 className="w-full !h-12 !text-base"
                 required
               />
@@ -271,7 +268,6 @@ export default function RegisterPage() {
             icon={loading ? "pi pi-spin pi-spinner" : "pi pi-user-plus"}
             className="w-full !h-12 !text-base !font-semibold"
             disabled={loading}
-            style={{ backgroundColor: "var(--primary)", borderColor: "var(--primary)" }}
           />
 
           <div className="text-center text-sm md:text-base">
@@ -294,7 +290,6 @@ export default function RegisterPage() {
             icon={googleLoading ? "pi pi-spin pi-spinner" : "pi pi-google"}
             className="w-full p-button-outlined !h-12 !text-base !font-semibold"
             disabled={googleLoading}
-            style={{ color: "var(--primary)", borderColor: "var(--primary)" }}
           />
         </form>
       </Card>

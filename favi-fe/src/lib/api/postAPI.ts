@@ -6,6 +6,7 @@ import type {
   PostMediaResponse,
   PagedResult,
   ReactionType,
+  PostReactionResponse,
 } from "@/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
@@ -61,8 +62,8 @@ async function uploadFiles(postId: string, files: File[]): Promise<PostMediaResp
     const data = await refreshRes.json();
     const newAccess = data?.accessToken ?? data?.access_token;
     const newRefresh = data?.refreshToken ?? data?.refresh_token;
-    if (newAccess) localStorage.setItem("access_token", newAccess);
-    if (newRefresh) localStorage.setItem("refresh_token", newRefresh);
+    if (newAccess && typeof window !== "undefined") localStorage.setItem("access_token", newAccess);
+    if (newRefresh && typeof window !== "undefined") localStorage.setItem("refresh_token", newRefresh);
 
     // retry upload with new access
     res = await doUpload(newAccess);
@@ -95,6 +96,14 @@ export const postAPI = {
       await fetchWrapper.get<any>(`/Posts/feed?page=${page}&pageSize=${pageSize}`, true)
     ),
 
+  getGuestFeed: async (page = 1, pageSize = 20) =>
+    camelize<PagedResult<PostResponse>>(
+      await fetchWrapper.get<any>(
+        `/Posts/guest-feed?page=${page}&pageSize=${pageSize}`, 
+        false 
+      )
+    ),
+
   getExplore: async (page = 1, pageSize = 20) =>
     camelize<PagedResult<PostResponse>>(
       await fetchWrapper.get<any>(`/Posts/explore?page=${page}&pageSize=${pageSize}`, true)
@@ -111,17 +120,46 @@ export const postAPI = {
     ),
 
   // Mutations
-  create: async (payload: CreatePostRequest) =>
-    camelize<PostResponse>(await fetchWrapper.post<any>("/Posts", payload, true)),
+  create: (formData: FormData) =>
+  fetchWrapper.post<PostResponse>("/posts", formData, true),
   update: (id: string, payload: UpdatePostRequest) =>
-    fetchWrapper.put<any>(`/Posts/${id}`, payload, true),
+    fetchWrapper.put<any>(`/posts/${id}`, payload, true),
   delete: (id: string) =>
-    fetchWrapper.del<any>(`/Posts/${id}`, undefined, true),
+    fetchWrapper.del<any>(`/posts/${id}`, undefined, true),
 
   uploadMedia: (postId: string, files: File[]) => uploadFiles(postId, files),
 
   toggleReaction: (postId: string, type: ReactionType) =>
-    fetchWrapper.post<any>(`/Posts/${postId}/reactions?type=${encodeURIComponent(type)}`, undefined, true),
+    fetchWrapper.post<any>(`/posts/${postId}/reactions?type=${encodeURIComponent(type)}`, undefined, true),
+
+  getReactors: async (postId: string) =>
+    camelize<PostReactionResponse[]>(
+      await fetchWrapper.get<any>(`/posts/${postId}/reactors`, true)
+    ),
+
+  // ---------- Recycle Bin ----------
+  restore: (id: string) =>
+    fetchWrapper.post<any>(`/posts/${id}/restore`, undefined, true),
+
+  permanentDelete: (id: string) =>
+    fetchWrapper.del<any>(`/posts/${id}/permanent`, undefined, true),
+
+  getRecycleBin: async (page = 1, pageSize = 20) =>
+    camelize<PagedResult<PostResponse>>(
+      await fetchWrapper.get<any>(`/posts/recycle-bin?page=${page}&pageSize=${pageSize}`, true)
+    ),
+
+  // ---------- Archive ----------
+  archive: (id: string) =>
+    fetchWrapper.post<any>(`/posts/${id}/archive`, undefined, true),
+
+  unarchive: (id: string) =>
+    fetchWrapper.post<any>(`/posts/${id}/unarchive`, undefined, true),
+
+  getArchived: async (page = 1, pageSize = 20) =>
+    camelize<PagedResult<PostResponse>>(
+      await fetchWrapper.get<any>(`/posts/archived?page=${page}&pageSize=${pageSize}`, true)
+    ),
 };
 
 export default postAPI;

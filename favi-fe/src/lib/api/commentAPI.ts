@@ -1,6 +1,12 @@
 import { fetchWrapper } from "@/lib/fetchWrapper";
-
-type PagedResult<T> = { items: T[]; page: number; pageSize: number; totalCount: number };
+import type {
+  CommentResponse,
+  CommentTreeResponse,
+  CreateCommentRequest,
+  PagedResult,
+  ReactionType,
+  UpdateCommentRequest,
+} from "@/types";
 
 function isPlainObject(val: any) {
   return Object.prototype.toString.call(val) === "[object Object]";
@@ -14,30 +20,24 @@ function camelize<T = any>(input: any): T {
   return out as T;
 }
 
-export type CommentResponse = {
-  id: string;
-  postId: string;
-  authorProfileId?: string;
-  authorUsername?: string;
-  authorDisplayName?: string;
-  authorAvatarUrl?: string;
-  content: string;
-  createdAt: string; // ISO
-  updatedAt?: string;
-  parentCommentId?: string | null;
-};
-
 export const commentAPI = {
   getByPost: async (postId: string, page = 1, pageSize = 20) =>
-    camelize<PagedResult<CommentResponse>>(await fetchWrapper.get<any>(`/Comments/post/${postId}?page=${page}&pageSize=${pageSize}`, false)),
+    camelize<PagedResult<CommentTreeResponse>>(
+      await fetchWrapper.get<any>(`/Comments/post/${postId}?page=${page}&pageSize=${pageSize}`, true)
+    ),
 
-  create: async (payload: { postId: string; content: string; parentCommentId?: string | null }) =>
+  create: async (payload: CreateCommentRequest) =>
     camelize<CommentResponse>(await fetchWrapper.post<any>(`/Comments`, payload, true)),
 
-  update: async (id: string, content: string) =>
-    camelize<CommentResponse>(await fetchWrapper.put<any>(`/Comments/${id}`, { content }, true)),
+  update: async (id: string, payload: UpdateCommentRequest) =>
+    camelize<CommentResponse>(
+      await fetchWrapper.put<any>(`/Comments/${id}`, payload, true)
+    ),
 
   delete: async (id: string) => fetchWrapper.del<any>(`/Comments/${id}`, undefined, true),
+
+  toggleReaction: async (id: string, type: ReactionType) =>
+    camelize(await fetchWrapper.post<any>(`/Comments/${id}/reactions?type=${encodeURIComponent(type)}`, undefined, true)),
 };
 
 export default commentAPI;
