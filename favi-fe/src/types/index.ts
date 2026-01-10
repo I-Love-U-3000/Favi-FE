@@ -143,9 +143,9 @@ export type Collection = {
 };
 
 export enum PrivacyLevel {
-  Public = 0,
-  Followers = 1,
-  Private = 2,
+  Public = "Public",
+  Followers = "Followers",
+  Private = "Private",
 }
 
 export type ReactionType =
