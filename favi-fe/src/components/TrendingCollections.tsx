@@ -142,23 +142,21 @@ export default function TrendingCollections() {
                     <div className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>
                       {collection.title}
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                        {collection.postCount} {collection.postCount === 1 ? "post" : "posts"}
-                      </div>
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <CollectionReactionButton
-                          collectionId={collection.id}
-                          reactions={collection.reactions}
-                          onReactionChange={(newReactions) => handleReactionChange(collection.id, newReactions)}
-                          onCountClick={() => handleCountClick(collection.id)}
-                          size="small"
-                          showCount={true}
-                        />
-                      </div>
+                    <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                      {collection.postCount} {collection.postCount === 1 ? "post" : "posts"}
                     </div>
                   </div>
                 </Link>
+                <div className="mt-2 flex justify-end">
+                  <CollectionReactionButton
+                    collectionId={collection.id}
+                    reactions={collection.reactions}
+                    onReactionChange={(newReactions) => handleReactionChange(collection.id, newReactions)}
+                    onCountClick={() => handleCountClick(collection.id)}
+                    size="small"
+                    showCount={true}
+                  />
+                </div>
               </div>
             ))}
           </div>
