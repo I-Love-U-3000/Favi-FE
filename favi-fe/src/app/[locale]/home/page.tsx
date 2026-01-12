@@ -175,11 +175,13 @@ export default function HomePage() {
             )}
           </section>
 
-          {/* Cột phải (Online Friends + Trending Collections) */}
-          <div className="flex flex-col gap-6">
-            <OnlineFriends />
-            <TrendingCollections />
-          </div>
+          {/* Cột phải (Online Friends + Trending Collections) - Sticky scrollable panel */}
+          <aside className="hidden xl:block xl:h-screen xl:sticky xl:top-0 xl:self-start w-full overflow-y-auto">
+            <div className="flex flex-col gap-6 p-4">
+              <OnlineFriends />
+              <TrendingCollections />
+            </div>
+          </aside>
         </div>
       </main>
     </div>

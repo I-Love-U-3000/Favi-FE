@@ -19,7 +19,7 @@ export default function OnlineFriends() {
 
     try {
       setLoading(true);
-      const response = await profileAPI.getOnlineFriends(15);
+      const response = await profileAPI.getOnlineFriends(3);
       if (!cancelled) {
         setFriends(response || []);
         hasFetchedRef.current = true;
@@ -56,42 +56,40 @@ export default function OnlineFriends() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  // Also refetch periodically (every 2 minutes) to update online status
+  // Also refetch periodically (every 1 minute) to update online status
   useEffect(() => {
     const interval = setInterval(() => {
       fetchOnlineFriends();
-    }, 2 * 60 * 1000); // 2 minutes
+    }, 1 * 60 * 1000); // 1 minute
 
     return () => clearInterval(interval);
   }, []);
 
   if (loading && !hasFetchedRef.current) {
     return (
-      <aside className="hidden xl:block xl:h-[400px] xl:sticky xl:top-0 xl:self-start w-full">
-        <div className="relative rounded-2xl p-4 h-full overflow-y-auto glass">
-          <div
-            className="pointer-events-none absolute inset-0 rounded-2xl"
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06))",
-            }}
-          />
-          <div className="relative text-sm font-semibold pb-3 mb-3 border-b border-white/10 dark:border-white/5" style={{ color: "var(--text)" }}>
-            Online Friends
-          </div>
-          <div className="relative space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="animate-pulse flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/10 dark:bg-white/5 shrink-0" />
-                <div className="flex-1">
-                  <div className="h-3 rounded w-24 bg-white/10 dark:bg-white/5 mb-1" />
-                  <div className="h-2 rounded w-16 bg-white/10 dark:bg-white/5" />
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="relative rounded-2xl p-4 glass">
+        <div
+          className="pointer-events-none absolute inset-0 rounded-2xl"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06))",
+          }}
+        />
+        <div className="relative text-sm font-semibold pb-3 mb-3 border-b border-white/10 dark:border-white/5" style={{ color: "var(--text)" }}>
+          Online Friends
         </div>
-      </aside>
+        <div className="relative space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="animate-pulse flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/10 dark:bg-white/5 shrink-0" />
+              <div className="flex-1">
+                <div className="h-3 rounded w-24 bg-white/10 dark:bg-white/5 mb-1" />
+                <div className="h-2 rounded w-16 bg-white/10 dark:bg-white/5" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     );
   }
 
@@ -100,46 +98,44 @@ export default function OnlineFriends() {
   }
 
   return (
-    <aside className="hidden xl:block xl:h-[400px] xl:sticky xl:top-0 xl:self-start w-full">
-      <div className="relative rounded-2xl p-4 h-full overflow-y-auto glass">
-        <div
-          className="pointer-events-none absolute inset-0 rounded-2xl"
-          style={{
-            background:
-              "linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06))",
-            }}
-        />
-        <div className="relative flex items-center justify-between py-3 border-b border-white/10 dark:border-white/5">
-          <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-            Online Friends
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-            </span>
-            <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-              {friends.length}
-            </span>
-          </div>
+    <div className="relative rounded-2xl p-4 glass">
+      <div
+        className="pointer-events-none absolute inset-0 rounded-2xl"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06))",
+        }}
+      />
+      <div className="relative flex items-center justify-between py-3 border-b border-white/10 dark:border-white/5">
+        <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+          Online Friends
         </div>
-
-        <div className="relative space-y-2 mt-3">
-          {friends.length === 0 ? (
-            <div className="text-center py-8">
-              <i className="pi pi-user-minus text-3xl mb-3" style={{ color: "var(--text-secondary)" }} />
-              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                No friends online
-              </p>
-            </div>
-          ) : (
-            friends.map((friend) => (
-              <FriendItem key={friend.id} friend={friend} />
-            ))
-          )}
+        <div className="flex items-center gap-1.5">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+          </span>
+          <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+            {friends.length}
+          </span>
         </div>
       </div>
-    </aside>
+
+      <div className="relative space-y-2 mt-3">
+        {friends.length === 0 ? (
+          <div className="text-center py-8">
+            <i className="pi pi-user-minus text-3xl mb-3" style={{ color: "var(--text-secondary)" }} />
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              No friends online
+            </p>
+          </div>
+        ) : (
+          friends.map((friend) => (
+            <FriendItem key={friend.id} friend={friend} />
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 

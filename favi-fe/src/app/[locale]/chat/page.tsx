@@ -77,43 +77,45 @@ export default function ChatPage() {
   );
 
   // ------------- 1. Load danh sách conversations từ backend -------------
-  useEffect(() => {
+  const fetchConversations = useCallback(async (preserveSelection: boolean = false) => {
     if (!currentUserId) return;
 
-    const fetchConversations = async () => {
-      try {
-        const data = (await chatAPI.getConversations(
-          1,
-          50
-        )) as ConversationSummaryResponse[];
+    try {
+      const data = (await chatAPI.getConversations(
+        1,
+        50
+      )) as ConversationSummaryResponse[];
 
-        const mapped: ChatConversation[] = data.map((c) => {
-          const other =
-            c.members.find((m) => m.profileId !== currentUserId) ?? c.members[0];
+      const mapped: ChatConversation[] = data.map((c) => {
+        const other =
+          c.members.find((m) => m.profileId !== currentUserId) ?? c.members[0];
 
-          const lastActive = other?.lastActiveAt
-            ? new Date(other.lastActiveAt)
-            : null;
+        const lastActive = other?.lastActiveAt
+          ? new Date(other.lastActiveAt)
+          : null;
 
-          const isOnline =
-            !!lastActive &&
-            Date.now() - lastActive.getTime() < 5 * 60 * 1000; // 5 phút
+        // Use 3 minutes threshold for faster online status updates
+        const isOnline =
+          !!lastActive &&
+          Date.now() - lastActive.getTime() < 3 * 60 * 1000;
 
-          return {
-            id: c.id,
-            key: c.id,
-            recipient: {
-              username: other?.username ?? "unknown",
-              avatar: other?.avatarUrl ?? "/avatar-default.svg",
-              isOnline,
-              lastActiveAt: other?.lastActiveAt,
-            },
-            messages: [],
-          };
-        });
+        return {
+          id: c.id,
+          key: c.id,
+          recipient: {
+            username: other?.username ?? "unknown",
+            avatar: other?.avatarUrl ?? "/avatar-default.svg",
+            isOnline,
+            lastActiveAt: other?.lastActiveAt,
+          },
+          messages: [],
+        };
+      });
 
-        setConversations(mapped);
+      setConversations(mapped);
 
+      // Only set initial selection if not preserving
+      if (!preserveSelection) {
         // Ưu tiên mở conversationId từ URL nếu có
         const initialConv =
           (initialConversationId &&
@@ -123,13 +125,25 @@ export default function ChatPage() {
         if (initialConv) {
           setSelectedConversationId(initialConv.id);
         }
-      } catch (e) {
-        console.error("Error fetching conversations", e);
       }
-    };
-
-    fetchConversations();
+    } catch (e) {
+      console.error("Error fetching conversations", e);
+    }
   }, [currentUserId, initialConversationId]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchConversations(false);
+  }, [fetchConversations]);
+
+  // Periodically refresh conversations to update online status (preserve selection)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchConversations(true);
+    }, 1 * 60 * 1000); // Refresh every 1 minute
+
+    return () => clearInterval(interval);
+  }, [fetchConversations]);
 
   // ------------- 2. Hàm load messages cho 1 conversation -------------
   const loadMessages = useCallback(

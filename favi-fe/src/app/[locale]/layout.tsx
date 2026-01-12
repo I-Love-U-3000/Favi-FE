@@ -6,6 +6,7 @@ import { RootProvider } from "@/components/RootProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import { NextIntlClientProvider } from "next-intl";
 import NavGate from "@/components/NavGate";
+import { HeartbeatProvider } from "@/components/HeartbeatProvider";
 import { Inter } from "next/font/google";
 
 const inter = Inter({
@@ -36,6 +37,7 @@ export default function RootLayout({
           <ThemeProvider>
             <Toast />
             <AuthProvider>
+              <HeartbeatProvider />
               <RootProvider>
                 <div className="min-h-screen flex">
                 <NavGate />

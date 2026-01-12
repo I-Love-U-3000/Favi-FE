@@ -141,6 +141,8 @@ export const profileAPI = {
     const qs = q.length ? `?${q.join("&")}` : "";
     return fetchWrapper.get<ProfileResponse[]>(`/profiles/online-friends${qs}`, true);
   },
+
+  heartbeat: () => fetchWrapper.post<{ message: string; lastActiveAt: string }>("/profiles/heartbeat", undefined, true),
 };
 
 export default profileAPI;
