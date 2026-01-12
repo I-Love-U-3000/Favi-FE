@@ -25,6 +25,7 @@ interface ChatMessage {
   timestamp: string;
   imageUrl?: string;
   stickerUrl?: string;
+  readBy?: string[]; // Array of profile IDs who have read this message
 }
 
 interface ChatRecipient {
@@ -32,6 +33,7 @@ interface ChatRecipient {
   avatar: string;
   isOnline: boolean;
   lastActiveAt?: string;
+  profileId?: string; // Profile ID of the recipient (for read receipts)
 }
 
 interface ChatConversation {
@@ -39,6 +41,7 @@ interface ChatConversation {
   key: string; // key cho UI (ở đây = id luôn)
   recipient: ChatRecipient;
   messages: ChatMessage[];
+  unreadCount?: number; // Unread message count
 }
 
 // --------- UI TYPES cho ChatList / MessageList ---------
@@ -51,12 +54,14 @@ interface UiMessage {
   imageUrl?: string;
   stickerUrl?: string;
   isOwn: boolean;
+  readBy?: string[]; // Array of profile IDs who have read this message
 }
 
 interface UiConversation {
   key: string;
   recipient: ChatRecipient;
   messages: UiMessage[];
+  unreadCount?: number; // Unread message count
 }
 
 export default function ChatPage() {
@@ -70,6 +75,7 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [lastReadMessageId, setLastReadMessageId] = useState<string | null>(null);
 
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.id === selectedConversationId) ?? null,
@@ -107,8 +113,10 @@ export default function ChatPage() {
             avatar: other?.avatarUrl ?? "/avatar-default.svg",
             isOnline,
             lastActiveAt: other?.lastActiveAt,
+            profileId: other?.profileId,
           },
           messages: [],
+          unreadCount: c.unreadCount,
         };
       });
 
@@ -167,21 +175,41 @@ export default function ChatPage() {
             minute: "2-digit",
           }),
           imageUrl: m.mediaUrl ?? undefined,
+          readBy: m.readBy ?? [],
         }));
 
         setMessages(mappedMsgs);
 
-        // sync lại vào conversations để ChatList có preview
+        // Mark ALL unread messages as read (not just the last one)
+        // Find messages not from current user that haven't been read yet
+        const unreadMessages = mappedMsgs.filter(
+          (msg) => msg.senderId !== currentUserId && !msg.readBy?.includes(currentUserId)
+        );
+
+        if (unreadMessages.length > 0) {
+          // Mark the oldest unread message as read
+          // The backend should automatically mark all earlier messages as read too
+          const oldestUnreadMessage = unreadMessages[0];
+          try {
+            await chatAPI.markAsRead(conversation.id, oldestUnreadMessage.backendId);
+          } catch (e) {
+            console.error("Error marking messages as read", e);
+          }
+        }
+
+        // sync lại vào conversations để ChatList có preview, và reset unreadCount khi load messages
         setConversations((prev) =>
           prev.map((c) =>
-            c.id === conversation.id ? { ...c, messages: mappedMsgs } : c
+            c.id === conversation.id
+              ? { ...c, messages: mappedMsgs, unreadCount: 0 }
+              : c
           )
         );
       } catch (e) {
         console.error("Error loading messages", e);
       }
     },
-    []
+    [currentUserId]
   );
 
   // Khi `selectedConversationId` thay đổi (do click hoặc do initial select) thì load messages
@@ -235,6 +263,7 @@ export default function ChatPage() {
               minute: "2-digit",
             }),
             imageUrl: m.mediaUrl,
+            readBy: [], // New messages start with no reads
           };
 
           setMessages((prev) => {
@@ -281,6 +310,7 @@ export default function ChatPage() {
             minute: "2-digit",
           }),
           imageUrl: sent.mediaUrl ?? undefined,
+          readBy: sent.readBy ?? [],
         };
 
         setMessages((prev) => [...prev, msg]);
@@ -330,6 +360,7 @@ export default function ChatPage() {
       stickerUrl: m.stickerUrl,
       isOwn: m.senderId === currentUserId,
     })),
+    unreadCount: c.unreadCount,
   }));
 
   const uiMessages: UiMessage[] = messages.map((m, index) => ({
@@ -341,6 +372,7 @@ export default function ChatPage() {
     imageUrl: m.imageUrl,
     stickerUrl: m.stickerUrl,
     isOwn: m.senderId === currentUserId,
+    readBy: m.readBy,
   }));
 
   // ------------- 6. Render UI -------------
@@ -415,7 +447,11 @@ export default function ChatPage() {
                   onBack={() => {}}
                 />
                 <div className="flex-1 overflow-y-auto" style={{ maxHeight: "58vh" }}>
-                  <MessageList messages={uiMessages} currentUser={currentUserId} />
+                  <MessageList
+                    messages={uiMessages}
+                    currentUser={currentUserId}
+                    recipientId={selectedConversation.recipient?.profileId}
+                  />
                 </div>
                 <MessageInput
                   onSend={handleSendMessage}

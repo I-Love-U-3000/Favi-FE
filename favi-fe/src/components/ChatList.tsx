@@ -3,6 +3,7 @@
 
 import { ListBox } from "primereact/listbox";
 import { Avatar } from "primereact/avatar";
+import { Badge } from "primereact/badge";
 
 interface Recipient {
   username: string;
@@ -21,6 +22,7 @@ interface Conversation {
   key: string;
   recipient: Recipient;
   messages: Message[];
+  unreadCount?: number; // Add unread count
 }
 
 interface ChatListProps {
@@ -48,9 +50,19 @@ export default function ChatList({ userId, onClose, onSelect, conversations }: C
         suppressHydrationWarning
         style={{ color: "var(--text)" }}
       >
-        <Avatar className="h-8 w-8">
-          <img src={option.recipient.avatar} alt={option.recipient.username} className="rounded-full" />
-        </Avatar>
+        <div className="relative">
+          <Avatar className="h-8 w-8">
+            <img src={option.recipient.avatar} alt={option.recipient.username} className="rounded-full" />
+          </Avatar>
+          {(option.unreadCount ?? 0) > 0 && (
+            <Badge
+              value={option.unreadCount && option.unreadCount > 9 ? "9+" : option.unreadCount}
+              severity="danger"
+              className="absolute -top-1 -right-1"
+              style={{ minWidth: "18px", height: "18px", fontSize: "10px" }}
+            />
+          )}
+        </div>
         <div className="min-w-0 flex-1">
           <div className="font-semibold truncate">{option.recipient.username}</div>
           <div className="text-xs truncate" style={{ color: "var(--text-secondary)" }}>{getLastMessage(option)}</div>

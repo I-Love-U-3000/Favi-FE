@@ -31,12 +31,6 @@ export default function ChatHeader({ recipient, onBack }: ChatHeaderProps) {
   return (
     <div className="p-4 bg-gray-700 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <Button
-          icon="pi pi-arrow-left"
-          className="p-button-rounded p-button-text text-white"
-          onClick={onBack}
-          aria-label="Back"
-        />
         <Avatar className="h-10 w-10">
           <img
             src={recipient.avatar}

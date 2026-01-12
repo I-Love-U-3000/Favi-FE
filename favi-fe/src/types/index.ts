@@ -277,6 +277,7 @@ export type MessageResponse = {
   createdAt: string;
   updatedAt?: string | null;
   isEdited: boolean;
+  readBy: string[]; // Array of profile IDs who have read this message
 }
 
 export type MessagePageResponse = {
