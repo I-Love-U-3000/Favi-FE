@@ -77,7 +77,7 @@ export default function TrendingCollections() {
 
   if (loading && !hasFetchedRef.current) {
     return (
-      <aside className="hidden xl:block xl:h-screen xl:sticky xl:top-0 xl:self-start">
+      <aside className="hidden xl:block xl:h-screen xl:sticky xl:top-[424px] xl:self-start w-full">
         <div className="relative rounded-2xl p-4 xl:h-full xl:overflow-y-auto glass">
           {/* Soft highlight layer to make the glass feel deeper */}
           <div
@@ -109,7 +109,7 @@ export default function TrendingCollections() {
 
   return (
     <>
-      <aside className="hidden xl:block xl:h-screen xl:sticky xl:top-0 xl:self-start">
+      <aside className="hidden xl:block xl:h-screen xl:sticky xl:top-[424px] xl:self-start w-full">
         <div className="relative rounded-2xl p-4 xl:h-full xl:overflow-y-auto glass">
           {/* Soft highlight layer to make the glass feel deeper */}
           <div

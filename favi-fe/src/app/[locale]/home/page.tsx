@@ -18,6 +18,7 @@ import PostMenuDialog from "@/components/PostMenuDialog";
 import ReportDialog from "@/components/ReportDialog";
 import StoryFeedStrip from "@/components/StoryFeedStrip";
 import PostReactorsDialog from "@/components/PostReactorsDialog";
+import OnlineFriends from "@/components/OnlineFriends";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -174,8 +175,11 @@ export default function HomePage() {
             )}
           </section>
 
-          {/* Cột phải (Trending Collections) */}
-          <TrendingCollections />
+          {/* Cột phải (Online Friends + Trending Collections) */}
+          <div className="flex flex-col gap-6">
+            <OnlineFriends />
+            <TrendingCollections />
+          </div>
         </div>
       </main>
     </div>

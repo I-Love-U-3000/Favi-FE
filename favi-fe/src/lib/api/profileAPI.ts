@@ -134,6 +134,13 @@ export const profileAPI = {
     );
     return { valid, message: data?.message } as { valid: boolean; message?: string };
   },
+
+  getOnlineFriends: (withinLastMinutes?: number) => {
+    const q: string[] = [];
+    if (typeof withinLastMinutes === "number") q.push(`withinLastMinutes=${withinLastMinutes}`);
+    const qs = q.length ? `?${q.join("&")}` : "";
+    return fetchWrapper.get<ProfileResponse[]>(`/profiles/online-friends${qs}`, true);
+  },
 };
 
 export default profileAPI;
