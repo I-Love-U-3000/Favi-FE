@@ -1,8 +1,8 @@
 
 "use client";
 
-import { ListBox } from "primereact/listbox";
 import { Avatar } from "primereact/avatar";
+import { Badge } from "primereact/badge";
 
 interface Recipient {
   username: string;
@@ -15,12 +15,16 @@ interface Message {
   sender: string;
   text: string;
   timestamp: string;
+  imageUrl?: string;
 }
 
 interface Conversation {
   key: string;
   recipient: Recipient;
   messages: Message[];
+  unreadCount?: number;
+  lastMessagePreview?: string | null; // Last message preview from backend
+  lastMessageAt?: string | null; // Last message timestamp from backend
 }
 
 interface ChatListProps {
@@ -31,8 +35,13 @@ interface ChatListProps {
 }
 
 export default function ChatList({ userId, onClose, onSelect, conversations }: ChatListProps) {
-  // Derive lastMessage from the latest message in messages
   const getLastMessage = (conv: Conversation) => {
+    // Use backend's lastMessagePreview if available (for conversations not yet loaded)
+    if (conv.lastMessagePreview) {
+      return conv.lastMessagePreview;
+    }
+
+    // Fall back to messages array for currently selected conversation
     if (conv.messages.length === 0) {
       return "No messages yet";
     }
@@ -43,42 +52,87 @@ export default function ChatList({ userId, onClose, onSelect, conversations }: C
   const itemTemplate = (option: Conversation) => {
     return (
       <div
-        className="flex items-center gap-2 p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors cursor-pointer"
+        className="flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer group hover:scale-[1.02]"
         onClick={() => onSelect(option.key)}
         suppressHydrationWarning
-        style={{ color: "var(--text)" }}
+        style={{
+          color: "var(--text)",
+          backgroundColor: "transparent",
+          border: "1px solid transparent",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = "var(--bg-primary)";
+          e.currentTarget.style.borderColor = "var(--border)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = "transparent";
+          e.currentTarget.style.borderColor = "transparent";
+        }}
       >
-        <Avatar className="h-8 w-8">
-          <img src={option.recipient.avatar} alt={option.recipient.username} className="rounded-full" />
-        </Avatar>
+        <div className="relative flex-shrink-0">
+          <div
+            className="rounded-full overflow-hidden"
+            style={{
+              width: "42px",
+              height: "42px",
+              border: "2px solid var(--border)",
+              transition: "all 0.2s ease",
+            }}
+          >
+            <img
+              src={option.recipient.avatar}
+              alt={option.recipient.username}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          {option.recipient.isOnline && (
+            <div
+              className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2"
+              style={{
+                backgroundColor: "#10b981",
+                borderColor: "var(--bg-secondary)",
+              }}
+            />
+          )}
+        </div>
+
         <div className="min-w-0 flex-1">
-          <div className="font-semibold truncate">{option.recipient.username}</div>
-          <div className="text-xs truncate" style={{ color: "var(--text-secondary)" }}>{getLastMessage(option)}</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="font-semibold text-base truncate">
+              {option.recipient.username}
+            </div>
+            {(option.unreadCount ?? 0) > 0 && (
+              <Badge
+                value={option.unreadCount && option.unreadCount > 9 ? "9+" : option.unreadCount}
+                severity="danger"
+                style={{
+                  minWidth: "22px",
+                  height: "22px",
+                  fontSize: "11px",
+                  fontWeight: "600",
+                  flexShrink: 0,
+                }}
+              />
+            )}
+          </div>
+          <div
+            className="text-sm truncate mt-0.5"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            {getLastMessage(option)}
+          </div>
         </div>
       </div>
     );
   };
 
-  const onConversationSelect = (e: { value: Conversation }) => {
-    onSelect(e.value.key);
-    onClose();
-  };
-
   return (
-    <ListBox
-      value={null}
-      options={conversations}
-      onChange={onConversationSelect}
-      itemTemplate={itemTemplate}
-      optionLabel="key"
-      className="w-full"
-      style={{
-        maxHeight: "calc(100vh - 100px)",
-        overflowY: "auto",
-        backgroundColor: "var(--bg-secondary)",
-        color: "var(--text)",
-        border: "none"
-      }}
-    />
+    <div className="space-y-2">
+      {conversations.map((conv) => (
+        <div key={conv.key}>
+          {itemTemplate(conv)}
+        </div>
+      ))}
+    </div>
   );
 }

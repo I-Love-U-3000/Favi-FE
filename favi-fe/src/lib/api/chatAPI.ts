@@ -42,6 +42,16 @@ export const chatAPI = {
       lastMessageId,
       true
     ),
+
+  uploadImage: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return fetchWrapper.post<{ url: string; publicId: string; width: number; height: number; format: string }>(
+      "/chat/upload-image",
+      formData,
+      true
+    );
+  },
 };
 
 export default chatAPI;

@@ -106,7 +106,7 @@ export default function CollectionDialog({
       if (collection) {
         setTitle(collection.title || "");
         setDescription(collection.description || "");
-        setPrivacyLevel(collection.privacyLevel || PrivacyLevel.Public);
+        setPrivacyLevel(collection.privacyLevel ?? PrivacyLevel.Public);
         setCoverImageUrl(collection.coverImageUrl || DEFAULT_COVER_IMAGE);
         setCoverImageFile(null);
       } else {

@@ -108,22 +108,23 @@ export default function CollectionReactionButton({
       if (prev !== type) nextByType[type] = (nextByType[type] || 0) + 1;
       const nextUserReaction = prev === type ? null : type;
 
-      // Optimistic update
+      // Optimistic update to local state
       setByType(nextByType);
       setUserReaction(nextUserReaction);
 
+      // Notify parent component IMMEDIATELY (before API call)
+      onReactionChange?.({
+        byType: nextByType,
+        total: Object.values(nextByType).reduce((a, b) => a + b, 0),
+        currentUserReaction: nextUserReaction,
+      });
+
+      // Make API call
       await collectionAPI.toggleReaction(collectionId, type);
 
       // Persist latest reaction snapshot for cross-view consistency
       writeCollectionReaction(collectionId, {
         byType: nextByType,
-        currentUserReaction: nextUserReaction,
-      });
-
-      // Notify parent component
-      onReactionChange?.({
-        byType: nextByType,
-        total: Object.values(nextByType).reduce((a, b) => a + b, 0),
         currentUserReaction: nextUserReaction,
       });
     } catch (e) {
