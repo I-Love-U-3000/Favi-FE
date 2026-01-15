@@ -223,6 +223,7 @@ export type CreateCommentRequest = {
   postId: string;
   authorProfileId?: string | null;
   content: string;
+  mediaUrl?: string | null;
   parentCommentId?: string | null;
 };
 
@@ -238,6 +239,7 @@ export type CommentResponse = {
   authorDisplayName?: string | null;
   authorAvatarUrl?: string | null;
   content: string;
+  mediaUrl?: string | null;
   createdAt: string; // ISO
   updatedAt?: string | null; // ISO
   parentCommentId?: string | null;

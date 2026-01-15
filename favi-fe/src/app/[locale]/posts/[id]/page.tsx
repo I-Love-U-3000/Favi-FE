@@ -554,6 +554,9 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
   const [items, setItems] = useState<CommentResponse[]>([]);
   const [newComment, setNewComment] = useState("");
   const [posting, setPosting] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<{ file: File; previewUrl: string } | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [expandedRoots, setExpandedRoots] = useState<Record<string, boolean>>({});
@@ -643,12 +646,43 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
 
   const submit = async () => {
     const content = newComment.trim();
-    if (!content || !requireAuth()) return;
+    if ((!content && !selectedImage) || !requireAuth()) return;
     try {
       setPosting(true);
-      const created = await commentAPI.create({ postId, content });
+      let mediaUrl: string | undefined = undefined;
+
+      if (selectedImage) {
+        setIsUploading(true);
+        try {
+          const formData = new FormData();
+          formData.append("file", selectedImage.file);
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/comments/upload-image`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            },
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: 'Upload failed' }));
+            throw new Error(errorData.message || 'Failed to upload image');
+          }
+
+          const data = await response.json();
+          mediaUrl = data.url || data.Url;
+        } finally {
+          setIsUploading(false);
+        }
+      }
+
+      const created = await commentAPI.create({ postId, content: content || "", mediaUrl });
       setItems(prev => [created, ...prev]);
       setNewComment("");
+      setSelectedImage(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     } catch (e: any) {
       alert(e?.error || e?.message || "Failed to comment");
     } finally { setPosting(false); }
@@ -666,6 +700,45 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
     } catch (e: any) {
       alert(e?.error || e?.message || "Failed to reply");
     } finally { setPosting(false); }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isImageMimeType = file.type.startsWith('image/');
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
+    const hasImageExtension = imageExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+
+    if (!isImageMimeType && !hasImageExtension) {
+      alert('Please select an image file');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      alert('File size must be less than 10MB');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setSelectedImage({ file, previewUrl });
+  };
+
+  const removeImage = () => {
+    if (selectedImage?.previewUrl) {
+      URL.revokeObjectURL(selectedImage.previewUrl);
+    }
+    setSelectedImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleUpdateComment = useCallback(async (commentId: string, content: string) => {
@@ -798,8 +871,59 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
         </div>
       </div>
 
+      {/* Image Preview */}
+      {selectedImage && (
+        <div className="px-3 pt-3">
+          <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: "var(--bg)", border: "1px solid var(--border)" }}>
+            <img
+              src={selectedImage.previewUrl}
+              alt="Preview"
+              className="h-16 w-16 object-cover rounded-lg"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm truncate" style={{ color: "var(--text)" }}>
+                {selectedImage.file.name}
+              </p>
+              <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                {(selectedImage.file.size / 1024 / 1024).toFixed(2)} MB
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={removeImage}
+              disabled={isUploading}
+              className="p-1 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ border: "1px solid var(--border)", color: "var(--text)" }}
+            >
+              <span style={{ fontSize: "1rem" }}>✕</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="p-3" style={{ borderTop: "1px solid var(--border)" }}>
         <div className="flex items-center gap-2">
+          <label
+            className={`p-2 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Add image"
+            style={{
+              border: "1px solid var(--border)",
+              color: "var(--text)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <span style={{ fontSize: "1rem" }}>📷</span>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={isUploading}
+              onChange={handleImageSelect}
+            />
+          </label>
           <input
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
@@ -812,11 +936,11 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
           />
           <button
             className="px-3 py-2 rounded-lg text-sm"
-            style={{ backgroundColor: "var(--primary)", color: "white", opacity: newComment.trim() && !posting ? 1 : 0.6 }}
+            style={{ backgroundColor: "var(--primary)", color: "white", opacity: (newComment.trim() || selectedImage) && !posting && !isUploading ? 1 : 0.6 }}
             onClick={submit}
-            disabled={!newComment.trim() || posting}
+            disabled={(!newComment.trim() && !selectedImage) || posting || isUploading}
           >
-            Send
+            {posting || isUploading ? "..." : "Send"}
           </button>
         </div>
       </div>
@@ -1074,7 +1198,20 @@ function CommentRow({
           </div>
         ) : (
           <div className="text-sm" style={{ color: "var(--text)" }}>
-            {c.content}
+            {c.content && <div>{c.content}</div>}
+            {c.mediaUrl && (
+              <img
+                src={c.mediaUrl}
+                alt="Comment image"
+                className="mt-2 max-h-60 rounded-lg object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => {
+                  if (c.mediaUrl) {
+                    // For now, just open in new tab - could be enhanced with ImageViewer later
+                    window.open(c.mediaUrl, '_blank');
+                  }
+                }}
+              />
+            )}
           </div>
         )}
 
