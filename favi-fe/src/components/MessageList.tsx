@@ -17,9 +17,10 @@ interface MessageListProps {
   messages: Message[];
   currentUser: string;
   recipientId?: string; // Recipient's profile ID (for DM read receipts)
+  onImageClick?: (imageUrl: string) => void;
 }
 
-export default function MessageList({ messages, currentUser, recipientId }: MessageListProps) {
+export default function MessageList({ messages, currentUser, recipientId, onImageClick }: MessageListProps) {
   return (
     <div
       style={{
@@ -46,6 +47,7 @@ export default function MessageList({ messages, currentUser, recipientId }: Mess
               isSent={message.senderId === currentUser}
               recipientId={recipientId}
               currentUserId={currentUser}
+              onImageClick={onImageClick}
             />
           ))
         )}

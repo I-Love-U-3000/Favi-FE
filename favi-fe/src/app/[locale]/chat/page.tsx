@@ -5,6 +5,7 @@ import ChatHeader from "@/components/ChatHeader";
 import ChatList from "@/components/ChatList";
 import MessageInput from "@/components/MessageInput";
 import MessageList from "@/components/MessageList";
+import ImageViewer from "@/components/ImageViewer";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/app/supabase-client";
 import chatAPI from "@/lib/api/chatAPI";
@@ -81,6 +82,8 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [lastReadMessageId, setLastReadMessageId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [viewingImageUrl, setViewingImageUrl] = useState<string>("");
 
   // Track which conversations have been loaded (to preserve their unreadCount)
   const loadedConversationsRef = useRef<Set<string>>(new Set());
@@ -344,14 +347,15 @@ export default function ChatPage() {
 
   // ------------- 4. Gửi message -------------
   const handleSendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, mediaUrl?: string) => {
       if (!selectedConversationId) return;
       const trimmed = text.trim();
-      if (!trimmed) return;
+      if (!trimmed && !mediaUrl) return;
 
       try {
         const sent = (await chatAPI.sendMessage(selectedConversationId, {
-          content: trimmed,
+          content: trimmed || undefined,
+          mediaUrl: mediaUrl || undefined,
         })) as MessageResponse;
 
         const msg: ChatMessage = {
@@ -532,6 +536,10 @@ export default function ChatPage() {
                     messages={uiMessages}
                     currentUser={currentUserId}
                     recipientId={selectedConversation.recipient?.profileId}
+                    onImageClick={(imageUrl) => {
+                      setViewingImageUrl(imageUrl);
+                      setImageViewerOpen(true);
+                    }}
                   />
                 </div>
                 <MessageInput
@@ -551,6 +559,14 @@ export default function ChatPage() {
           </section>
         </div>
       </div>
+
+      {/* Image Viewer */}
+      {imageViewerOpen && (
+        <ImageViewer
+          imageUrl={viewingImageUrl}
+          onClose={() => setImageViewerOpen(false)}
+        />
+      )}
     </div>
   );
 }

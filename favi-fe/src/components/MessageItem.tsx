@@ -13,9 +13,10 @@ interface MessageItemProps {
   isSent: boolean;
   recipientId?: string;
   currentUserId?: string;
+  onImageClick?: (imageUrl: string) => void;
 }
 
-export default function MessageItem({ message, isSent, recipientId, currentUserId }: MessageItemProps) {
+export default function MessageItem({ message, isSent, recipientId, currentUserId, onImageClick }: MessageItemProps) {
   const isRead = isSent && message.readBy && message.readBy.length > 0 && recipientId && message.readBy.includes(recipientId);
 
   return (
@@ -38,7 +39,8 @@ export default function MessageItem({ message, isSent, recipientId, currentUserI
           <img
             src={message.imageUrl}
             alt="attachment"
-            className="mt-2 max-h-80 rounded-xl object-contain"
+            className="mt-2 max-h-80 rounded-xl object-contain cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => onImageClick?.(message.imageUrl!)}
           />
         )}
         {message.stickerUrl && (
