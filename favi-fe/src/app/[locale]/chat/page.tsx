@@ -6,6 +6,7 @@ import ChatList from "@/components/ChatList";
 import MessageInput from "@/components/MessageInput";
 import MessageList from "@/components/MessageList";
 import ImageViewer from "@/components/ImageViewer";
+import MediaGallery from "@/components/MediaGallery";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/app/supabase-client";
 import chatAPI from "@/lib/api/chatAPI";
@@ -84,6 +85,7 @@ export default function ChatPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [viewingImageUrl, setViewingImageUrl] = useState<string>("");
+  const [mediaGalleryOpen, setMediaGalleryOpen] = useState(false);
 
   // Track which conversations have been loaded (to preserve their unreadCount)
   const loadedConversationsRef = useRef<Set<string>>(new Set());
@@ -435,6 +437,15 @@ export default function ChatPage() {
     readBy: m.readBy,
   }));
 
+  // Extract all image URLs from the conversation messages
+  const conversationImages = useMemo(() => {
+    return messages
+      .filter((m) => m.imageUrl)
+      .map((m) => m.imageUrl)
+      .filter((url): url is string => url !== undefined) // Type guard to filter out undefined
+      .reverse(); // Show most recent images first
+  }, [messages]);
+
   // ------------- 6. Render UI -------------
   if (!currentUserId) {
     // Lưu ý: đặt sau tất cả hooks, không còn vi phạm Rules of Hooks
@@ -530,6 +541,7 @@ export default function ChatPage() {
                 <ChatHeader
                   recipient={selectedConversation.recipient}
                   onBack={() => {}}
+                  onInfoClick={() => setMediaGalleryOpen(true)}
                 />
                 <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
                   <MessageList
@@ -567,6 +579,13 @@ export default function ChatPage() {
           onClose={() => setImageViewerOpen(false)}
         />
       )}
+
+      {/* Media Gallery */}
+      <MediaGallery
+        isOpen={mediaGalleryOpen}
+        onClose={() => setMediaGalleryOpen(false)}
+        images={conversationImages}
+      />
     </div>
   );
 }

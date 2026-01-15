@@ -10,6 +10,7 @@ interface Recipient {
 interface ChatHeaderProps {
   recipient: Recipient;
   onBack: () => void;
+  onInfoClick: () => void;
 }
 
 function formatLastActive(lastActiveAt?: string) {
@@ -32,7 +33,7 @@ function formatLastActive(lastActiveAt?: string) {
   });
 }
 
-export default function ChatHeader({ recipient, onBack }: ChatHeaderProps) {
+export default function ChatHeader({ recipient, onBack, onInfoClick }: ChatHeaderProps) {
   return (
     <div
       className="px-6 py-4 flex items-center gap-4"
@@ -102,6 +103,34 @@ export default function ChatHeader({ recipient, onBack }: ChatHeaderProps) {
           )}
         </div>
       </div>
+
+      {/* Info button */}
+      <button
+        onClick={onInfoClick}
+        className="p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 flex-shrink-0"
+        style={{
+          backgroundColor: "var(--bg-secondary)",
+          border: "1px solid var(--border)",
+          color: "var(--text)",
+        }}
+        aria-label="View shared media"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4" />
+          <path d="M12 8h.01" />
+        </svg>
+      </button>
     </div>
   );
 }
