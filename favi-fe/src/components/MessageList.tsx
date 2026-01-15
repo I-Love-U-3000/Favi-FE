@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import MessageItem from "./MessageItem";
 
 interface Message {
@@ -20,77 +19,10 @@ interface MessageListProps {
   recipientId?: string; // Recipient's profile ID (for DM read receipts)
 }
 
-// Threshold in pixels to consider "at the bottom"
-const BOTTOM_THRESHOLD = 50;
-
 export default function MessageList({ messages, currentUser, recipientId }: MessageListProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isAtBottom, setIsAtBottom] = useState(true);
-  const [initialScrollDone, setInitialScrollDone] = useState(false);
-
-  // Scroll to bottom function
-  const scrollToBottom = (smooth = false) => {
-    if (!containerRef.current) return;
-
-    containerRef.current.scrollTo({
-      top: containerRef.current.scrollHeight,
-      behavior: smooth ? 'smooth' : 'auto'
-    });
-  };
-
-  // Check if user is at the bottom
-  const checkIfAtBottom = () => {
-    if (!containerRef.current) return;
-
-    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-
-    setIsAtBottom(distanceFromBottom <= BOTTOM_THRESHOLD);
-  };
-
-  // Add scroll event listener
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    container.addEventListener('scroll', checkIfAtBottom);
-    return () => container.removeEventListener('scroll', checkIfAtBottom);
-  }, []);
-
-  // Auto-scroll to bottom on initial load
-  useEffect(() => {
-    if (!initialScrollDone && messages.length > 0) {
-      // Use setTimeout to ensure DOM is ready
-      const timeoutId = setTimeout(() => {
-        scrollToBottom();
-        setInitialScrollDone(true);
-      }, 100);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [messages.length, initialScrollDone]);
-
-  // Auto-scroll when new messages arrive AND user is at the bottom
-  useEffect(() => {
-    if (!initialScrollDone || messages.length === 0) return;
-
-    // Check if user is at bottom directly (don't rely on cached state)
-    if (containerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-      const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-      const currentlyAtBottom = distanceFromBottom <= BOTTOM_THRESHOLD;
-
-      if (currentlyAtBottom) {
-        const timeoutId = setTimeout(() => scrollToBottom(true), 100);
-        return () => clearTimeout(timeoutId);
-      }
-    }
-  }, [messages.length, initialScrollDone]);
-
   return (
     <div
-      ref={containerRef}
       style={{
-        overflowY: "auto",
         overflowX: "hidden",
         backgroundColor: "var(--bg-secondary)",
       }}

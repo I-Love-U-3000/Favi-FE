@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import ChatHeader from "@/components/ChatHeader";
 import ChatList from "@/components/ChatList";
 import MessageInput from "@/components/MessageInput";
@@ -82,6 +82,10 @@ export default function ChatPage() {
   const [lastReadMessageId, setLastReadMessageId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
+  // Track which conversations have been loaded (to preserve their unreadCount)
+  const loadedConversationsRef = useRef<Set<string>>(new Set());
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.id === selectedConversationId) ?? null,
     [conversations, selectedConversationId]
@@ -135,7 +139,23 @@ export default function ChatPage() {
         };
       });
 
-      setConversations(mapped);
+      // Preserve local state: keep unreadCount for conversations that have been loaded
+      // and keep messages for conversations that have been loaded
+      setConversations((prev) =>
+        mapped.map((newConv) => {
+          const existingConv = prev.find((c) => c.id === newConv.id);
+          // If this conversation was loaded before, preserve its local unreadCount
+          // The backend might return stale unread counts if markAsRead hasn't been processed yet
+          if (existingConv && loadedConversationsRef.current.has(newConv.id)) {
+            return {
+              ...newConv,
+              messages: existingConv.messages,
+              unreadCount: existingConv.unreadCount, // Preserve local unread count
+            };
+          }
+          return newConv;
+        })
+      );
 
       // Only set initial selection if not preserving
       if (!preserveSelection) {
@@ -195,6 +215,9 @@ export default function ChatPage() {
 
         setMessages(mappedMsgs);
 
+        // Mark this conversation as loaded (to preserve its unreadCount during refreshes)
+        loadedConversationsRef.current.add(conversation.id);
+
         // Mark ALL unread messages as read (not just the last one)
         // Find messages not from current user that haven't been read yet
         const unreadMessages = mappedMsgs.filter(
@@ -233,7 +256,23 @@ export default function ChatPage() {
     const conv = conversations.find((c) => c.id === selectedConversationId);
     if (!conv) return;
     loadMessages(conv);
-  }, [selectedConversationId, conversations, loadMessages]);
+  }, [selectedConversationId, loadMessages]);
+
+  // Scroll to bottom when conversation changes or messages are loaded
+  useEffect(() => {
+    if (messagesContainerRef.current && messages.length > 0) {
+      // Use setTimeout to ensure DOM has updated with new messages
+      const timeoutId = setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTo({
+            top: messagesContainerRef.current.scrollHeight,
+            behavior: 'auto'
+          });
+        }
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [selectedConversationId, messages.length]);
 
   const handleConversationSelect = useCallback(
     (conversationId: string) => {
@@ -488,7 +527,7 @@ export default function ChatPage() {
                   recipient={selectedConversation.recipient}
                   onBack={() => {}}
                 />
-                <div className="flex-1 overflow-y-auto">
+                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
                   <MessageList
                     messages={uiMessages}
                     currentUser={currentUserId}
