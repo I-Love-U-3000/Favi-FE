@@ -18,6 +18,7 @@ import PostMenuDialog from "@/components/PostMenuDialog";
 import ReportDialog from "@/components/ReportDialog";
 import StoryFeedStrip from "@/components/StoryFeedStrip";
 import PostReactorsDialog from "@/components/PostReactorsDialog";
+import OnlineFriends from "@/components/OnlineFriends";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -174,8 +175,13 @@ export default function HomePage() {
             )}
           </section>
 
-          {/* Cột phải (Trending Collections) */}
-          <TrendingCollections />
+          {/* Cột phải (Online Friends + Trending Collections) - Sticky scrollable panel */}
+          <aside className="hidden xl:block xl:h-screen xl:sticky xl:top-0 xl:self-start w-full overflow-y-auto">
+            <div className="flex flex-col gap-6 p-4">
+              <OnlineFriends />
+              <TrendingCollections />
+            </div>
+          </aside>
         </div>
       </main>
     </div>

@@ -143,9 +143,9 @@ export type Collection = {
 };
 
 export enum PrivacyLevel {
-  Public = 0,
-  Followers = 1,
-  Private = 2,
+  Public = "Public",
+  Followers = "Followers",
+  Private = "Private",
 }
 
 export type ReactionType =
@@ -223,6 +223,7 @@ export type CreateCommentRequest = {
   postId: string;
   authorProfileId?: string | null;
   content: string;
+  mediaUrl?: string | null;
   parentCommentId?: string | null;
 };
 
@@ -238,6 +239,7 @@ export type CommentResponse = {
   authorDisplayName?: string | null;
   authorAvatarUrl?: string | null;
   content: string;
+  mediaUrl?: string | null;
   createdAt: string; // ISO
   updatedAt?: string | null; // ISO
   parentCommentId?: string | null;
@@ -277,6 +279,7 @@ export type MessageResponse = {
   createdAt: string;
   updatedAt?: string | null;
   isEdited: boolean;
+  readBy: string[]; // Array of profile IDs who have read this message
 }
 
 export type MessagePageResponse = {

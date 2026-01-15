@@ -32,11 +32,8 @@ function formatDate(iso?: string) {
   }
 }
 
-function formatPrivacyLevel(level: number): string {
-  if (level === 0) return "Public";
-  if (level === 1) return "Followers";
-  if (level === 2) return "Private";
-  return "Public";
+function formatPrivacyLevel(level: string): string {
+  return level || "Public";
 }
 
 // Map "bất kỳ response post nào" -> PhotoPost

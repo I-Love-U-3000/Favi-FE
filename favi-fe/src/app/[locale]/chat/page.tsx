@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import ChatHeader from "@/components/ChatHeader";
 import ChatList from "@/components/ChatList";
 import MessageInput from "@/components/MessageInput";
 import MessageList from "@/components/MessageList";
+import ImageViewer from "@/components/ImageViewer";
+import MediaGallery from "@/components/MediaGallery";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/app/supabase-client";
 import chatAPI from "@/lib/api/chatAPI";
@@ -25,6 +27,7 @@ interface ChatMessage {
   timestamp: string;
   imageUrl?: string;
   stickerUrl?: string;
+  readBy?: string[]; // Array of profile IDs who have read this message
 }
 
 interface ChatRecipient {
@@ -32,6 +35,7 @@ interface ChatRecipient {
   avatar: string;
   isOnline: boolean;
   lastActiveAt?: string;
+  profileId?: string; // Profile ID of the recipient (for read receipts)
 }
 
 interface ChatConversation {
@@ -39,6 +43,9 @@ interface ChatConversation {
   key: string; // key cho UI (ở đây = id luôn)
   recipient: ChatRecipient;
   messages: ChatMessage[];
+  unreadCount?: number; // Unread message count
+  lastMessagePreview?: string | null; // Last message preview from backend
+  lastMessageAt?: string | null; // Last message timestamp from backend
 }
 
 // --------- UI TYPES cho ChatList / MessageList ---------
@@ -51,12 +58,16 @@ interface UiMessage {
   imageUrl?: string;
   stickerUrl?: string;
   isOwn: boolean;
+  readBy?: string[]; // Array of profile IDs who have read this message
 }
 
 interface UiConversation {
   key: string;
   recipient: ChatRecipient;
   messages: UiMessage[];
+  unreadCount?: number; // Unread message count
+  lastMessagePreview?: string | null; // Last message preview from backend
+  lastMessageAt?: string | null; // Last message timestamp from backend
 }
 
 export default function ChatPage() {
@@ -70,50 +81,89 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [lastReadMessageId, setLastReadMessageId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [viewingImageUrl, setViewingImageUrl] = useState<string>("");
+  const [mediaGalleryOpen, setMediaGalleryOpen] = useState(false);
+
+  // Track which conversations have been loaded (to preserve their unreadCount)
+  const loadedConversationsRef = useRef<Set<string>>(new Set());
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.id === selectedConversationId) ?? null,
     [conversations, selectedConversationId]
   );
 
+  // Filter conversations based on search query
+  const filteredConversations = useMemo(() => {
+    if (!searchQuery.trim()) return conversations;
+    return conversations.filter((conv) =>
+      conv.recipient.username.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [conversations, searchQuery]);
+
   // ------------- 1. Load danh sách conversations từ backend -------------
-  useEffect(() => {
+  const fetchConversations = useCallback(async (preserveSelection: boolean = false) => {
     if (!currentUserId) return;
 
-    const fetchConversations = async () => {
-      try {
-        const data = (await chatAPI.getConversations(
-          1,
-          50
-        )) as ConversationSummaryResponse[];
+    try {
+      const data = (await chatAPI.getConversations(
+        1,
+        50
+      )) as ConversationSummaryResponse[];
 
-        const mapped: ChatConversation[] = data.map((c) => {
-          const other =
-            c.members.find((m) => m.profileId !== currentUserId) ?? c.members[0];
+      const mapped: ChatConversation[] = data.map((c) => {
+        const other =
+          c.members.find((m) => m.profileId !== currentUserId) ?? c.members[0];
 
-          const lastActive = other?.lastActiveAt
-            ? new Date(other.lastActiveAt)
-            : null;
+        const lastActive = other?.lastActiveAt
+          ? new Date(other.lastActiveAt)
+          : null;
 
-          const isOnline =
-            !!lastActive &&
-            Date.now() - lastActive.getTime() < 5 * 60 * 1000; // 5 phút
+        // Use 3 minutes threshold for faster online status updates
+        const isOnline =
+          !!lastActive &&
+          Date.now() - lastActive.getTime() < 3 * 60 * 1000;
 
-          return {
-            id: c.id,
-            key: c.id,
-            recipient: {
-              username: other?.username ?? "unknown",
-              avatar: other?.avatarUrl ?? "/avatar-default.svg",
-              isOnline,
-              lastActiveAt: other?.lastActiveAt,
-            },
-            messages: [],
-          };
-        });
+        return {
+          id: c.id,
+          key: c.id,
+          recipient: {
+            username: other?.username ?? "unknown",
+            avatar: other?.avatarUrl ?? "/avatar-default.svg",
+            isOnline,
+            lastActiveAt: other?.lastActiveAt,
+            profileId: other?.profileId,
+          },
+          messages: [],
+          unreadCount: c.unreadCount,
+          lastMessagePreview: c.lastMessagePreview,
+          lastMessageAt: c.lastMessageAt,
+        };
+      });
 
-        setConversations(mapped);
+      // Preserve local state: keep unreadCount for conversations that have been loaded
+      // and keep messages for conversations that have been loaded
+      setConversations((prev) =>
+        mapped.map((newConv) => {
+          const existingConv = prev.find((c) => c.id === newConv.id);
+          // If this conversation was loaded before, preserve its local unreadCount
+          // The backend might return stale unread counts if markAsRead hasn't been processed yet
+          if (existingConv && loadedConversationsRef.current.has(newConv.id)) {
+            return {
+              ...newConv,
+              messages: existingConv.messages,
+              unreadCount: existingConv.unreadCount, // Preserve local unread count
+            };
+          }
+          return newConv;
+        })
+      );
 
+      // Only set initial selection if not preserving
+      if (!preserveSelection) {
         // Ưu tiên mở conversationId từ URL nếu có
         const initialConv =
           (initialConversationId &&
@@ -123,13 +173,25 @@ export default function ChatPage() {
         if (initialConv) {
           setSelectedConversationId(initialConv.id);
         }
-      } catch (e) {
-        console.error("Error fetching conversations", e);
       }
-    };
-
-    fetchConversations();
+    } catch (e) {
+      console.error("Error fetching conversations", e);
+    }
   }, [currentUserId, initialConversationId]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchConversations(false);
+  }, [fetchConversations]);
+
+  // Periodically refresh conversations to update online status (preserve selection)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchConversations(true);
+    }, 1 * 60 * 1000); // Refresh every 1 minute
+
+    return () => clearInterval(interval);
+  }, [fetchConversations]);
 
   // ------------- 2. Hàm load messages cho 1 conversation -------------
   const loadMessages = useCallback(
@@ -153,21 +215,44 @@ export default function ChatPage() {
             minute: "2-digit",
           }),
           imageUrl: m.mediaUrl ?? undefined,
+          readBy: m.readBy ?? [],
         }));
 
         setMessages(mappedMsgs);
 
-        // sync lại vào conversations để ChatList có preview
+        // Mark this conversation as loaded (to preserve its unreadCount during refreshes)
+        loadedConversationsRef.current.add(conversation.id);
+
+        // Mark ALL unread messages as read (not just the last one)
+        // Find messages not from current user that haven't been read yet
+        const unreadMessages = mappedMsgs.filter(
+          (msg) => msg.senderId !== currentUserId && !msg.readBy?.includes(currentUserId)
+        );
+
+        if (unreadMessages.length > 0) {
+          // Mark the oldest unread message as read
+          // The backend should automatically mark all earlier messages as read too
+          const oldestUnreadMessage = unreadMessages[0];
+          try {
+            await chatAPI.markAsRead(conversation.id, oldestUnreadMessage.backendId);
+          } catch (e) {
+            console.error("Error marking messages as read", e);
+          }
+        }
+
+        // sync lại vào conversations để ChatList có preview, và reset unreadCount khi load messages
         setConversations((prev) =>
           prev.map((c) =>
-            c.id === conversation.id ? { ...c, messages: mappedMsgs } : c
+            c.id === conversation.id
+              ? { ...c, messages: mappedMsgs, unreadCount: 0 }
+              : c
           )
         );
       } catch (e) {
         console.error("Error loading messages", e);
       }
     },
-    []
+    [currentUserId]
   );
 
   // Khi `selectedConversationId` thay đổi (do click hoặc do initial select) thì load messages
@@ -176,7 +261,23 @@ export default function ChatPage() {
     const conv = conversations.find((c) => c.id === selectedConversationId);
     if (!conv) return;
     loadMessages(conv);
-  }, [selectedConversationId, conversations, loadMessages]);
+  }, [selectedConversationId, loadMessages]);
+
+  // Scroll to bottom when conversation changes or messages are loaded
+  useEffect(() => {
+    if (messagesContainerRef.current && messages.length > 0) {
+      // Use setTimeout to ensure DOM has updated with new messages
+      const timeoutId = setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTo({
+            top: messagesContainerRef.current.scrollHeight,
+            behavior: 'auto'
+          });
+        }
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [selectedConversationId, messages.length]);
 
   const handleConversationSelect = useCallback(
     (conversationId: string) => {
@@ -221,6 +322,7 @@ export default function ChatPage() {
               minute: "2-digit",
             }),
             imageUrl: m.mediaUrl,
+            readBy: [], // New messages start with no reads
           };
 
           setMessages((prev) => {
@@ -247,14 +349,15 @@ export default function ChatPage() {
 
   // ------------- 4. Gửi message -------------
   const handleSendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, mediaUrl?: string) => {
       if (!selectedConversationId) return;
       const trimmed = text.trim();
-      if (!trimmed) return;
+      if (!trimmed && !mediaUrl) return;
 
       try {
         const sent = (await chatAPI.sendMessage(selectedConversationId, {
-          content: trimmed,
+          content: trimmed || undefined,
+          mediaUrl: mediaUrl || undefined,
         })) as MessageResponse;
 
         const msg: ChatMessage = {
@@ -267,6 +370,7 @@ export default function ChatPage() {
             minute: "2-digit",
           }),
           imageUrl: sent.mediaUrl ?? undefined,
+          readBy: sent.readBy ?? [],
         };
 
         setMessages((prev) => [...prev, msg]);
@@ -303,7 +407,7 @@ export default function ChatPage() {
   );
 
   // ------------- 5. Map ra UI types -------------
-  const uiConversations: UiConversation[] = conversations.map((c) => ({
+  const uiConversations: UiConversation[] = filteredConversations.map((c) => ({
     key: c.key,
     recipient: c.recipient,
     messages: c.messages.map((m, index) => ({
@@ -316,6 +420,9 @@ export default function ChatPage() {
       stickerUrl: m.stickerUrl,
       isOwn: m.senderId === currentUserId,
     })),
+    unreadCount: c.unreadCount,
+    lastMessagePreview: c.lastMessagePreview,
+    lastMessageAt: c.lastMessageAt,
   }));
 
   const uiMessages: UiMessage[] = messages.map((m, index) => ({
@@ -327,7 +434,17 @@ export default function ChatPage() {
     imageUrl: m.imageUrl,
     stickerUrl: m.stickerUrl,
     isOwn: m.senderId === currentUserId,
+    readBy: m.readBy,
   }));
+
+  // Extract all image URLs from the conversation messages
+  const conversationImages = useMemo(() => {
+    return messages
+      .filter((m) => m.imageUrl)
+      .map((m) => m.imageUrl)
+      .filter((url): url is string => url !== undefined) // Type guard to filter out undefined
+      .reverse(); // Show most recent images first
+  }, [messages]);
 
   // ------------- 6. Render UI -------------
   if (!currentUserId) {
@@ -343,43 +460,67 @@ export default function ChatPage() {
 
   return (
     <div
-      className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center p-6 transition-colors duration-500"
+      className="relative h-screen w-full overflow-hidden flex flex-col transition-colors duration-500"
       style={{ color: "var(--text)" }}
     >
       <div
-        className="relative z-10 w-full max-w-6xl rounded-3xl shadow-lg overflow-hidden"
+        className="relative z-10 w-full flex-1 flex flex-col overflow-hidden"
         style={{
           backgroundColor: "var(--bg-secondary)",
-          border: "1px solid var(--border)",
           color: "var(--text)",
         }}
       >
-        <div
-          className="flex items-center justify-between px-4 py-3"
-          style={{ borderBottom: "1px solid var(--border)" }}
-        >
-          <div className="text-xl md:text-2xl font-bold tracking-tight">
-            {t?.("Chats") ?? "Chats"}
-          </div>
-          <div
-            className="text-sm md:text-base"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            {selectedConversation?.recipient
-              ? `${t?.("TalkingTo") ?? "Talking to"} @${
-                  selectedConversation.recipient.username
-                }`
-              : t?.("NoConversation") ?? "No conversation selected"}
-          </div>
-        </div>
-
-        <div className="flex gap-0">
+        <div className="flex gap-0 flex-1 overflow-hidden">
           {/* Sidebar danh sách hội thoại */}
           <aside
-            className="w-full md:w-1/3 lg:w-1/4 p-4"
+            className="w-full md:w-1/3 lg:w-1/4 flex flex-col"
             style={{ borderRight: "1px solid var(--border)" }}
           >
-            <ChatList
+            <div className="p-4 pb-2">
+              <div className="relative">
+                <div
+                  className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  <span style={{ fontSize: "1.1rem" }}>🔍</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search conversations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm transition-all duration-200"
+                  style={{
+                    backgroundColor: "var(--bg-primary)",
+                    border: "1px solid var(--border)",
+                    color: "var(--text)",
+                    outline: "none",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor =
+                      "rgba(34, 211, 238, 0.5)";
+                    e.currentTarget.style.boxShadow =
+                      "0 0 0 3px rgba(34, 211, 238, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "var(--border)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-5 h-5 rounded-full transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    <span style={{ fontSize: "0.9rem" }}>✕</span>
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 pb-4">
+              <ChatList
               userId={currentUserId}
               onClose={() => {}}
               onSelect={(conversationKey: string) => {
@@ -390,6 +531,7 @@ export default function ChatPage() {
               }}
               conversations={uiConversations}
             />
+            </div>
           </aside>
 
           {/* Khu chat */}
@@ -399,9 +541,18 @@ export default function ChatPage() {
                 <ChatHeader
                   recipient={selectedConversation.recipient}
                   onBack={() => {}}
+                  onInfoClick={() => setMediaGalleryOpen(true)}
                 />
-                <div className="flex-1 overflow-y-auto" style={{ maxHeight: "58vh" }}>
-                  <MessageList messages={uiMessages} currentUser={currentUserId} />
+                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
+                  <MessageList
+                    messages={uiMessages}
+                    currentUser={currentUserId}
+                    recipientId={selectedConversation.recipient?.profileId}
+                    onImageClick={(imageUrl) => {
+                      setViewingImageUrl(imageUrl);
+                      setImageViewerOpen(true);
+                    }}
+                  />
                 </div>
                 <MessageInput
                   onSend={handleSendMessage}
@@ -420,6 +571,21 @@ export default function ChatPage() {
           </section>
         </div>
       </div>
+
+      {/* Image Viewer */}
+      {imageViewerOpen && (
+        <ImageViewer
+          imageUrl={viewingImageUrl}
+          onClose={() => setImageViewerOpen(false)}
+        />
+      )}
+
+      {/* Media Gallery */}
+      <MediaGallery
+        isOpen={mediaGalleryOpen}
+        onClose={() => setMediaGalleryOpen(false)}
+        images={conversationImages}
+      />
     </div>
   );
 }
