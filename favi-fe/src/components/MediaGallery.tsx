@@ -62,7 +62,7 @@ export default function MediaGallery({
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
         style={{
-          backgroundColor: "var(--bg-primary)",
+          backgroundColor: "var(--bg-secondary)",
           borderLeft: "1px solid var(--border)",
         }}
       >
@@ -70,7 +70,7 @@ export default function MediaGallery({
         <div
           className="px-6 py-4 flex items-center justify-between"
           style={{
-            backgroundColor: "var(--bg-primary)",
+            backgroundColor: "var(--bg-secondary)",
             borderBottom: "1px solid var(--border)",
           }}
         >
@@ -110,7 +110,7 @@ export default function MediaGallery({
         {/* Images grid */}
         <div
           className="flex-1 overflow-y-auto p-4"
-          style={{ backgroundColor: "var(--bg-secondary)" }}
+          style={{ backgroundColor: "var(--bg)" }}
         >
           {images.length === 0 ? (
             <div className="flex items-center justify-center h-full">

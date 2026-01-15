@@ -828,6 +828,9 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
                   onDeleteComment={handleDeleteComment}
                   requireAuth={requireAuth}
                   onReport={(id, name) => { setReportTarget({ id, name }); setReportDialogOpen(true); }}
+                  onReactionUpdate={(commentId, reactions) => {
+                    setItems(prev => prev.map(item => getId(item) === commentId ? { ...item, reactions } : item));
+                  }}
                 />
 
                 {visible.length > 0 && (
@@ -851,6 +854,9 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
                           onDeleteComment={handleDeleteComment}
                           requireAuth={requireAuth}
                           onReport={(id, name) => { setReportTarget({ id, name }); setReportDialogOpen(true); }}
+                          onReactionUpdate={(commentId, reactions) => {
+                            setItems(prev => prev.map(item => getId(item) === commentId ? { ...item, reactions } : item));
+                          }}
                         />
                       );
                     })}
@@ -978,6 +984,7 @@ function CommentRow({
   onDeleteComment,
   requireAuth,
   onReport,
+  onReactionUpdate,
 }: {
   c: CommentResponse;
   isHighlighted?: boolean;
@@ -993,6 +1000,7 @@ function CommentRow({
   onDeleteComment: (commentId: string) => Promise<void>;
   requireAuth: () => boolean;
   onReport?: (commentId: string, authorName: string) => void;
+  onReactionUpdate?: (commentId: string, reactions: ReactionSummaryDto) => void;
 }) {
   const router = useRouter();
   const tReport = useTranslations("ReportButton");
@@ -1087,9 +1095,19 @@ function CommentRow({
       nextCounts[type] = (nextCounts[type] || 0) + 1;
     }
     setReactionCounts(nextCounts);
-    setUserReaction(previousReaction === type ? null : type);
+    const nextUserReaction = previousReaction === type ? null : type;
+    setUserReaction(nextUserReaction);
     try {
-      await commentAPI.toggleReaction(commentId, type);
+      const result = await commentAPI.toggleReaction(commentId, type);
+      // Update the comment in the parent items array with the latest reaction data
+      // This ensures that when the page reloads, the reaction data is preserved
+      const total = Object.values(nextCounts).reduce((a, b) => a + b, 0);
+      const reactionSummary: ReactionSummaryDto = {
+        total,
+        byType: nextCounts,
+        currentUserReaction: nextUserReaction,
+      };
+      onReactionUpdate?.(commentId, reactionSummary);
     } catch (e: any) {
       setReactionCounts(previousCounts);
       setUserReaction(previousReaction);
