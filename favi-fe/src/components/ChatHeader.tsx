@@ -1,12 +1,10 @@
-import { Avatar } from "primereact/avatar";
-import { Button } from "primereact/button";
 import { Badge } from "primereact/badge";
 
 interface Recipient {
   username: string;
   avatar: string;
   isOnline: boolean;
-  lastActiveAt?: string; // 👈 thêm
+  lastActiveAt?: string;
 }
 
 interface ChatHeaderProps {
@@ -18,40 +16,90 @@ function formatLastActive(lastActiveAt?: string) {
   if (!lastActiveAt) return "";
   const d = new Date(lastActiveAt);
 
-  // Tuỳ bạn: có thể chỉ hiển thị giờ & ngày
-  return d.toLocaleString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    day: "2-digit",
-    month: "2-digit",
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 60) return `Active ${diffMins}m ago`;
+  if (diffHours < 24) return `Active ${diffHours}h ago`;
+  if (diffDays < 7) return `Active ${diffDays}d ago`;
+
+  return d.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
   });
 }
 
 export default function ChatHeader({ recipient, onBack }: ChatHeaderProps) {
   return (
-    <div className="p-4 bg-gray-700 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <Avatar className="h-10 w-10">
+    <div
+      className="px-6 py-4 flex items-center gap-4"
+      style={{
+        background: "linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)",
+        borderBottom: "1px solid var(--border)",
+      }}
+    >
+      <div className="relative flex-shrink-0">
+        <div
+          className="rounded-full overflow-hidden"
+          style={{
+            width: "48px",
+            height: "48px",
+            border: "2px solid var(--border)",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+          }}
+        >
           <img
             src={recipient.avatar}
             alt={recipient.username}
-            className="rounded-full"
+            className="w-full h-full object-cover"
           />
-        </Avatar>
-        <div>
-          <h2 className="font-semibold text-lg">{recipient.username}</h2>
+        </div>
+        {recipient.isOnline && (
+          <div
+            className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2"
+            style={{
+              backgroundColor: "#10b981",
+              borderColor: "var(--bg-secondary)",
+            }}
+          />
+        )}
+      </div>
 
-          <div className="flex items-center gap-2 mt-1">
-            <Badge
-              value={recipient.isOnline ? "Online" : "Offline"}
-              severity={recipient.isOnline ? "success" : "secondary"}
-            />
-            {!recipient.isOnline && recipient.lastActiveAt && (
-              <span className="text-xs text-gray-300">
-                Last active: {formatLastActive(recipient.lastActiveAt)}
+      <div className="flex-1 min-w-0">
+        <h2
+          className="font-bold text-xl truncate"
+          style={{ color: "var(--text)" }}
+        >
+          {recipient.username}
+        </h2>
+
+        <div className="flex items-center gap-2 mt-1">
+          {recipient.isOnline ? (
+            <div className="flex items-center gap-1.5">
+              <div
+                className="w-2 h-2 rounded-full animate-pulse"
+                style={{ backgroundColor: "#10b981" }}
+              />
+              <span
+                className="text-sm font-medium"
+                style={{ color: "#10b981" }}
+              >
+                Online
               </span>
-            )}
-          </div>
+            </div>
+          ) : (
+            <span
+              className="text-sm"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {recipient.lastActiveAt
+                ? formatLastActive(recipient.lastActiveAt)
+                : "Offline"}
+            </span>
+          )}
         </div>
       </div>
     </div>

@@ -90,22 +90,33 @@ export default function MessageList({ messages, currentUser, recipientId }: Mess
     <div
       ref={containerRef}
       style={{
-        height: "calc(100vh - 220px)",
         overflowY: "auto",
-        overflowX: "hidden"
+        overflowX: "hidden",
+        backgroundColor: "var(--bg-secondary)",
       }}
       className="flex-grow"
     >
-      <div className="p-4 flex flex-col gap-3">
-        {messages.map((message) => (
-          <MessageItem
-            key={message.id}
-            message={message}
-            isSent={message.senderId === currentUser} // so sánh ID, không so sánh username
-            recipientId={recipientId}
-            currentUserId={currentUser}
-          />
-        ))}
+      <div className="p-6 flex flex-col gap-4">
+        {messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <p
+              className="text-sm text-center"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              No messages yet. Start the conversation!
+            </p>
+          </div>
+        ) : (
+          messages.map((message) => (
+            <MessageItem
+              key={message.id}
+              message={message}
+              isSent={message.senderId === currentUser}
+              recipientId={recipientId}
+              currentUserId={currentUser}
+            />
+          ))
+        )}
       </div>
     </div>
   );

@@ -42,6 +42,8 @@ interface ChatConversation {
   recipient: ChatRecipient;
   messages: ChatMessage[];
   unreadCount?: number; // Unread message count
+  lastMessagePreview?: string | null; // Last message preview from backend
+  lastMessageAt?: string | null; // Last message timestamp from backend
 }
 
 // --------- UI TYPES cho ChatList / MessageList ---------
@@ -62,6 +64,8 @@ interface UiConversation {
   recipient: ChatRecipient;
   messages: UiMessage[];
   unreadCount?: number; // Unread message count
+  lastMessagePreview?: string | null; // Last message preview from backend
+  lastMessageAt?: string | null; // Last message timestamp from backend
 }
 
 export default function ChatPage() {
@@ -76,11 +80,20 @@ export default function ChatPage() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [lastReadMessageId, setLastReadMessageId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.id === selectedConversationId) ?? null,
     [conversations, selectedConversationId]
   );
+
+  // Filter conversations based on search query
+  const filteredConversations = useMemo(() => {
+    if (!searchQuery.trim()) return conversations;
+    return conversations.filter((conv) =>
+      conv.recipient.username.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [conversations, searchQuery]);
 
   // ------------- 1. Load danh sách conversations từ backend -------------
   const fetchConversations = useCallback(async (preserveSelection: boolean = false) => {
@@ -117,6 +130,8 @@ export default function ChatPage() {
           },
           messages: [],
           unreadCount: c.unreadCount,
+          lastMessagePreview: c.lastMessagePreview,
+          lastMessageAt: c.lastMessageAt,
         };
       });
 
@@ -347,7 +362,7 @@ export default function ChatPage() {
   );
 
   // ------------- 5. Map ra UI types -------------
-  const uiConversations: UiConversation[] = conversations.map((c) => ({
+  const uiConversations: UiConversation[] = filteredConversations.map((c) => ({
     key: c.key,
     recipient: c.recipient,
     messages: c.messages.map((m, index) => ({
@@ -361,6 +376,8 @@ export default function ChatPage() {
       isOwn: m.senderId === currentUserId,
     })),
     unreadCount: c.unreadCount,
+    lastMessagePreview: c.lastMessagePreview,
+    lastMessageAt: c.lastMessageAt,
   }));
 
   const uiMessages: UiMessage[] = messages.map((m, index) => ({
@@ -389,43 +406,67 @@ export default function ChatPage() {
 
   return (
     <div
-      className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center p-6 transition-colors duration-500"
+      className="relative h-screen w-full overflow-hidden flex flex-col transition-colors duration-500"
       style={{ color: "var(--text)" }}
     >
       <div
-        className="relative z-10 w-full max-w-6xl rounded-3xl shadow-lg overflow-hidden"
+        className="relative z-10 w-full flex-1 flex flex-col overflow-hidden"
         style={{
           backgroundColor: "var(--bg-secondary)",
-          border: "1px solid var(--border)",
           color: "var(--text)",
         }}
       >
-        <div
-          className="flex items-center justify-between px-4 py-3"
-          style={{ borderBottom: "1px solid var(--border)" }}
-        >
-          <div className="text-xl md:text-2xl font-bold tracking-tight">
-            {t?.("Chats") ?? "Chats"}
-          </div>
-          <div
-            className="text-sm md:text-base"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            {selectedConversation?.recipient
-              ? `${t?.("TalkingTo") ?? "Talking to"} @${
-                  selectedConversation.recipient.username
-                }`
-              : t?.("NoConversation") ?? "No conversation selected"}
-          </div>
-        </div>
-
-        <div className="flex gap-0">
+        <div className="flex gap-0 flex-1 overflow-hidden">
           {/* Sidebar danh sách hội thoại */}
           <aside
-            className="w-full md:w-1/3 lg:w-1/4 p-4"
+            className="w-full md:w-1/3 lg:w-1/4 flex flex-col"
             style={{ borderRight: "1px solid var(--border)" }}
           >
-            <ChatList
+            <div className="p-4 pb-2">
+              <div className="relative">
+                <div
+                  className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  <span style={{ fontSize: "1.1rem" }}>🔍</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search conversations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm transition-all duration-200"
+                  style={{
+                    backgroundColor: "var(--bg-primary)",
+                    border: "1px solid var(--border)",
+                    color: "var(--text)",
+                    outline: "none",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor =
+                      "rgba(34, 211, 238, 0.5)";
+                    e.currentTarget.style.boxShadow =
+                      "0 0 0 3px rgba(34, 211, 238, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "var(--border)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-5 h-5 rounded-full transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    <span style={{ fontSize: "0.9rem" }}>✕</span>
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 pb-4">
+              <ChatList
               userId={currentUserId}
               onClose={() => {}}
               onSelect={(conversationKey: string) => {
@@ -436,6 +477,7 @@ export default function ChatPage() {
               }}
               conversations={uiConversations}
             />
+            </div>
           </aside>
 
           {/* Khu chat */}
@@ -446,7 +488,7 @@ export default function ChatPage() {
                   recipient={selectedConversation.recipient}
                   onBack={() => {}}
                 />
-                <div className="flex-1 overflow-y-auto" style={{ maxHeight: "58vh" }}>
+                <div className="flex-1 overflow-y-auto">
                   <MessageList
                     messages={uiMessages}
                     currentUser={currentUserId}
