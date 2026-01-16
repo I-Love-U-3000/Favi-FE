@@ -8,12 +8,40 @@ interface MessageInputProps {
   onSendSticker?: (url: string) => void;
 }
 
+// Emoji-based stickers that work reliably without external URLs
+const EMOJI_STICKERS = [
+  "😀", "😂", "🥰", "😎", "🤔", "😴", "🥳", "🤩",
+  "😍", "🤗", "😇", "🙃", "😜", "🤪", "😝", "🤗",
+  "👍", "👎", "👏", "🙌", "🤝", "💪", "❤️", "💔",
+  "🔥", "⭐", "🎉", "🎊", "✨", "💯", "🚀", "💩",
+  "🐱", "🐶", "🐼", "🦊", "🐨", "🐯", "🦁", "🐸",
+  "🌈", "☀️", "🌙", "⭐", "🌸", "🌺", "🍕", "🍦",
+];
+
 export default function MessageInput({ onSend, onSendImage, onSendSticker }: MessageInputProps) {
   const [message, setMessage] = useState<string>("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ file: File; previewUrl: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  // Close picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
+        setPickerOpen(false);
+      }
+    };
+
+    if (pickerOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [pickerOpen]);
 
   // Debug: Log when selectedImage changes
   useEffect(() => {
@@ -184,7 +212,7 @@ export default function MessageInput({ onSend, onSendImage, onSendSticker }: Mes
             />
           </label>
 
-          <div className="relative">
+          <div className="relative" ref={pickerRef}>
             <button
               type="button"
               onClick={() => setPickerOpen((v) => !v)}
@@ -203,28 +231,31 @@ export default function MessageInput({ onSend, onSendImage, onSendSticker }: Mes
             </button>
             {pickerOpen && (
               <div
-                className="absolute bottom-14 left-0 z-20 rounded-xl p-3 grid grid-cols-5 gap-2 shadow-lg"
+                className="absolute bottom-full left-0 mb-2 z-50 rounded-2xl p-4 shadow-2xl"
                 style={{
                   backgroundColor: "var(--bg-secondary)",
                   border: "1px solid var(--border)",
+                  width: "280px",
                 }}
               >
-                {[
-                  "https://media.giphy.com/media/3oriO0OEd9QIDdllqo/giphy.gif",
-                  "https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif",
-                  "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
-                  "https://media.giphy.com/media/13CoXDiaCcCoyk/giphy.gif",
-                  "https://media.giphy.com/media/ASd0Ukj0y3qMM/giphy.gif",
-                ].map((u) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={u}
-                    src={u}
-                    alt="gif"
-                    className="h-14 w-14 object-cover rounded-lg cursor-pointer hover:scale-110 transition-transform duration-200"
-                    onClick={() => handlePick(u)}
-                  />
-                ))}
+                <div className="mb-3 pb-2" style={{ borderBottom: "1px solid var(--border)" }}>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                    Stickers
+                  </p>
+                </div>
+                <div className="grid grid-cols-8 gap-2">
+                  {EMOJI_STICKERS.map((emoji, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      className="text-2xl p-2 rounded-lg hover:scale-110 transition-transform duration-200 flex items-center justify-center"
+                      style={{ backgroundColor: "var(--bg-primary)" }}
+                      onClick={() => handlePick(emoji)}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
