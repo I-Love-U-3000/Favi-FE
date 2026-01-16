@@ -7,6 +7,8 @@ import MessageInput from "@/components/MessageInput";
 import MessageList from "@/components/MessageList";
 import ImageViewer from "@/components/ImageViewer";
 import MediaGallery from "@/components/MediaGallery";
+import { useCall } from "@/components/CallProvider";
+import type { CallType } from "@/types/call";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/app/supabase-client";
 import chatAPI from "@/lib/api/chatAPI";
@@ -90,6 +92,9 @@ export default function ChatPage() {
   // Track which conversations have been loaded (to preserve their unreadCount)
   const loadedConversationsRef = useRef<Set<string>>(new Set());
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // ---- CALL CONTEXT ----
+  const call = useCall();
 
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.id === selectedConversationId) ?? null,
@@ -357,6 +362,28 @@ export default function ChatPage() {
     };
   }, [selectedConversationId]);
 
+  // ---- CALL HANDLER (uses global CallProvider) ----
+  const handleStartCall = useCallback(async (callType: CallType) => {
+    if (!selectedConversation) {
+      alert('Cannot start call: No conversation selected');
+      return;
+    }
+
+    const recipientId = selectedConversation.recipient.profileId;
+    if (!recipientId) {
+      alert('Cannot start call: Recipient ID not found');
+      return;
+    }
+
+    // Use global call context to start the call with recipient username
+    await call.startCall(
+      selectedConversation.id,
+      recipientId,
+      callType,
+      selectedConversation.recipient.username
+    );
+  }, [selectedConversation, call]);
+
   // ------------- 4. Gửi message -------------
   const handleSendMessage = useCallback(
     async (text: string, mediaUrl?: string, isSticker: boolean = false) => {
@@ -573,6 +600,8 @@ export default function ChatPage() {
                   recipient={selectedConversation.recipient}
                   onBack={() => {}}
                   onInfoClick={() => setMediaGalleryOpen(true)}
+                  onVoiceCall={() => handleStartCall("audio")}
+                  onVideoCall={() => handleStartCall("video")}
                 />
                 <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
                   <MessageList
