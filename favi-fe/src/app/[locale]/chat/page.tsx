@@ -7,6 +7,8 @@ import MessageInput from "@/components/MessageInput";
 import MessageList from "@/components/MessageList";
 import ImageViewer from "@/components/ImageViewer";
 import MediaGallery from "@/components/MediaGallery";
+import { useCall } from "@/components/CallProvider";
+import type { CallType } from "@/types/call";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/app/supabase-client";
 import chatAPI from "@/lib/api/chatAPI";
@@ -90,6 +92,9 @@ export default function ChatPage() {
   // Track which conversations have been loaded (to preserve their unreadCount)
   const loadedConversationsRef = useRef<Set<string>>(new Set());
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // ---- CALL CONTEXT ----
+  const call = useCall();
 
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.id === selectedConversationId) ?? null,
@@ -205,18 +210,24 @@ export default function ChatPage() {
 
         const apiMessages = page.items as MessageResponse[];
 
-        const mappedMsgs: ChatMessage[] = apiMessages.map((m) => ({
-          backendId: m.id,
-          senderId: m.senderId,
-          senderUsername: m.username,
-          text: m.content ?? undefined,
-          timestamp: new Date(m.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          imageUrl: m.mediaUrl ?? undefined,
-          readBy: m.readBy ?? [],
-        }));
+        const mappedMsgs: ChatMessage[] = apiMessages.map((m) => {
+          // Determine if this is a sticker (GIF URLs)
+          const isGif = m.mediaUrl?.toLowerCase().includes('.gif');
+
+          return {
+            backendId: m.id,
+            senderId: m.senderId,
+            senderUsername: m.username,
+            text: m.content ?? undefined,
+            timestamp: new Date(m.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            imageUrl: isGif ? undefined : (m.mediaUrl ?? undefined),
+            stickerUrl: isGif ? m.mediaUrl : undefined,
+            readBy: m.readBy ?? [],
+          };
+        });
 
         setMessages(mappedMsgs);
 
@@ -312,6 +323,9 @@ export default function ChatPage() {
 
           if (m.conversationId !== selectedConversationId) return;
 
+          // Determine if incoming message is a sticker (GIF)
+          const isGif = m.mediaUrl?.toLowerCase().includes('.gif');
+
           const incoming: ChatMessage = {
             backendId: m.id,
             senderId: m.senderId,
@@ -321,7 +335,8 @@ export default function ChatPage() {
               hour: "2-digit",
               minute: "2-digit",
             }),
-            imageUrl: m.mediaUrl,
+            imageUrl: isGif ? undefined : m.mediaUrl,
+            stickerUrl: isGif ? m.mediaUrl : undefined,
             readBy: [], // New messages start with no reads
           };
 
@@ -347,9 +362,31 @@ export default function ChatPage() {
     };
   }, [selectedConversationId]);
 
+  // ---- CALL HANDLER (uses global CallProvider) ----
+  const handleStartCall = useCallback(async (callType: CallType) => {
+    if (!selectedConversation) {
+      alert('Cannot start call: No conversation selected');
+      return;
+    }
+
+    const recipientId = selectedConversation.recipient.profileId;
+    if (!recipientId) {
+      alert('Cannot start call: Recipient ID not found');
+      return;
+    }
+
+    // Use global call context to start the call with recipient username
+    await call.startCall(
+      selectedConversation.id,
+      recipientId,
+      callType,
+      selectedConversation.recipient.username
+    );
+  }, [selectedConversation, call]);
+
   // ------------- 4. Gửi message -------------
   const handleSendMessage = useCallback(
-    async (text: string, mediaUrl?: string) => {
+    async (text: string, mediaUrl?: string, isSticker: boolean = false) => {
       if (!selectedConversationId) return;
       const trimmed = text.trim();
       if (!trimmed && !mediaUrl) return;
@@ -360,6 +397,9 @@ export default function ChatPage() {
           mediaUrl: mediaUrl || undefined,
         })) as MessageResponse;
 
+        // Determine if this is a sticker (GIF URLs or explicitly marked as sticker)
+        const isGif = mediaUrl?.toLowerCase().includes('.gif') || isSticker;
+
         const msg: ChatMessage = {
           backendId: sent.id,
           senderId: sent.senderId,
@@ -369,7 +409,8 @@ export default function ChatPage() {
             hour: "2-digit",
             minute: "2-digit",
           }),
-          imageUrl: sent.mediaUrl ?? undefined,
+          imageUrl: isGif ? undefined : (sent.mediaUrl ?? undefined),
+          stickerUrl: isGif ? sent.mediaUrl : undefined,
           readBy: sent.readBy ?? [],
         };
 
@@ -404,6 +445,23 @@ export default function ChatPage() {
       }
     },
     [selectedConversationId]
+  );
+
+  // Handler specifically for stickers (emojis sent as text, GIFs sent as media)
+  const handleSendSticker = useCallback(
+    async (sticker: string) => {
+      // Check if it's a URL (GIF) or an emoji
+      const isUrl = sticker.startsWith('http://') || sticker.startsWith('https://');
+
+      if (isUrl) {
+        // Send GIF as media
+        await handleSendMessage("", sticker, true);
+      } else {
+        // Send emoji as text content
+        await handleSendMessage(sticker, undefined, false);
+      }
+    },
+    [handleSendMessage]
   );
 
   // ------------- 5. Map ra UI types -------------
@@ -542,6 +600,8 @@ export default function ChatPage() {
                   recipient={selectedConversation.recipient}
                   onBack={() => {}}
                   onInfoClick={() => setMediaGalleryOpen(true)}
+                  onVoiceCall={() => handleStartCall("audio")}
+                  onVideoCall={() => handleStartCall("video")}
                 />
                 <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
                   <MessageList
@@ -557,7 +617,7 @@ export default function ChatPage() {
                 <MessageInput
                   onSend={handleSendMessage}
                   onSendImage={() => {}}
-                  onSendSticker={() => {}}
+                  onSendSticker={handleSendSticker}
                 />
               </>
             ) : (
