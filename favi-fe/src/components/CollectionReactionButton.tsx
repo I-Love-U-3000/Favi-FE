@@ -164,7 +164,7 @@ export default function CollectionReactionButton({
 
         {pickerOpen && (
           <div
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-[70] bg-black/75 text-white rounded-full px-1.5 py-1 flex items-center gap-1.5 shadow-lg"
+            className="absolute bottom-full right-full mr-1 mb-1 z-[70] bg-black/75 text-white rounded-full px-1.5 py-1 flex items-center gap-1.5 shadow-lg"
             onMouseEnter={openPicker}
             onMouseLeave={() => closePickerWithDelay(120)}
           >

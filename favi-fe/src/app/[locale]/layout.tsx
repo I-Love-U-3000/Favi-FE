@@ -7,6 +7,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { NextIntlClientProvider } from "next-intl";
 import NavGate from "@/components/NavGate";
 import { HeartbeatProvider } from "@/components/HeartbeatProvider";
+import { CallProvider } from "@/components/CallProvider";
 import { Inter } from "next/font/google";
 
 const inter = Inter({
@@ -38,12 +39,14 @@ export default function RootLayout({
             <Toast />
             <AuthProvider>
               <HeartbeatProvider />
-              <RootProvider>
-                <div className="min-h-screen flex">
-                  <NavGate />
-                  <main className="flex-1">{children}</main>
-                </div>
-              </RootProvider>
+              <CallProvider>
+                <RootProvider>
+                  <div className="min-h-screen flex">
+                    <NavGate />
+                    <main className="flex-1">{children}</main>
+                  </div>
+                </RootProvider>
+              </CallProvider>
             </AuthProvider>
           </ThemeProvider>
         </NextIntlClientProvider>
