@@ -1,3 +1,5 @@
+import PostPreviewMessage from "./PostPreviewMessage";
+
 interface Message {
   id: number;
   sender: string;
@@ -6,6 +8,14 @@ interface Message {
   imageUrl?: string;
   stickerUrl?: string;
   readBy?: string[];
+  postPreview?: {
+    id: string;
+    authorProfileId: string;
+    caption?: string | null;
+    thumbnailUrl?: string | null;
+    mediasCount: number;
+    createdAt: string;
+  } | null;
 }
 
 interface MessageItemProps {
@@ -31,6 +41,11 @@ export default function MessageItem({ message, isSent, recipientId, currentUserI
           color: isSent ? "white" : "var(--text)",
         }}
       >
+        {message.postPreview && (
+          <div className="mb-2">
+            <PostPreviewMessage postPreview={message.postPreview} isSent={isSent} />
+          </div>
+        )}
         {message.text && (
           <p className="break-words leading-relaxed">{message.text}</p>
         )}

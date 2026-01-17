@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { Dialog } from "primereact/dialog";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
+import { InputTextarea } from "primereact/inputtextarea";
 import chatAPI from "@/lib/api/chatAPI";
+import postAPI from "@/lib/api/postAPI";
 import type { ConversationSummaryResponse } from "@/types";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "@/i18n/routing";
@@ -35,6 +37,7 @@ export default function ShareToChatDialog({
   const [search, setSearch] = useState("");
   const [sharing, setSharing] = useState<string | null>(null);
   const [sharingToProfile, setSharingToProfile] = useState(false);
+  const [profileCaption, setProfileCaption] = useState("");
 
   useEffect(() => {
     if (!visible || !user) {
@@ -74,6 +77,7 @@ export default function ShareToChatDialog({
       setSearch("");
       setSharing(null);
       setSharingToProfile(false);
+      setProfileCaption("");
     }
   }, [visible]);
 
@@ -107,9 +111,7 @@ export default function ShareToChatDialog({
 
     setSharingToProfile(true);
     try {
-      // Mock functionality - TODO: implement actual share to profile
-      await new Promise(resolve => setTimeout(resolve, 500));
-      alert("Post shared to your profile successfully! (Mock)");
+      await postAPI.sharePost(postId, { caption: profileCaption || null });
       onShared();
       onClose();
     } catch (e: any) {
@@ -152,6 +154,17 @@ export default function ShareToChatDialog({
         {/* Share to Profile Section */}
         {user && (
           <div>
+            <div className="text-sm mb-2 font-semibold">Share to your profile</div>
+            <div className="mb-2">
+              <InputTextarea
+                placeholder="Add a caption (optional)..."
+                value={profileCaption}
+                onChange={(e) => setProfileCaption(e.target.value)}
+                rows={2}
+                className="w-full"
+                disabled={sharingToProfile || sharing !== null}
+              />
+            </div>
             <style>{`.share-chat-btn:hover { background-color: var(--bg) !important; }`}</style>
             <button
               type="button"
