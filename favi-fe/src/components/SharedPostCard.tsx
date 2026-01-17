@@ -1,6 +1,5 @@
 import { useRouter } from "@/i18n/routing";
-import type { RepostResponse, ReactionType } from "@/types";
-import postAPI from "@/lib/api/postAPI";
+import type { RepostResponse } from "@/types";
 
 interface SharedPostCardProps {
   repost: RepostResponse;
@@ -10,16 +9,6 @@ interface SharedPostCardProps {
 
 export default function SharedPostCard({ repost, onNavigateToOriginal, onProfileClick }: SharedPostCardProps) {
   const router = useRouter();
-
-  const handleReaction = async (type: ReactionType) => {
-    try {
-      // This would need to be implemented - reactions on reposts
-      // For now, it's a placeholder
-      console.log("Reaction on repost:", type);
-    } catch (e) {
-      console.error("Error reacting to repost:", e);
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -111,67 +100,6 @@ export default function SharedPostCard({ repost, onNavigateToOriginal, onProfile
             ))}
           </div>
         )}
-
-        {/* Original Post Footer */}
-        <div className="flex items-center justify-between p-4 border-t" style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-4">
-            {/* Reactions */}
-            <div className="flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
-              <span className="text-xl">❤️</span>
-              <span className="text-sm">{repost.reactions.total}</span>
-            </div>
-            {/* Comments */}
-            <div className="flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
-              <span className="text-xl">💬</span>
-              <span className="text-sm">{repost.commentsCount}</span>
-            </div>
-            {/* Reposts */}
-            <div className="flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
-              <span className="text-xl">🔄</span>
-              <span className="text-sm">{repost.repostsCount}</span>
-            </div>
-          </div>
-          <div className="text-xs opacity-60" style={{ color: "var(--text-secondary)" }}>
-            View original post
-          </div>
-        </div>
-      </div>
-
-      {/* Engagement Bar for the Repost itself */}
-      <div
-        className="flex items-center justify-between p-4 rounded-xl"
-        style={{ backgroundColor: "var(--bg-primary)" }}
-      >
-        <div className="flex items-center gap-4">
-          {/* Reaction */}
-          <button
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50"
-            style={{ color: repost.reactions.currentUserReaction ? "#ef4444" : "var(--text-secondary)" }}
-            onClick={() => handleReaction(repost.reactions.currentUserReaction || "Like" as ReactionType)}
-          >
-            <span className="text-lg">
-              {repost.reactions.currentUserReaction === "Like" ? "❤️" : "🤍"}
-            </span>
-            <span className="text-sm">{repost.reactions.total}</span>
-          </button>
-
-          {/* Comment */}
-          <button
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all hover:bg-black/5 dark:hover:bg-white/5"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            <span className="text-lg">💬</span>
-            <span className="text-sm">{repost.commentsCount}</span>
-          </button>
-        </div>
-
-        {/* Share */}
-        <button
-          className="px-3 py-1.5 rounded-lg transition-all hover:bg-black/5 dark:hover:bg-white/5 text-sm"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          🔄 Share
-        </button>
       </div>
 
       {/* Timestamp */}

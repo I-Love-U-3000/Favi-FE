@@ -9,6 +9,7 @@ import type {
   PostReactionResponse,
   CreateRepostRequest,
   RepostResponse,
+  FeedItemDto,
 } from "@/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
@@ -96,6 +97,11 @@ export const postAPI = {
   getFeed: async (page = 1, pageSize = 20) =>
     camelize<PagedResult<PostResponse>>(
       await fetchWrapper.get<any>(`/Posts/feed?page=${page}&pageSize=${pageSize}`, true)
+    ),
+
+  getFeedWithReposts: async (page = 1, pageSize = 20) =>
+    camelize<PagedResult<FeedItemDto>>(
+      await fetchWrapper.get<any>(`/Posts/feed-with-reposts?page=${page}&pageSize=${pageSize}`, true)
     ),
 
   getGuestFeed: async (page = 1, pageSize = 20) =>

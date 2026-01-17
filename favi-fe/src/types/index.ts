@@ -490,6 +490,18 @@ export type CreateRepostRequest = {
   caption?: string | null;
 };
 
+export enum FeedItemType {
+  Post = 0,
+  Repost = 1,
+}
+
+export type FeedItemDto = {
+  type: FeedItemType;
+  post?: PostResponse | null;
+  repost?: RepostResponse | null;
+  createdAt: string;  // For sorting
+};
+
 export type RepostResponse = {
   id: string;
   profileId: string;
