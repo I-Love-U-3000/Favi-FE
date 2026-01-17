@@ -5,7 +5,7 @@ import { Mic, MicOff, PhoneOff, Video, VideoOff, Volume2, VolumeX } from 'lucide
 import { useCall } from './CallProvider';
 
 export default function GlobalActiveCallInterface() {
-  const { isActiveCall, activeCallInfo, remoteStream, localStream, endCall } = useCall();
+  const { isActiveCall, activeCallInfo, remoteStream, localStream, endCall, connectionStatus } = useCall();
 
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -13,13 +13,6 @@ export default function GlobalActiveCallInterface() {
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isSpeakerOff, setIsSpeakerOff] = useState(false);
-
-  // Don't render if there's no active call
-  if (!isActiveCall || !activeCallInfo) {
-    return null;
-  }
-
-  const { remoteUserName, callType } = activeCallInfo;
 
   // Handle remote stream
   useEffect(() => {
@@ -43,6 +36,16 @@ export default function GlobalActiveCallInterface() {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Don't render if there's no active call - MUST be after ALL hooks
+  if (!isActiveCall || !activeCallInfo) {
+    return null;
+  }
+
+  const { remoteUserName, callType, remoteUserAvatar, remoteUserDisplayName } = activeCallInfo;
+
+  // Determine display name (use displayName if available, otherwise fall back to username)
+  const displayName = remoteUserDisplayName || remoteUserName;
 
   // Format time as MM:SS
   const formatTime = (seconds: number) => {
@@ -93,14 +96,26 @@ export default function GlobalActiveCallInterface() {
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-10 p-6 flex justify-between items-start bg-gradient-to-b from-black/60 to-transparent">
           <div className="flex flex-col">
-            <h1 className="text-2xl font-bold text-white">{remoteUserName}</h1>
-            <p className="text-white/70 text-sm mt-1">{formatTime(elapsed)}</p>
+            <h1 className="text-2xl font-bold text-white">{displayName}</h1>
+            <p className="text-white/70 text-sm mt-1">
+              {connectionStatus === 'connecting' ? 'Connecting...' : formatTime(elapsed)}
+            </p>
           </div>
 
           {/* Connection Quality Indicator */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/20 border border-green-500/30">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs text-green-400 font-medium">Connected</span>
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${
+            connectionStatus === 'connected'
+              ? 'bg-green-500/20 border-green-500/30'
+              : 'bg-yellow-500/20 border-yellow-500/30'
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${
+              connectionStatus === 'connected' ? 'bg-green-500 animate-pulse' : 'bg-yellow-500 animate-ping'
+            }`} />
+            <span className={`text-xs font-medium ${
+              connectionStatus === 'connected' ? 'text-green-400' : 'text-yellow-400'
+            }`}>
+              {connectionStatus === 'connected' ? 'Connected' : 'Connecting...'}
+            </span>
           </div>
         </div>
 
@@ -118,8 +133,8 @@ export default function GlobalActiveCallInterface() {
             <div className="w-full h-full flex items-center justify-center">
               <div className="w-32 h-32 rounded-full overflow-hidden shadow-2xl">
                 <img
-                  src="/default-avatar.png"
-                  alt={remoteUserName}
+                  src={remoteUserAvatar || '/default-avatar.png'}
+                  alt={displayName}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -130,10 +145,22 @@ export default function GlobalActiveCallInterface() {
           {!remoteStream && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="flex flex-col items-center gap-4">
-                <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center">
-                  <PhoneOff className="w-12 h-12 text-white/50" />
+                <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+                  {remoteUserAvatar ? (
+                    <img
+                      src={remoteUserAvatar}
+                      alt={displayName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <PhoneOff className="w-12 h-12 text-white/50" />
+                  )}
                 </div>
-                <p className="text-white/50 text-lg">Waiting for {remoteUserName} to join...</p>
+                <p className="text-white/50 text-lg">
+                  {connectionStatus === 'connecting'
+                    ? `Connecting to ${displayName}...`
+                    : `Waiting for ${displayName} to join...`}
+                </p>
               </div>
             </div>
           )}
@@ -161,8 +188,8 @@ export default function GlobalActiveCallInterface() {
                     style={{ border: '4px solid var(--accent)' }}
                   >
                     <img
-                      src="/default-avatar.png"
-                      alt={remoteUserName}
+                      src={remoteUserAvatar || '/default-avatar.png'}
+                      alt={displayName}
                       className="w-full h-full object-cover"
                     />
                   </div>

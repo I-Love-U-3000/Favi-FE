@@ -375,12 +375,14 @@ export default function ChatPage() {
       return;
     }
 
-    // Use global call context to start the call with recipient username
+    // Use global call context to start the call with recipient username, avatar, and display name
     await call.startCall(
       selectedConversation.id,
       recipientId,
       callType,
-      selectedConversation.recipient.username
+      selectedConversation.recipient.username,
+      selectedConversation.recipient.avatar,
+      selectedConversation.recipient.username // Use username as display name (can be changed later)
     );
   }, [selectedConversation, call]);
 
