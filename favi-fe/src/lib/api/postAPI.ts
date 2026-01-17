@@ -7,6 +7,9 @@ import type {
   PagedResult,
   ReactionType,
   PostReactionResponse,
+  CreateRepostRequest,
+  RepostResponse,
+  FeedItemDto,
 } from "@/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
@@ -96,6 +99,11 @@ export const postAPI = {
       await fetchWrapper.get<any>(`/Posts/feed?page=${page}&pageSize=${pageSize}`, true)
     ),
 
+  getFeedWithReposts: async (page = 1, pageSize = 20) =>
+    camelize<PagedResult<FeedItemDto>>(
+      await fetchWrapper.get<any>(`/Posts/feed-with-reposts?page=${page}&pageSize=${pageSize}`, true)
+    ),
+
   getGuestFeed: async (page = 1, pageSize = 20) =>
     camelize<PagedResult<PostResponse>>(
       await fetchWrapper.get<any>(
@@ -159,6 +167,23 @@ export const postAPI = {
   getArchived: async (page = 1, pageSize = 20) =>
     camelize<PagedResult<PostResponse>>(
       await fetchWrapper.get<any>(`/posts/archived?page=${page}&pageSize=${pageSize}`, true)
+    ),
+
+  // ---------- Repost/Share ----------
+  sharePost: (postId: string, payload: CreateRepostRequest) =>
+    fetchWrapper.post<RepostResponse>(`/Posts/${postId}/share`, payload, true),
+
+  unsharePost: (postId: string) =>
+    fetchWrapper.del<any>(`/Posts/${postId}/share`, undefined, true),
+
+  getRepost: async (repostId: string) =>
+    camelize<RepostResponse>(
+      await fetchWrapper.get<any>(`/Posts/shares/${repostId}`, true)
+    ),
+
+  getProfileShares: async (profileId: string, page = 1, pageSize = 20) =>
+    camelize<PagedResult<RepostResponse>>(
+      await fetchWrapper.get<any>(`/Posts/profile/${profileId}/shares?page=${page}&pageSize=${pageSize}`)
     ),
 };
 

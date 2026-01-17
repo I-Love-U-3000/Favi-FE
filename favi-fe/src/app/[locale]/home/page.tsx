@@ -62,7 +62,7 @@ export default function HomePage() {
           // personal feed
           res = await postAPI.getFeed(1, 24);
         } else {
-          // guest feed 
+          // guest feed
           res = await postAPI.getGuestFeed(1, 24);
         }
 

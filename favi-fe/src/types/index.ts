@@ -267,6 +267,15 @@ export type ConversationSummaryResponse = {
   members: ConversationMemberResponse[];
 }
 
+export type PostPreviewDto = {
+  id: string;
+  authorProfileId: string;
+  caption?: string | null;
+  thumbnailUrl?: string | null;
+  mediasCount: number;
+  createdAt: string;
+};
+
 export type MessageResponse = {
   id: string;
   conversationId: string;
@@ -280,6 +289,7 @@ export type MessageResponse = {
   updatedAt?: string | null;
   isEdited: boolean;
   readBy: string[]; // Array of profile IDs who have read this message
+  postPreview?: PostPreviewDto | null;
 }
 
 export type MessagePageResponse = {
@@ -473,4 +483,43 @@ export type CollectionReactionResponse = {
   avatarUrl: string | null;
   reactionType: ReactionType;
   createdAt: string;
+};
+
+// Repost/Share types
+export type CreateRepostRequest = {
+  caption?: string | null;
+};
+
+export enum FeedItemType {
+  Post = 0,
+  Repost = 1,
+}
+
+export type FeedItemDto = {
+  type: FeedItemType;
+  post?: PostResponse | null;
+  repost?: RepostResponse | null;
+  createdAt: string;  // For sorting
+};
+
+export type RepostResponse = {
+  id: string;
+  profileId: string;
+  username: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  originalPostId: string;
+  originalCaption?: string | null;
+  originalAuthorProfileId: string;
+  originalAuthorUsername: string;
+  originalAuthorDisplayName?: string | null;
+  originalAuthorAvatarUrl?: string | null;
+  originalPostMedias: PostMediaResponse[];
+  caption?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  commentsCount: number;  // Comments on this repost (separate from original post)
+  reactions: ReactionSummaryDto;  // Reactions on this repost (separate from original post)
+  repostsCount: number;  // Total reposts of the original post
+  isRepostedByCurrentUser: boolean;
 };

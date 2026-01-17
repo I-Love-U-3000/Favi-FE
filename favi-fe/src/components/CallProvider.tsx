@@ -10,11 +10,14 @@ import { useRef } from 'react';
 import { useAuth } from './AuthProvider';
 
 type CallStatus = 'calling' | 'ringing' | 'connected' | 'ended' | 'failed';
+type ConnectionStatus = 'connecting' | 'connected';
 
 interface ActiveCallInfo {
   remoteUserName: string;
   callType: CallType;
   conversationId: string;
+  remoteUserAvatar?: string;
+  remoteUserDisplayName?: string;
 }
 
 interface OutgoingCallInfo {
@@ -34,6 +37,7 @@ interface CallContextType {
   activeCallInfo: ActiveCallInfo | null;
   remoteStream: MediaStream | null;
   localStream: MediaStream | null;
+  connectionStatus: ConnectionStatus;
   acceptCall: () => Promise<void>;
   rejectCall: () => Promise<void>;
   endCall: () => Promise<void>;
@@ -67,6 +71,7 @@ export function CallProvider({ children }: CallProviderProps) {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [pendingConversationId, setPendingConversationId] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
 
   // Show toast notification
   const showToast = useCallback((severity: 'success' | 'info' | 'warn' | 'error', summary: string, detail: string) => {
@@ -96,6 +101,7 @@ export function CallProvider({ children }: CallProviderProps) {
     webrtcManager.initialize(callHub.connection);
     webrtcManager.onRemoteStream((stream) => {
       setRemoteStream(stream);
+      setConnectionStatus('connected');
       setIsActiveCall(true);
     });
 
@@ -124,6 +130,10 @@ export function CallProvider({ children }: CallProviderProps) {
       console.log('[Call] Call accepted, joining call room');
       const conversationId = data.conversationId || pendingConversationId;
       if (conversationId) {
+        // Set active call IMMEDIATELY so UI shows for caller
+        setIsActiveCall(true);
+        setConnectionStatus('connecting');
+
         // Update outgoing call status
         if (outgoingCall) {
           setOutgoingCall(prev => prev ? { ...prev, status: 'connected' } : null);
@@ -174,7 +184,7 @@ export function CallProvider({ children }: CallProviderProps) {
       callHub.connection?.off('CallRejected');
       callHub.connection?.off('JoinCallRoom');
     };
-  }, [callHub.isConnected, callHub.connection, pendingConversationId, outgoingCall, showToast, router]);
+  }, [callHub.isConnected, callHub.connection]);
 
   // Play ringtone sound
   const playRingtone = () => {
@@ -186,7 +196,14 @@ export function CallProvider({ children }: CallProviderProps) {
   };
 
   // Start a call (for caller)
-  const startCall = useCallback(async (conversationId: string, targetUserId: string, callType: CallType, targetUserName?: string) => {
+  const startCall = useCallback(async (
+    conversationId: string,
+    targetUserId: string,
+    callType: CallType,
+    targetUserName?: string,
+    targetUserAvatar?: string,
+    targetUserDisplayName?: string
+  ) => {
     if (!callHub.connection) {
       showToast('error', 'Call Failed', 'No connection to call server');
       return;
@@ -196,12 +213,14 @@ export function CallProvider({ children }: CallProviderProps) {
       // Store pending conversation for later redirect
       setPendingConversationId(conversationId);
 
-      // Store active call info for UI
+      // Store active call info for UI (include avatar and display name)
       if (targetUserName) {
         setActiveCallInfo({
           remoteUserName: targetUserName,
           callType,
           conversationId,
+          remoteUserAvatar: targetUserAvatar,
+          remoteUserDisplayName: targetUserDisplayName,
         });
 
         // Set outgoing call state IMMEDIATELY so UI shows right away
@@ -243,11 +262,17 @@ export function CallProvider({ children }: CallProviderProps) {
       // Store conversation for redirect
       setPendingConversationId(conversationId);
 
-      // Store active call info for UI
+      // Set active call IMMEDIATELY so UI shows right away
+      setIsActiveCall(true);
+      setConnectionStatus('connecting');
+
+      // Store active call info for UI (include avatar and display name)
       setActiveCallInfo({
-        remoteUserName: incomingCall.callerDisplayName || incomingCall.callerUsername,
+        remoteUserName: incomingCall.callerUsername,
         callType: incomingCall.callType,
         conversationId,
+        remoteUserAvatar: incomingCall.callerAvatarUrl,
+        remoteUserDisplayName: incomingCall.callerDisplayName,
       });
 
       // Accept the call via WebRTC manager
@@ -269,6 +294,8 @@ export function CallProvider({ children }: CallProviderProps) {
       setIncomingCall(null);
       setPendingConversationId(null);
       setActiveCallInfo(null);
+      setIsActiveCall(false);
+      setConnectionStatus('connecting');
     }
   }, [incomingCall, callHub.connection, router, showToast]);
 
@@ -320,6 +347,7 @@ export function CallProvider({ children }: CallProviderProps) {
     setIncomingCall(null);
     setOutgoingCall(null);
     setPendingConversationId(null);
+    setConnectionStatus('connecting');
   }, []);
 
   const value: CallContextType = {
@@ -331,6 +359,7 @@ export function CallProvider({ children }: CallProviderProps) {
     activeCallInfo,
     remoteStream,
     localStream,
+    connectionStatus,
     acceptCall,
     rejectCall,
     endCall,

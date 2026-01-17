@@ -11,6 +11,14 @@ interface Message {
   imageUrl?: string;
   stickerUrl?: string;
   readBy?: string[]; // Array of profile IDs who have read this message
+  postPreview?: {
+    id: string;
+    authorProfileId: string;
+    caption?: string | null;
+    thumbnailUrl?: string | null;
+    mediasCount: number;
+    createdAt: string;
+  } | null;
 }
 
 interface MessageListProps {

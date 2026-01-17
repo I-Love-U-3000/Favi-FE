@@ -30,6 +30,14 @@ interface ChatMessage {
   imageUrl?: string;
   stickerUrl?: string;
   readBy?: string[]; // Array of profile IDs who have read this message
+  postPreview?: {
+    id: string;
+    authorProfileId: string;
+    caption?: string | null;
+    thumbnailUrl?: string | null;
+    mediasCount: number;
+    createdAt: string;
+  } | null;
 }
 
 interface ChatRecipient {
@@ -61,6 +69,14 @@ interface UiMessage {
   stickerUrl?: string;
   isOwn: boolean;
   readBy?: string[]; // Array of profile IDs who have read this message
+  postPreview?: {
+    id: string;
+    authorProfileId: string;
+    caption?: string | null;
+    thumbnailUrl?: string | null;
+    mediasCount: number;
+    createdAt: string;
+  } | null;
 }
 
 interface UiConversation {
@@ -226,6 +242,7 @@ export default function ChatPage() {
             imageUrl: isGif ? undefined : (m.mediaUrl ?? undefined),
             stickerUrl: isGif ? m.mediaUrl : undefined,
             readBy: m.readBy ?? [],
+            postPreview: m.postPreview ?? undefined,
           };
         });
 
@@ -246,6 +263,14 @@ export default function ChatPage() {
           const oldestUnreadMessage = unreadMessages[0];
           try {
             await chatAPI.markAsRead(conversation.id, oldestUnreadMessage.backendId);
+
+            // Broadcast to navbar to refresh the count
+            supabase
+              .channel(`navbar-chat-updates:${currentUserId}`)
+              .send({
+                type: "broadcast",
+                event: "refresh-chat-count",
+              });
           } catch (e) {
             console.error("Error marking messages as read", e);
           }
@@ -318,6 +343,14 @@ export default function ChatPage() {
             username: string;
             content?: string;
             mediaUrl?: string;
+            postPreview?: {
+              id: string;
+              authorProfileId: string;
+              caption?: string | null;
+              thumbnailUrl?: string | null;
+              mediasCount: number;
+              createdAt: string;
+            } | null;
             createdAt: string;
           };
 
@@ -338,6 +371,7 @@ export default function ChatPage() {
             imageUrl: isGif ? undefined : m.mediaUrl,
             stickerUrl: isGif ? m.mediaUrl : undefined,
             readBy: [], // New messages start with no reads
+            postPreview: m.postPreview ?? undefined,
           };
 
           setMessages((prev) => {
@@ -375,26 +409,29 @@ export default function ChatPage() {
       return;
     }
 
-    // Use global call context to start the call with recipient username
+    // Use global call context to start the call with recipient username, avatar, and display name
     await call.startCall(
       selectedConversation.id,
       recipientId,
       callType,
-      selectedConversation.recipient.username
+      selectedConversation.recipient.username,
+      selectedConversation.recipient.avatar,
+      selectedConversation.recipient.username // Use username as display name (can be changed later)
     );
   }, [selectedConversation, call]);
 
   // ------------- 4. Gửi message -------------
   const handleSendMessage = useCallback(
-    async (text: string, mediaUrl?: string, isSticker: boolean = false) => {
+    async (text: string, mediaUrl?: string, isSticker: boolean = false, postId?: string) => {
       if (!selectedConversationId) return;
       const trimmed = text.trim();
-      if (!trimmed && !mediaUrl) return;
+      if (!trimmed && !mediaUrl && !postId) return;
 
       try {
         const sent = (await chatAPI.sendMessage(selectedConversationId, {
           content: trimmed || undefined,
           mediaUrl: mediaUrl || undefined,
+          postId: postId,
         })) as MessageResponse;
 
         // Determine if this is a sticker (GIF URLs or explicitly marked as sticker)
@@ -412,6 +449,7 @@ export default function ChatPage() {
           imageUrl: isGif ? undefined : (sent.mediaUrl ?? undefined),
           stickerUrl: isGif ? sent.mediaUrl : undefined,
           readBy: sent.readBy ?? [],
+          postPreview: sent.postPreview ?? undefined,
         };
 
         setMessages((prev) => [...prev, msg]);
@@ -437,6 +475,7 @@ export default function ChatPage() {
               username: sent.username,
               content: sent.content,
               mediaUrl: sent.mediaUrl,
+              postPreview: sent.postPreview,
               createdAt: sent.createdAt,
             },
           });
@@ -477,6 +516,7 @@ export default function ChatPage() {
       imageUrl: m.imageUrl,
       stickerUrl: m.stickerUrl,
       isOwn: m.senderId === currentUserId,
+      postPreview: m.postPreview,
     })),
     unreadCount: c.unreadCount,
     lastMessagePreview: c.lastMessagePreview,
@@ -493,6 +533,7 @@ export default function ChatPage() {
     stickerUrl: m.stickerUrl,
     isOwn: m.senderId === currentUserId,
     readBy: m.readBy,
+    postPreview: m.postPreview,
   }));
 
   // Extract all image URLs from the conversation messages
