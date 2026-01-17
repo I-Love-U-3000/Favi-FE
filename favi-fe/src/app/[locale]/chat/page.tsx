@@ -246,6 +246,14 @@ export default function ChatPage() {
           const oldestUnreadMessage = unreadMessages[0];
           try {
             await chatAPI.markAsRead(conversation.id, oldestUnreadMessage.backendId);
+
+            // Broadcast to navbar to refresh the count
+            supabase
+              .channel(`navbar-chat-updates:${currentUserId}`)
+              .send({
+                type: "broadcast",
+                event: "refresh-chat-count",
+              });
           } catch (e) {
             console.error("Error marking messages as read", e);
           }
