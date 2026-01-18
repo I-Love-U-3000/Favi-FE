@@ -1,62 +1,50 @@
 "use client";
 
-import { AdminGuard } from "@/components/AdminGuard";
+import { useEffect } from "react";
+import { useRouter } from "@/i18n/routing";
+import { useAuth } from "@/components/AuthProvider";
+import AdminSidebar from "@/components/admin/layout/AdminSidebar";
+import AdminHeader from "@/components/admin/layout/AdminHeader";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
-import { usePathname } from "@/i18n/routing";
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const { isAuthenticated, isAdmin } = useAuth();
   const t = useTranslations("AdminPanel");
-  const pathname = usePathname();
 
-  const navItems = [
-    { href: "/admin/dashboard", label: t("Dashboard") },
-    { href: "/admin/reports", label: t("Reports") },
-    { href: "/admin/users", label: t("Users") },
-    { href: "/admin/posts", label: t("Posts") },
-  ];
+  // Check auth - redirect if not authenticated or not admin
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push("/login");
+      return;
+    }
+    if (!isAdmin) {
+      router.push("/home");
+    }
+  }, [isAuthenticated, isAdmin, router]);
+
+  // Show loading while checking auth
+  if (!isAuthenticated || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <i className="pi pi-spin pi-spinner text-3xl text-primary mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">{t("CheckingPermissions")}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <AdminGuard>
-      <div className="min-h-screen bg-background">
-        {/* Header */}
-        <header className="border-b bg-card">
-          <div className="container mx-auto px-4 py-4">
-            <h1 className="text-2xl font-bold text-foreground">{t("Title")}</h1>
-          </div>
-        </header>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <AdminSidebar />
+      <AdminHeader />
 
-        {/* Navigation */}
-        <nav className="border-b bg-card">
-          <div className="container mx-auto px-4">
-            <div className="flex gap-6">
-              {navItems.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`py-4 px-2 border-b-2 transition-colors ${
-                      isActive
-                        ? "border-primary text-primary font-medium"
-                        : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </nav>
-
-        {/* Content */}
-        <main className="container mx-auto px-4 py-6">{children}</main>
-      </div>
-    </AdminGuard>
+      <main className="pt-16 min-h-screen">
+        <div className="p-6">
+          {children}
+        </div>
+      </main>
+    </div>
   );
 }
