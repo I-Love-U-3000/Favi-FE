@@ -1,413 +1,289 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
-import { mockReports, createPagedResult } from "@/lib/mock/adminMockData";
-import type { PagedResult, ReportResponse, ReportTarget } from "@/types";
-import { ReportStatus, ReportTarget as ReportTargetEnum } from "@/types";
+import { useState, useRef, useCallback } from "react";
+import { Button } from "primereact/button";
+import { InputText } from "primereact/inputtext";
+import { Dropdown } from "primereact/dropdown";
+import { Menu } from "primereact/menu";
+import ReportsTable from "@/components/admin/tables/ReportsTable";
 import {
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+  useAdminReports,
+  useBulkResolveReports,
+  useBulkRejectReports,
+  useReportStats,
+  ReportDto,
+} from "@/hooks/queries/useAdminReports";
+import { confirmDialog, ConfirmDialog } from "primereact/confirmdialog";
+import { Toast } from "primereact/toast";
+import { useOverlay } from "@/components/RootProvider";
+import { useDebounce } from "@/lib/hooks/useDebounce";
 
-type FilterType = "all" | ReportTarget;
+const STATUS_OPTIONS = [
+  { label: "All Status", value: "" },
+  { label: "Pending", value: "pending" },
+  { label: "Resolved", value: "resolved" },
+  { label: "Rejected", value: "rejected" },
+];
 
-export default function AdminReportsPage() {
-  const t = useTranslations("AdminPanel");
-  const [reports, setReports] = useState<PagedResult<ReportResponse> | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState<FilterType>("all");
-  const [updating, setUpdating] = useState<string | null>(null);
+const TARGET_TYPE_OPTIONS = [
+  { label: "All Types", value: "" },
+  { label: "Post", value: "post" },
+  { label: "User", value: "user" },
+  { label: "Comment", value: "comment" },
+];
 
-  useEffect(() => {
-    async function fetchReports() {
-      try {
-        setLoading(true);
-        // Simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 500));
+const REASON_OPTIONS = [
+  { label: "All Reasons", value: "" },
+  { label: "Spam", value: "spam" },
+  { label: "Harassment", value: "harassment" },
+  { label: "Inappropriate", value: "inappropriate" },
+  { label: "Misinformation", value: "misinformation" },
+  { label: "Other", value: "other" },
+];
 
-        // Filter mock reports
-        let filteredReports = mockReports;
-        if (filter !== "all") {
-          filteredReports = mockReports.filter((r) => r.targetType === filter);
+export default function ReportsPage() {
+  const toast = useOverlay();
+  const actionMenuRef = useRef<Menu>(null);
+
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [targetType, setTargetType] = useState("");
+  const [reason, setReason] = useState("");
+  const [first, setFirst] = useState(0);
+  const [selection, setSelection] = useState<ReportDto[]>([]);
+
+  const debouncedSearch = useDebounce(search, 300);
+
+  const { data: statsData } = useReportStats();
+
+  const { data, isLoading, refetch } = useAdminReports({
+    search: debouncedSearch,
+    status: status || undefined,
+    targetType: targetType || undefined,
+    reason: reason || undefined,
+    skip: first,
+    take: 20,
+  });
+
+  const bulkResolve = useBulkResolveReports();
+  const bulkReject = useBulkRejectReports();
+
+  const handlePageChange = useCallback((first: number, rows: number) => {
+    setFirst(first);
+  }, []);
+
+  const resetFilters = () => {
+    setSearch("");
+    setStatus("");
+    setTargetType("");
+    setReason("");
+    setFirst(0);
+    setSelection([]);
+  };
+
+  const handleBulkAction = (action: "resolve" | "reject") => {
+    const count = selection.length;
+    const actionLabel = action === "resolve" ? "resolve" : "reject";
+
+    confirmDialog({
+      message: `Are you sure you want to ${actionLabel} ${count} report(s)?`,
+      header: `Confirm ${actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1)}`,
+      icon: action === "resolve" ? "pi pi-check-circle" : "pi pi-times-circle",
+      acceptClassName: action === "resolve" ? "p-button-success" : "p-button-danger",
+      accept: () => {
+        if (action === "resolve") {
+          bulkResolve.mutate({ reportIds: selection.map((r) => r.id), action: "resolve" });
+        } else {
+          bulkReject.mutate({ reportIds: selection.map((r) => r.id) });
         }
-
-        // Create paged result
-        const data = createPagedResult(filteredReports, page, 20);
-        setReports(data);
-      } catch (err: any) {
-        console.error("Failed to fetch reports:", err);
-        setError(err?.message || t("LoadFailed"));
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchReports();
-  }, [page, filter, t]);
-
-  const handleUpdateStatus = async (reportId: string, newStatus: ReportStatus) => {
-    try {
-      setUpdating(reportId);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Update mock data
-      const report = mockReports.find((r) => r.id === reportId);
-      if (report) {
-        report.status = newStatus;
-        report.updatedAt = new Date().toISOString();
-      }
-
-      // Refresh reports
-      let filteredReports = mockReports;
-      if (filter !== "all") {
-        filteredReports = mockReports.filter((r) => r.targetType === filter);
-      }
-      const data = createPagedResult(filteredReports, page, 20);
-      setReports(data);
-
-      alert(t("StatusUpdated"));
-    } catch (err: any) {
-      console.error("Failed to update status:", err);
-      alert(t("StatusUpdateFailed"));
-    } finally {
-      setUpdating(null);
-    }
+        setSelection([]);
+      },
+    });
   };
 
-  const getStatusLabel = (status: ReportStatus) => {
-    switch (status) {
-      case 0:
-        return t("Pending");
-      case 1:
-        return t("Reviewed");
-      case 2:
-        return t("Resolved");
-      case 3:
-        return t("Rejected");
-      default:
-        return "-";
-    }
+  const handleExport = (format: string) => {
+    toast.showToast({
+      severity: "info",
+      summary: "Export",
+      detail: `Exporting reports as ${format}...`,
+    });
   };
 
-  const getStatusColor = (status: ReportStatus) => {
-    switch (status) {
-      case 0:
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
-      case 1:
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-      case 2:
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
-      case 3:
-        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
-    }
-  };
-
-  const getTargetLabel = (target: ReportTarget) => {
-    switch (target) {
-      case 0:
-        return t("User");
-      case 1:
-        return t("Post");
-      case 2:
-        return t("Comment");
-      case 3:
-        return t("Message");
-      case 4:
-        return t("Collection");
-      default:
-        return "-";
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
-          <p className="mt-4 text-muted-foreground">{t("Loading")}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <p className="text-destructive">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!reports || reports.items.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h2 className="text-xl font-semibold text-foreground">{t("Reports")}</h2>
-        </div>
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">{t("EmptyReports")}</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Prepare chart data
-  const statusData = [
-    { name: t("Pending"), value: reports.items.filter((r) => r.status === ReportStatus.Pending).length },
-    { name: t("Resolved"), value: reports.items.filter((r) => r.status === ReportStatus.Resolved).length },
-    { name: t("Rejected"), value: reports.items.filter((r) => r.status === ReportStatus.Rejected).length },
-    { name: t("Reviewed"), value: reports.items.filter((r) => r.status === ReportStatus.Reviewed).length },
+  const exportItems = [
+    {
+      label: "Export as CSV",
+      icon: "pi pi-file",
+      command: () => handleExport("CSV"),
+    },
+    {
+      label: "Export as JSON",
+      icon: "pi pi-file",
+      command: () => handleExport("JSON"),
+    },
+    {
+      label: "Export as Excel",
+      icon: "pi pi-file-excel",
+      command: () => handleExport("Excel"),
+    },
   ];
 
-  const targetData = [
-    { name: t("UserReports"), value: reports.items.filter((r) => r.targetType === ReportTargetEnum.User).length },
-    { name: t("PostReports"), value: reports.items.filter((r) => r.targetType === ReportTargetEnum.Post).length },
-    { name: t("CommentReports"), value: reports.items.filter((r) => r.targetType === ReportTargetEnum.Comment).length },
-    { name: t("CollectionReports"), value: reports.items.filter((r) => r.targetType === ReportTargetEnum.Collection).length },
+  const actionItems = [
+    {
+      label: "Resolve Selected",
+      icon: "pi pi-check",
+      command: () => handleBulkAction("resolve"),
+    },
+    {
+      label: "Reject Selected",
+      icon: "pi pi-times",
+      command: () => handleBulkAction("reject"),
+    },
   ];
-
-  const STATUS_COLORS = ["#f59e0b", "#22c55e", "#ef4444", "#3b82f6"];
-  const TARGET_COLORS = ["#8b5cf6", "#ef4444", "#3b82f6", "#f59e0b"];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="text-xl font-semibold text-foreground">{t("Reports")}</h2>
+    <div className="space-y-4">
+      <Toast ref={toast.toastRef} />
+      <ConfirmDialog />
 
-        {/* Filter */}
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => { setFilter("all"); setPage(1); }}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              filter === "all"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            {t("AllReports")}
-          </button>
-          <button
-            onClick={() => { setFilter(ReportTargetEnum.Post); setPage(1); }}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              filter === ReportTargetEnum.Post
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            {t("PostReports")}
-          </button>
-          <button
-            onClick={() => { setFilter(ReportTargetEnum.User); setPage(1); }}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              filter === ReportTargetEnum.User
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            {t("UserReports")}
-          </button>
-          <button
-            onClick={() => { setFilter(ReportTargetEnum.Comment); setPage(1); }}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              filter === ReportTargetEnum.Comment
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            {t("CommentReports")}
-          </button>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reports</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Review and moderate user reports
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Menu model={exportItems} popup ref={actionMenuRef} />
+          <Button
+            label="Export"
+            icon="pi pi-download"
+            className="p-button-outlined"
+            onClick={(e) => actionMenuRef.current?.toggle(e)}
+          />
         </div>
       </div>
 
-      {/* Charts Section */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Report Status Distribution */}
-        <div className="rounded-lg border bg-card p-6 shadow-sm">
-          <h3 className="text-lg font-medium text-foreground mb-4">{t("Status")}</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                data={statusData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
-                outerRadius={70}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {statusData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={STATUS_COLORS[index % STATUS_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+      {/* Stats Bar */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <i className="pi pi-exclamation-triangle text-yellow-500" />
+            <span className="text-sm text-yellow-700 dark:text-yellow-300">Pending</span>
+          </div>
+          <p className="text-2xl font-bold text-yellow-800 dark:text-yellow-200 mt-1">
+            {statsData?.pending || 0}
+          </p>
         </div>
-
-        {/* Report by Target Type */}
-        <div className="rounded-lg border bg-card p-6 shadow-sm">
-          <h3 className="text-lg font-medium text-foreground mb-4">{t("Target")}</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={targetData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis type="number" className="text-xs" />
-              <YAxis dataKey="name" type="category" width={100} className="text-xs" />
-              <Tooltip
-                contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
-              />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                {targetData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={TARGET_COLORS[index % TARGET_COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <i className="pi pi-check-circle text-green-500" />
+            <span className="text-sm text-green-700 dark:text-green-300">Resolved</span>
+          </div>
+          <p className="text-2xl font-bold text-green-800 dark:text-green-200 mt-1">
+            {statsData?.resolved || 0}
+          </p>
+        </div>
+        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <i className="pi pi-times-circle text-red-500" />
+            <span className="text-sm text-red-700 dark:text-red-300">Rejected</span>
+          </div>
+          <p className="text-2xl font-bold text-red-800 dark:text-red-200 mt-1">
+            {statsData?.rejected || 0}
+          </p>
         </div>
       </div>
+
+      {/* Filters */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="relative">
+            <i className="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <InputText
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search reports..."
+              className="w-full pl-10"
+            />
+          </div>
+          <Dropdown
+            value={status}
+            onChange={(e) => setStatus(e.value)}
+            options={STATUS_OPTIONS}
+            placeholder="All Status"
+            className="w-full"
+          />
+          <Dropdown
+            value={targetType}
+            onChange={(e) => setTargetType(e.value)}
+            options={TARGET_TYPE_OPTIONS}
+            placeholder="All Types"
+            className="w-full"
+          />
+          <Dropdown
+            value={reason}
+            onChange={(e) => setReason(e.value)}
+            options={REASON_OPTIONS}
+            placeholder="All Reasons"
+            className="w-full"
+          />
+          <Button
+            label="Reset"
+            icon="pi pi-refresh"
+            className="p-button-outlined p-button-secondary"
+            onClick={resetFilters}
+          />
+        </div>
+      </div>
+
+      {/* Bulk Actions Toolbar */}
+      {selection.length > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <i className="pi pi-check-circle text-blue-500" />
+            <span className="font-medium text-blue-700 dark:text-blue-300">
+              {selection.length} reports selected
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              label="Resolve"
+              icon="pi pi-check"
+              severity="success"
+              size="small"
+              onClick={() => handleBulkAction("resolve")}
+              loading={bulkResolve.isPending}
+            />
+            <Button
+              label="Reject"
+              icon="pi pi-times"
+              severity="danger"
+              size="small"
+              onClick={() => handleBulkAction("reject")}
+              loading={bulkReject.isPending}
+            />
+            <Button
+              label="Clear"
+              icon="pi pi-times"
+              className="p-button-text"
+              size="small"
+              onClick={() => setSelection([])}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Reports Table */}
-      <div className="rounded-lg border bg-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                  {t("Target")}
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                  {t("Reporter")}
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                  {t("Reason")}
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                  {t("Status")}
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                  {t("CreatedAt")}
-                </th>
-                <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                  {t("Actions")}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {reports.items.map((report) => (
-                <tr key={report.id} className="hover:bg-muted/30">
-                  <td className="px-4 py-3">
-                    <div className="text-sm">
-                      <span className="font-medium text-foreground">
-                        {getTargetLabel(report.targetType)}
-                      </span>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        ID: {report.targetId.slice(0, 8)}...
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-sm text-muted-foreground">
-                      {report.reporterProfileId.slice(0, 8)}...
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-sm text-foreground max-w-xs truncate">
-                      {report.reason}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                        report.status
-                      )}`}
-                    >
-                      {getStatusLabel(report.status)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-sm text-muted-foreground">
-                      {formatDate(report.createdAt)}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {report.status === ReportStatus.Pending && (
-                        <>
-                          <button
-                            onClick={() => handleUpdateStatus(report.id, ReportStatus.Resolved)}
-                            disabled={updating === report.id}
-                            className="px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          >
-                            {updating === report.id ? t("Loading") : t("MarkAsResolved")}
-                          </button>
-                          <button
-                            onClick={() => handleUpdateStatus(report.id, ReportStatus.Rejected)}
-                            disabled={updating === report.id}
-                            className="px-3 py-1.5 text-xs font-medium rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          >
-                            {updating === report.id ? t("Loading") : t("MarkAsRejected")}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {reports.totalCount > reports.pageSize && (
-          <div className="border-t bg-muted/30 px-4 py-3 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {t("Showing", {
-                from: (page - 1) * reports.pageSize + 1,
-                to: Math.min(page * reports.pageSize, reports.totalCount),
-                total: reports.totalCount,
-              })}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-3 py-1.5 text-sm font-medium rounded-md bg-background border hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {t("AriaPrevious")}
-              </button>
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page * reports.pageSize >= reports.totalCount}
-                className="px-3 py-1.5 text-sm font-medium rounded-md bg-background border hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {t("AriaNext")}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <ReportsTable
+        reports={data?.data || []}
+        loading={isLoading}
+        totalRecords={data?.total || 0}
+        first={first}
+        onPageChange={handlePageChange}
+        selection={selection}
+        onSelectionChange={setSelection}
+      />
     </div>
   );
 }
