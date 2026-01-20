@@ -13,26 +13,10 @@ import { Divider } from "primereact/divider";
 import { Checkbox } from "primereact/checkbox";
 import { Toast } from "primereact/toast";
 import { AuthBackground } from "@/components/AuthBackground";
-import { supabase } from "@/app/supabase-client";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/AuthProvider";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-
-async function loginWithGoogle() {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo:
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
-          : undefined,
-      queryParams: { prompt: "select_account", access_type: "offline" },
-    },
-  });
-
-  if (error) throw error;
-}
 
 export default function LoginPage() {
   const t = useTranslations("LoginPage");
@@ -46,7 +30,6 @@ export default function LoginPage() {
     remember: true,
   });
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const showToast = useCallback(
@@ -132,18 +115,6 @@ export default function LoginPage() {
     [loading, values.identifier, values.password, showToast, router]
   );
 
-
-  const handleGoogle = useCallback(async () => {
-    if (googleLoading) return;
-    setGoogleLoading(true);
-    try {
-      await loginWithGoogle();
-    } catch (err: any) {
-      showToast("error", "Google sign-in lỗi", err?.message ?? "Unknown error");
-    } finally {
-      setGoogleLoading(false);
-    }
-  }, [googleLoading, showToast]);
 
   const handleGuest = useCallback(() => {
     try {
@@ -291,16 +262,6 @@ export default function LoginPage() {
               hoặc
             </span>
           </Divider>
-
-          <Button
-            type="button"
-            onClick={handleGoogle}
-            label={googleLoading ? "Đang kết nối..." : "Tiếp tục với Google"}
-            icon={googleLoading ? "pi pi-spin pi-spinner" : "pi pi-google"}
-            className="w-full p-button-outlined !h-12 !text-base !font-semibold"
-            disabled={googleLoading}
-            aria-busy={googleLoading}
-          />
 
           <Button
             type="button"

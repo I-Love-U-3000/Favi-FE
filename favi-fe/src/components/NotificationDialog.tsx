@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog } from "primereact/dialog";
 import { Button } from "primereact/button";
-import { useNotifications } from "@/lib/hooks/useNotifications";
+import { useSignalRNotifications } from "@/lib/hooks/useSignalRNotifications";
 import { NotificationDto, NotificationType } from "@/types";
 import { notificationTypeToString } from "@/types";
 
@@ -15,7 +15,7 @@ interface NotificationDialogProps {
 
 export default function NotificationDialog({ visible, onHide }: NotificationDialogProps) {
   const router = useRouter();
-  const { notifications, unreadCount, isConnected, fetchNotifications, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, isConnected, fetchNotifications, markAsRead, markAllAsRead } = useSignalRNotifications();
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 

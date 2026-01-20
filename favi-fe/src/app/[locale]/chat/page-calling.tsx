@@ -15,7 +15,6 @@ import { useSignalRConnection } from "@/lib/hooks/useSignalRConnection";
 import { webrtcManager } from "@/lib/webrtc/webrtcService";
 import type { IncomingCallRequestDto, CallType } from "@/types/call";
 import { useTranslations } from "next-intl";
-import { supabase } from "@/app/supabase-client";
 import chatAPI from "@/lib/api/chatAPI";
 import type {
   ConversationSummaryResponse,
