@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/app/supabase-client";
+import { useAuth } from "@/components/AuthProvider";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Toast } from "primereact/toast";
@@ -11,15 +11,18 @@ import { Dialog } from "primereact/dialog";
 
 import CropImage from "@/components/CropImage";
 import { isValidUsername, normalizeUsername } from "@/lib/validator/username";
-import { updateMyProfile } from "@/lib/service/profile";
+import profileAPI from "@/lib/api/profileAPI";
 import { uploadToCloudinary } from "@/lib/service/image";
 import { BackgroundBubbles } from "@/components/LoginRegisterBackground";
+import useProfile from "@/lib/hooks/useProfile";
 
 type NameStatus = "idle" | "invalid" | "checking" | "available" | "taken";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const toastRef = useRef<Toast | null>(null);
+  const { user } = useAuth();
+  const { profile, isLoading } = useProfile(user?.id);
 
   // form
   const [username, setUsername] = useState("");
@@ -97,29 +100,20 @@ export default function OnboardingPage() {
 
   // guard + prefill
   useEffect(() => {
-    (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
-      const { data } = await supabase
-        .from("profile")
-        .select("username, display_name, bio, avatar_url, cover_url")
-        .eq("id", user.id)
-        .maybeSingle();
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
 
-      if (data) {
-        if (data.username) setUsername(data.username);
-        setDisplayName(data.display_name ?? "");
-        setBio(data.bio ?? "");
-        setAvatarUrl(data.avatar_url ?? null);
-        setCoverUrl(data.cover_url ?? null);
-      }
-    })();
-  }, [router]);
+    // Prefill form with existing profile data
+    if (profile) {
+      if (profile.username) setUsername(profile.username);
+      setDisplayName(profile.displayName ?? "");
+      setBio(profile.bio ?? "");
+      setAvatarUrl(profile.avatarUrl ?? null);
+      setCoverUrl(profile.coverUrl ?? null);
+    }
+  }, [user, profile, router]);
 
   const show = (
     severity: "success" | "info" | "warn" | "error",
@@ -141,15 +135,16 @@ export default function OnboardingPage() {
 
     setNameStatus("checking");
     const t = setTimeout(async () => {
-      const { data, error } = await supabase
-        .from("profile")
-        .select("id")
-        .eq("username", u)
-        .maybeSingle();
-
-      if (!error && !data) setNameStatus("available");
-      else if (!error && data) setNameStatus("taken");
-      else setNameStatus("idle");
+      try {
+        const result = await profileAPI.checkUsername(u);
+        if (result.valid) {
+          setNameStatus("available");
+        } else {
+          setNameStatus("taken");
+        }
+      } catch {
+        setNameStatus("idle");
+      }
     }, 400);
 
     return () => clearTimeout(t);
@@ -243,12 +238,12 @@ export default function OnboardingPage() {
         finalCover = await uploadToCloudinary(file);
       }
 
-      await updateMyProfile({
+      await profileAPI.update({
         username: u,
-        display_name: displayName?.trim() || null,
+        displayName: displayName?.trim() || null,
         bio: bio?.trim() || null,
-        avatar_url: finalAvatar,
-        cover_url: finalCover,
+        avatarUrl: finalAvatar,
+        coverUrl: finalCover,
       });
 
       show("success", "Đã hoàn tất hồ sơ");

@@ -1,23 +1,13 @@
 // src/lib/api/authAPI.ts
 import { fetchWrapper } from "@/lib/fetchWrapper";
 
-type SupabaseAuthResponse = {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-  expires_at: number; 
-  refresh_token: string;
-  user: {
-    id: string;
-    email: string;
-    role: string;
-    app_metadata?: Record<string, any>;
-    user_metadata?: Record<string, any>;
-  };
-  weak_password?: string | null;
+type AuthResponse = {
+  accessToken: string;
+  refreshToken: string;
+  message: string;
 };
 
-type DecodedJwt = { exp?: number; sub?: string; email?: string; role?: any };
+type DecodedJwt = { exp?: number; sub?: string; unique_name?: string; email?: string; "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"?: string; "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"?: string };
 
 const decodeJWT = (token: string | null | undefined): DecodedJwt | null => {
   if (!token) return null;
@@ -46,16 +36,13 @@ const isExpired = (decoded: DecodedJwt | null): boolean => {
   return decoded.exp <= nowSec;
 };
 
-const isEmail = (s: string) => /\S+@\S+\.\S+/.test(s);
-
-function persistAuth(res: SupabaseAuthResponse) {
-  const access = res.access_token;
-  const refresh = res.refresh_token;
+function persistAuth(res: AuthResponse) {
+  const access = res.accessToken;
+  const refresh = res.refreshToken;
 
   console.log('=== AUTH RESPONSE FROM BACKEND ===');
   console.log('Full response:', res);
   console.log('Access token (first 50 chars):', access?.substring(0, 50) + '...');
-  console.log('Response user object:', res.user);
 
   if (typeof window !== "undefined") {
     if (access) localStorage.setItem("access_token", access);
@@ -66,10 +53,12 @@ function persistAuth(res: SupabaseAuthResponse) {
   const decoded = decodeJWT(access);
   console.log('Decoded JWT payload:', decoded);
 
+  // Extract claims from JWT
   const user_info = {
-    id: decoded?.sub ?? res.user?.id,
-    email: decoded?.email ?? res.user?.email,
-    role: decoded?.role ?? res.user?.role,
+    id: decoded?.sub,
+    email: decoded?.email,
+    username: decoded?.unique_name || decoded?.["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"],
+    role: decoded?.["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"],
   };
 
   console.log('Final user_info being stored:', user_info);
@@ -81,21 +70,19 @@ function persistAuth(res: SupabaseAuthResponse) {
 }
 
 export const authAPI = {
-  // BE chỉ hỗ trợ email + password
+  // Backend supports both email and username login
   loginWithIdentifier: async (identifier: string, password: string) => {
-    const email = identifier.trim();
-    if (!isEmail(email)) throw new Error("Vui lòng dùng email (backend không hỗ trợ username).");
-    return authAPI.login({ email, password });
+    return authAPI.login({ emailOrUsername: identifier.trim(), password });
   },
 
-  login: async (payload: { email: string; password: string }) => {
-    // POST /auth/login -> SupabaseAuthResponse (snake_case)
-    const res = await fetchWrapper.post<SupabaseAuthResponse>("/auth/login", payload, false);
+  login: async (payload: { emailOrUsername: string; password: string }) => {
+    // POST /auth/login -> AuthResponse
+    const res = await fetchWrapper.post<AuthResponse>("/auth/login", payload, false);
     persistAuth(res);
     return res;
   },
 
-  // Nếu bạn dùng /auth/refresh ở BE: body là chuỗi token
+  // Refresh token - body is the refresh token string
   refresh: async () => {
     if (typeof window === "undefined") throw new Error("Cannot refresh on server");
     const rt = localStorage.getItem("refresh_token");
@@ -105,11 +92,11 @@ export const authAPI = {
     const url = `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`;
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" }, // hoặc text/plain
-      body: JSON.stringify(rt),                         // 👈 gửi string, không phải { refreshToken: ... }
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rt),
     });
     if (!res.ok) throw new Error("Refresh token expired");
-    const data = (await res.json()) as SupabaseAuthResponse;
+    const data = (await res.json()) as AuthResponse;
     console.log('Refresh response:', data);
     persistAuth(data);
     return data;
@@ -123,14 +110,14 @@ export const authAPI = {
     }
   },
 
-  // Register new account -> returns SupabaseAuthResponse like login
-  register: async (payload: { username: string; email: string; password: string }) => {
+  // Register new account -> returns AuthResponse
+  register: async (payload: { username: string; email: string; password: string; displayName?: string }) => {
     console.log('=== REGISTER REQUEST ===');
     console.log('Payload:', { ...payload, password: '***' });
-    const res = await fetchWrapper.post<SupabaseAuthResponse>("/auth/register", payload, false);
+    const res = await fetchWrapper.post<AuthResponse>("/auth/register", payload, false);
     console.log('Register response:', res);
-    // In case backend returns tokens on successful registration, persist them
-    if (res && (res as any).access_token) {
+    // Backend returns tokens on successful registration
+    if (res && res.accessToken) {
       persistAuth(res);
     }
     return res;
@@ -161,6 +148,37 @@ export const authAPI = {
 
   // Check if current user is admin
   // Backend enum: User=0, Moderator=1, Admin=2
+  isAdmin: (): boolean => {
+    const userInfo = authAPI.getUserInfo<{ id?: string; email?: string; role?: any }>();
+
+    // Debug: log what we have
+    console.log('[isAdmin] User info from localStorage:', userInfo);
+
+    if (!userInfo?.role) {
+      console.log('[isAdmin] No role found in user info');
+      return false;
+    }
+
+    // Role can be a number (enum), string, or array
+    const roles = Array.isArray(userInfo.role) ? userInfo.role : [userInfo.role];
+    const isAdminOrMod = roles.some((r: any) => {
+      // Handle numeric enum values: 0=User, 1=Moderator, 2=Admin
+      if (typeof r === 'number') {
+        return r === 2 || r === 1; // Admin or Moderator
+      }
+      // Handle string values (backend sends lowercase roles)
+      if (typeof r === 'string') {
+        const roleLower = r.toLowerCase();
+        return roleLower === 'admin' ||
+               roleLower === 'administrator' ||
+               roleLower === 'moderator';
+      }
+      return false;
+    });
+
+    console.log('[isAdmin] Result:', isAdminOrMod, 'Role:', userInfo.role);
+    return isAdminOrMod;
+  },
 
   // Debug helper to check current auth state
   debugAuthState: () => {
@@ -179,45 +197,6 @@ export const authAPI = {
     console.log('Is admin?', authAPI.isAdmin());
     console.log('==========================');
     return { token, userInfo, decoded };
-  },
-
-  isAdmin: (): boolean => {
-    const userInfo = authAPI.getUserInfo<{ id?: string; email?: string; role?: any }>();
-
-    // Debug: log what we have
-    console.log('[isAdmin] User info from localStorage:', userInfo);
-
-    // ⚠️ TEMPORARY FIX: Hardcode admin email
-    // TODO: Remove this once backend sends correct role
-    if (userInfo?.email === 'nnguyenminhquang786@gmail.com') {
-      console.log('[isAdmin] Temporary fix: User is admin by email');
-      return true;
-    }
-
-    if (!userInfo?.role) {
-      console.log('[isAdmin] No role found in user info');
-      return false;
-    }
-
-    // Role can be a number (enum), string, or array
-    const roles = Array.isArray(userInfo.role) ? userInfo.role : [userInfo.role];
-    const isAdminOrMod = roles.some((r: any) => {
-      // Handle numeric enum values: 0=User, 1=Moderator, 2=Admin
-      if (typeof r === 'number') {
-        return r === 2 || r === 1; // Admin or Moderator
-      }
-      // Handle string values
-      if (typeof r === 'string') {
-        const roleLower = r.toLowerCase();
-        return roleLower === 'admin' ||
-               roleLower === 'administrator' ||
-               roleLower === 'moderator';
-      }
-      return false;
-    });
-
-    console.log('[isAdmin] Result:', isAdminOrMod, 'Role:', userInfo.role);
-    return isAdminOrMod;
   },
 };
 

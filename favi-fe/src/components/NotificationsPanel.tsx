@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useNotifications } from "@/lib/hooks/useNotifications";
+import { useSignalRNotifications } from "@/lib/hooks/useSignalRNotifications";
 import { NotificationItem } from "@/components/NotificationItem";
 
 export function NotificationsPanel() {
@@ -12,7 +12,7 @@ export function NotificationsPanel() {
     fetchNotifications,
     markAsRead,
     markAllAsRead,
-  } = useNotifications();
+  } = useSignalRNotifications();
 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);

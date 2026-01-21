@@ -10,7 +10,7 @@ import MediaGallery from "@/components/MediaGallery";
 import { useCall } from "@/components/CallProvider";
 import type { CallType } from "@/types/call";
 import { useTranslations } from "next-intl";
-import { supabase } from "@/app/supabase-client";
+import * as signalR from "@microsoft/signalr";
 import chatAPI from "@/lib/api/chatAPI";
 import type {
   ConversationSummaryResponse,
@@ -108,6 +108,7 @@ export default function ChatPage() {
   // Track which conversations have been loaded (to preserve their unreadCount)
   const loadedConversationsRef = useRef<Set<string>>(new Set());
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const chatHubRef = useRef<signalR.HubConnection | null>(null);
 
   // ---- CALL CONTEXT ----
   const call = useCall();
@@ -263,14 +264,6 @@ export default function ChatPage() {
           const oldestUnreadMessage = unreadMessages[0];
           try {
             await chatAPI.markAsRead(conversation.id, oldestUnreadMessage.backendId);
-
-            // Broadcast to navbar to refresh the count
-            supabase
-              .channel(`navbar-chat-updates:${currentUserId}`)
-              .send({
-                type: "broadcast",
-                event: "refresh-chat-count",
-              });
           } catch (e) {
             console.error("Error marking messages as read", e);
           }
@@ -322,77 +315,106 @@ export default function ChatPage() {
     []
   );
 
-  // ------------- 3. Supabase Realtime: subscribe theo conversation hiện tại -------------
+  // ------------- 3. SignalR: Connect to ChatHub and join conversation -------------
   useEffect(() => {
-    if (!selectedConversationId) return;
+    if (!currentUserId) return;
 
-    const channel = supabase
-      .channel(`conversation:${selectedConversationId}`, {
-        config: {
-          broadcast: { self: true },
-        },
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    if (!token) {
+      console.warn("No access token found for SignalR connection");
+      return;
+    }
+
+    // Build connection
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(`${process.env.NEXT_PUBLIC_API_URL}/hubs/chat`, {
+        skipNegotiation: false,
+        withCredentials: false,
+        accessTokenFactory: () => token || "",
       })
-      .on(
-        "broadcast",
-        { event: "new-message" },
-        (payload) => {
-          const m = payload.payload as {
-            id: string;
-            conversationId: string;
-            senderId: string;
-            username: string;
-            content?: string;
-            mediaUrl?: string;
-            postPreview?: {
-              id: string;
-              authorProfileId: string;
-              caption?: string | null;
-              thumbnailUrl?: string | null;
-              mediasCount: number;
-              createdAt: string;
-            } | null;
-            createdAt: string;
-          };
+      .withAutomaticReconnect({
+        reconnectDelay: [0, 2000, 10000, 30000],
+        maxRetries: 5
+      })
+      .configureLogging(signalR.LogLevel.Information)
+      .build();
 
-          if (m.conversationId !== selectedConversationId) return;
+    // Listen for new messages
+    connection.on("ReceiveMessage", (message) => {
+      console.log("New message received via SignalR:", message);
 
-          // Determine if incoming message is a sticker (GIF)
-          const isGif = m.mediaUrl?.toLowerCase().includes('.gif');
+      if (message.conversationId !== selectedConversationId) return;
 
-          const incoming: ChatMessage = {
-            backendId: m.id,
-            senderId: m.senderId,
-            senderUsername: m.username,
-            text: m.content,
-            timestamp: new Date(m.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            imageUrl: isGif ? undefined : m.mediaUrl,
-            stickerUrl: isGif ? m.mediaUrl : undefined,
-            readBy: [], // New messages start with no reads
-            postPreview: m.postPreview ?? undefined,
-          };
+      // Determine if incoming message is a sticker (GIF)
+      const isGif = message.mediaUrl?.toLowerCase().includes('.gif');
 
-          setMessages((prev) => {
-            if (prev.some((x) => x.backendId === incoming.backendId)) return prev;
-            return [...prev, incoming];
-          });
+      const incoming: ChatMessage = {
+        backendId: message.id,
+        senderId: message.senderId,
+        senderUsername: message.username,
+        text: message.content,
+        timestamp: new Date(message.createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        imageUrl: isGif ? undefined : message.mediaUrl,
+        stickerUrl: isGif ? message.mediaUrl : undefined,
+        readBy: message.readBy ?? [],
+        postPreview: message.postPreview ?? undefined,
+      };
 
-          // update cả conversations & selectedConversation preview
-          setConversations((prev) =>
-            prev.map((c) =>
-              c.id === selectedConversationId
-                ? { ...c, messages: [...c.messages, incoming] }
-                : c
-            )
-          );
-        }
-      )
-      .subscribe();
+      setMessages((prev) => {
+        if (prev.some((x) => x.backendId === incoming.backendId)) return prev;
+        return [...prev, incoming];
+      });
 
+      // update both conversations & selectedConversation preview
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedConversationId
+            ? { ...c, messages: [...c.messages, incoming] }
+            : c
+        )
+      );
+    });
+
+    // Start connection
+    connection
+      .start()
+      .then(() => {
+        console.log("ChatHub connected");
+      })
+      .catch((error: Error) => {
+        console.error("Error connecting to ChatHub:", error);
+      });
+
+    chatHubRef.current = connection;
+
+    // Cleanup on unmount
     return () => {
-      supabase.removeChannel(channel);
+      if (chatHubRef.current) {
+        chatHubRef.current.stop().catch(console.error);
+        chatHubRef.current = null;
+      }
+    };
+  }, [currentUserId]);
+
+  // Join/leave conversation groups when selection changes
+  useEffect(() => {
+    if (!chatHubRef.current || !selectedConversationId) return;
+
+    // Join the new conversation
+    chatHubRef.current
+      .invoke("JoinConversation", selectedConversationId)
+      .catch((err) => console.error("Error joining conversation:", err));
+
+    // Leave previous conversation when unmounting or changing
+    return () => {
+      if (chatHubRef.current) {
+        chatHubRef.current
+          .invoke("LeaveConversation", selectedConversationId)
+          .catch((err) => console.error("Error leaving conversation:", err));
+      }
     };
   }, [selectedConversationId]);
 
@@ -461,24 +483,6 @@ export default function ChatPage() {
               : c
           )
         );
-
-        // broadcast cho client khác
-        supabase
-          .channel(`conversation:${selectedConversationId}`)
-          .send({
-            type: "broadcast",
-            event: "new-message",
-            payload: {
-              id: sent.id,
-              conversationId: sent.conversationId,
-              senderId: sent.senderId,
-              username: sent.username,
-              content: sent.content,
-              mediaUrl: sent.mediaUrl,
-              postPreview: sent.postPreview,
-              createdAt: sent.createdAt,
-            },
-          });
       } catch (e) {
         console.error("Error sending message", e);
       }

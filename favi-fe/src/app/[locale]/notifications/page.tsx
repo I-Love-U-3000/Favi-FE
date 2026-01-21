@@ -3,14 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "@/i18n/routing";
 import { Button } from "primereact/button";
-import { useNotifications } from "@/lib/hooks/useNotifications";
+import { useSignalRNotifications } from "@/lib/hooks/useSignalRNotifications";
 import { NotificationType } from "@/types";
 
 type FilterType = NotificationType | "all";
 
 export default function NotificationsPage() {
   const router = useRouter();
-  const { notifications, fetchNotifications, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, fetchNotifications, markAsRead, markAllAsRead } = useSignalRNotifications();
   const [filter, setFilter] = useState<FilterType>("all");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
