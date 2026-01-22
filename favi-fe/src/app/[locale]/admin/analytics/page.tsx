@@ -16,6 +16,7 @@ import {
   useUserActivityChart,
   useContentActivityChart,
   useUserRolesChart,
+  useUserStatusChart,
   usePostPrivacyChart,
   useReportStatusChart,
   usePeriodComparison,
@@ -78,6 +79,7 @@ export default function AnalyticsPage() {
   const { data: contentActivityData, isLoading: contentActivityLoading } =
     useContentActivityChart(range);
   const { data: userRolesData, isLoading: userRolesLoading } = useUserRolesChart();
+  const { data: userStatusData, isLoading: userStatusLoading } = useUserStatusChart();
   const { data: postPrivacyData, isLoading: postPrivacyLoading } = usePostPrivacyChart();
   const { data: reportStatusData, isLoading: reportStatusLoading } =
     useReportStatusChart();
@@ -91,8 +93,9 @@ export default function AnalyticsPage() {
 
   const renderComparisonItem = (
     label: string,
-    data: { current: number; previous: number; change: number }
+    data?: { current: number; previous: number; change: number }
   ) => {
+    if (!data) return null;
     const isPositive = data.change > 0;
     const isNegative = data.change < 0;
 
@@ -157,9 +160,9 @@ export default function AnalyticsPage() {
       {/* Period Comparison */}
       {!comparisonLoading && comparisonData && (
         <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-          <Card.Title className="text-base font-semibold mb-3">
+          <div className="text-base font-semibold mb-3">
             This Week vs Last Week
-          </Card.Title>
+          </div>
           <div className="flex flex-wrap gap-6">
             {renderComparisonItem("Users", comparisonData.users)}
             {renderComparisonItem("Posts", comparisonData.posts)}
@@ -180,16 +183,8 @@ export default function AnalyticsPage() {
       {/* Row 3: Pie Charts */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <UserStatusPieChart
-          data={
-            userRolesData
-              ? {
-                  active: userRolesData.data[0] || 0,
-                  banned: userRolesData.data[1] || 0,
-                  inactive: userRolesData.data[2] || 0,
-                }
-              : undefined
-          }
-          loading={userRolesLoading}
+          data={userStatusData}
+          loading={userStatusLoading}
         />
         <BasePieChart
           title="User Roles"

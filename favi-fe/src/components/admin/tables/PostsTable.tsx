@@ -9,7 +9,8 @@ import { Tag } from "primereact/tag";
 import { Avatar } from "primereact/avatar";
 import { Menu } from "primereact/menu";
 import { Skeleton } from "primereact/skeleton";
-import { PostDto, useDeletePost } from "@/hooks/queries/useAdminPosts";
+import { useDeletePost } from "@/hooks/queries/useAdminPosts";
+import { PostDto } from "@/lib/api/admin";
 import DeleteContentDialog from "@/components/admin/modals/DeleteContentDialog";
 import PostPreviewDialog from "@/components/admin/modals/PostPreviewDialog";
 
@@ -47,7 +48,7 @@ export default function PostsTable({
         setShowPreviewDialog(true);
         break;
       case "author":
-        router.push(`/admin/users/${post.author?.id}`);
+        router.push(`/admin/users/${post.authorProfileId || post.author?.id}`);
         break;
       case "delete":
         setSelectedPost(post);
@@ -106,12 +107,15 @@ export default function PostsTable({
         />
         <Menu
           ref={menuRef}
-          model={getMenuItems(post).map((item) => ({
-            label: item.label,
-            icon: item.icon,
-            className: item.className,
-            command: () => handleMenuAction({ item }, post),
-          }))}
+          model={getMenuItems(post).map((item) => {
+            if ("separator" in item) return { separator: true };
+            return {
+              label: item.label,
+              icon: item.icon,
+              className: item.className,
+              command: () => handleMenuAction({ item: item as any }, post),
+            };
+          })}
           popup
         />
       </div>
@@ -144,56 +148,69 @@ export default function PostsTable({
           <p className="text-sm text-gray-900 dark:text-white truncate">
             {post.caption || "No caption"}
           </p>
+          {post.isDeleted && <Tag value="Deleted" severity="danger" className="mt-1 text-[10px]" />}
         </div>
       </div>
     );
   };
 
   const authorTemplate = (post: PostDto) => {
+    const username = post.authorUsername || post.author?.username || "Unknown";
+    const avatar = post.authorAvatar || post.author?.avatar;
+    const authorId = post.authorProfileId || post.author?.id;
+
     return (
       <div
         className="flex items-center gap-2 cursor-pointer hover:opacity-80"
-        onClick={() => router.push(`/admin/users/${post.author?.id}`)}
+        onClick={() => authorId && router.push(`/admin/users/${authorId}`)}
       >
         <Avatar
-          image={post.author?.avatar}
-          icon={!post.author?.avatar ? "pi pi-user" : undefined}
+          image={avatar}
+          icon={!avatar ? "pi pi-user" : undefined}
           shape="circle"
-          size="small"
         />
         <span className="text-sm text-gray-900 dark:text-white">
-          @{post.author?.username || "Unknown"}
+          @{username}
         </span>
       </div>
     );
   };
 
   const privacyTemplate = (post: PostDto) => {
+    const privacy = (post.privacy || "public").toLowerCase();
     const severity = {
       public: "success",
       private: "danger",
       followers: "info",
     } as const;
 
+    const label = post.privacy
+      ? post.privacy.charAt(0).toUpperCase() + post.privacy.slice(1)
+      : (post.privacyLevel === 0 ? "Public" : post.privacyLevel === 1 ? "Followers" : "Private");
+
+    const sev = (severity as any)[privacy] || "info";
+
     return (
       <Tag
-        value={post.privacy.charAt(0).toUpperCase() + post.privacy.slice(1)}
-        severity={severity[post.privacy]}
+        value={label}
+        severity={sev}
         className="text-xs"
       />
     );
   };
 
   const statsTemplate = (post: PostDto) => {
+    const likes = post.reactionsCount ?? post.likeCount ?? 0;
+    const comments = post.commentsCount ?? post.commentCount ?? 0;
     return (
       <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
         <span className="flex items-center gap-1">
           <i className="pi pi-heart text-red-500" />
-          {post.likeCount?.toLocaleString() || 0}
+          {likes.toLocaleString()}
         </span>
         <span className="flex items-center gap-1">
           <i className="pi pi-comment text-blue-500" />
-          {post.commentCount?.toLocaleString() || 0}
+          {comments.toLocaleString()}
         </span>
       </div>
     );
@@ -253,6 +270,7 @@ export default function PostsTable({
           emptyMessage={emptyMessage}
           selection={selection}
           onSelectionChange={(e) => onSelectionChange(e.value)}
+          selectionMode="multiple"
           dataKey="id"
           paginator
           rows={20}

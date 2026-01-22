@@ -5,7 +5,7 @@ import { Dialog } from "primereact/dialog";
 import { Button } from "primereact/button";
 import { Tag } from "primereact/tag";
 import { Avatar } from "primereact/avatar";
-import { ReportDto } from "@/hooks/queries/useAdminReports";
+import { ReportDto } from "@/lib/api/admin";
 
 interface ReportDetailDialogProps {
   visible: boolean;
@@ -41,6 +41,11 @@ export default function ReportDetailDialog({
   rejectLoading = false,
 }: ReportDetailDialogProps) {
   const router = useRouter();
+
+  // Early return if report is null to prevent accessing properties on null
+  if (!report) {
+    return null;
+  }
 
   const footer = (
     <div className="flex flex-wrap justify-end gap-2">
@@ -94,7 +99,6 @@ export default function ReportDetailDialog({
                 image={report.reporter.avatar}
                 icon={!report.reporter.avatar ? "pi pi-user" : undefined}
                 shape="circle"
-                size="small"
               />
               <span className="font-medium text-gray-900 dark:text-white">
                 @{report.reporter.username}
@@ -131,8 +135,8 @@ export default function ReportDetailDialog({
                   report.status === "pending"
                     ? "warning"
                     : report.status === "resolved"
-                    ? "success"
-                    : "danger"
+                      ? "success"
+                      : "danger"
                 }
               />
             </div>
@@ -170,7 +174,6 @@ export default function ReportDetailDialog({
                         image={report.target.author.avatar}
                         icon={!report.target.author.avatar ? "pi pi-user" : undefined}
                         shape="circle"
-                        size="small"
                       />
                       <span className="font-medium text-sm">
                         @{report.target.author.username}
@@ -214,7 +217,6 @@ export default function ReportDetailDialog({
                       image={report.target.author.avatar}
                       icon={!report.target.author.avatar ? "pi pi-user" : undefined}
                       shape="circle"
-                      size="small"
                     />
                     <span className="font-medium text-sm">
                       @{report.target.author.username}

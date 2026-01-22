@@ -9,8 +9,9 @@ import { Menu } from "primereact/menu";
 import { Skeleton } from "primereact/skeleton";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import UsersTable from "@/components/admin/tables/UsersTable";
-import { useAdminUsers, useBulkBan, useBulkUnban, useBulkWarn, UserDto } from "@/hooks/queries/useAdminUsers";
-import { confirmDialog, ConfirmDialog, confirmPopup } from "primereact/confirmdialog";
+import { useAdminUsers, useBulkBan, useBulkUnban, useBulkWarn } from "@/hooks/queries/useAdminUsers";
+import { UserDto } from "@/lib/api/admin";
+import { confirmDialog, ConfirmDialog } from "primereact/confirmdialog";
 import { Toast } from "primereact/toast";
 import { useOverlay } from "@/components/RootProvider";
 
@@ -39,12 +40,15 @@ export default function UsersPage() {
 
   const debouncedSearch = useDebounce(search, 300);
 
+  const pageSize = 20;
+  const page = Math.floor(first / pageSize) + 1;
+
   const { data, isLoading, refetch } = useAdminUsers({
     search: debouncedSearch,
     role: role || undefined,
     status: status || undefined,
-    skip: first,
-    take: 20,
+    page,
+    pageSize,
   });
 
   const bulkBan = useBulkBan();
@@ -232,9 +236,9 @@ export default function UsersPage() {
 
       {/* Users Table */}
       <UsersTable
-        users={data?.data || []}
+        users={data?.items || []}
         loading={isLoading}
-        totalRecords={data?.total || 0}
+        totalRecords={data?.totalCount || 0}
         first={first}
         onPageChange={handlePageChange}
         selection={selection}

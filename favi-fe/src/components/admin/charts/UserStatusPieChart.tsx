@@ -75,10 +75,7 @@ export default function UserStatusPieChart({ data, loading = false }: UserStatus
 
   if (loading) {
     return (
-      <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-        <Card.Title className="text-base font-semibold mb-4">
-          User Status Distribution
-        </Card.Title>
+      <Card title="User Status Distribution" className="shadow-sm border border-gray-100 dark:border-gray-800">
         <div className="h-64">
           <Skeleton width="100%" height="100%" />
         </div>
@@ -89,10 +86,7 @@ export default function UserStatusPieChart({ data, loading = false }: UserStatus
   const total = (data?.active || 0) + (data?.banned || 0) + (data?.inactive || 0);
 
   return (
-    <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-      <Card.Title className="text-base font-semibold mb-4">
-        User Status Distribution
-      </Card.Title>
+    <Card title="User Status Distribution" className="shadow-sm border border-gray-100 dark:border-gray-800">
       <div className="h-64">
         <Chart type="doughnut" data={chartData} options={chartOptions} className="h-full" />
       </div>

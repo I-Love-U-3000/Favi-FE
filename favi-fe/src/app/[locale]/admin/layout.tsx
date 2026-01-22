@@ -9,11 +9,14 @@ import { useTranslations } from "next-intl";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, isLoading } = useAuth();
   const t = useTranslations("AdminPanel");
 
   // Check auth - redirect if not authenticated or not admin
   useEffect(() => {
+    // Don't redirect while still loading auth state
+    if (isLoading) return;
+
     if (!isAuthenticated) {
       router.push("/login");
       return;
@@ -21,10 +24,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!isAdmin) {
       router.push("/home");
     }
-  }, [isAuthenticated, isAdmin, router]);
+  }, [isAuthenticated, isAdmin, isLoading, router]);
 
   // Show loading while checking auth
-  if (!isAuthenticated || !isAdmin) {
+  if (isLoading || !isAuthenticated || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">

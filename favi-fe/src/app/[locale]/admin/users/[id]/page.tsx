@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
-import Link from "@/i18n/routing";
+import { Link } from "@/i18n/routing";
 import { useRouter } from "next/navigation";
 import { TabView, TabPanel } from "primereact/tabview";
 import { Avatar } from "primereact/avatar";
@@ -206,8 +206,8 @@ export default function UserDetailPage({
         <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
           <div className="flex flex-col items-center text-center">
             <Avatar
-              image={user.avatar}
-              icon={!user.avatar ? "pi pi-user" : undefined}
+              image={user.avatarUrl}
+              icon={!user.avatarUrl ? "pi pi-user" : undefined}
               shape="circle"
               size="xlarge"
               className="w-32 h-32 mb-4 bg-primary/10"
@@ -221,7 +221,7 @@ export default function UserDetailPage({
             </p>
 
             <div className="flex gap-2 w-full">
-              {user.status === "banned" ? (
+              {user.isBanned ? (
                 <Button
                   label="Unban"
                   icon="pi pi-check"
@@ -254,7 +254,7 @@ export default function UserDetailPage({
 
         {/* User Info */}
         <Card className="lg:col-span-2 shadow-sm border border-gray-100 dark:border-gray-800">
-          <Card.Title className="text-lg font-semibold mb-4">User Information</Card.Title>
+          <div className="text-lg font-semibold mb-4">User Information</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
               <p className="text-xs text-gray-500 uppercase tracking-wide">Username</p>
@@ -293,14 +293,8 @@ export default function UserDetailPage({
             <div className="space-y-1">
               <p className="text-xs text-gray-500 uppercase tracking-wide">Status</p>
               <Tag
-                value={user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                severity={
-                  user.status === "active"
-                    ? "success"
-                    : user.status === "banned"
-                    ? "danger"
-                    : "warning"
-                }
+                value={user.isBanned ? "Banned" : "Active"}
+                severity={user.isBanned ? "danger" : "success"}
               />
             </div>
 
@@ -325,16 +319,16 @@ export default function UserDetailPage({
       <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
         <TabView>
           {/* Posts Tab */}
-          <TabPanel header={`Posts (${posts?.total || 0})`}>
+          <TabPanel header={`Posts (${posts?.totalCount || 0})`}>
             {postsLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
                   <Skeleton key={i} width="100%" height="60px" />
                 ))}
               </div>
-            ) : posts?.data && posts.data.length > 0 ? (
+            ) : posts?.items && posts.items.length > 0 ? (
               <DataTable
-                value={posts.data}
+                value={posts.items}
                 dataKey="id"
                 className="p-datatable-sm"
                 responsiveLayout="scroll"

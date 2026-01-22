@@ -22,9 +22,9 @@ export default function ServiceHealthCard({
   if (loading) {
     return (
       <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-        <Card.Title className="text-base font-semibold mb-4">
+        <div className="text-base font-semibold mb-4">
           Service Health
-        </Card.Title>
+        </div>
         <div className="space-y-4">
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="flex items-center justify-between py-2">
@@ -40,9 +40,9 @@ export default function ServiceHealthCard({
   if (!detailed) {
     return (
       <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-        <Card.Title className="text-base font-semibold mb-4">
+        <div className="text-base font-semibold mb-4">
           Service Health
-        </Card.Title>
+        </div>
         <div className="text-center py-8 text-gray-500">
           <i className="pi pi-info-circle text-4xl mb-2 opacity-50" />
           <p>No service data available</p>
@@ -65,13 +65,12 @@ export default function ServiceHealthCard({
       >
         <div className="flex items-center gap-3">
           <i
-            className={`pi ${config.icon} ${
-              status === "healthy"
+            className={`pi ${config.icon} ${status === "healthy"
                 ? "text-green-500"
                 : status === "degraded"
-                ? "text-yellow-500"
-                : "text-red-500"
-            }`}
+                  ? "text-yellow-500"
+                  : "text-red-500"
+              }`}
           />
           <span className="text-sm font-medium text-gray-900 dark:text-white">
             {name}
@@ -91,9 +90,9 @@ export default function ServiceHealthCard({
 
   return (
     <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-      <Card.Title className="text-base font-semibold mb-4">
+      <div className="text-base font-semibold mb-4">
         Service Health
-      </Card.Title>
+      </div>
 
       {/* Database */}
       {renderServiceStatus(

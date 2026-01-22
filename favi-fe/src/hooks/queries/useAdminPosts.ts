@@ -27,7 +27,7 @@ export function useAdminPosts(filters: PostsFilter = {}) {
     queryKey: ["admin", "posts", filters],
     queryFn: () =>
       fetchWrapper.get<PagedResult<PostDto>>(
-        `/api/admin/analytics/posts?${queryParams.toString()}`
+        `/admin/analytics/posts?${queryParams.toString()}`
       ),
   });
 }
@@ -35,7 +35,7 @@ export function useAdminPosts(filters: PostsFilter = {}) {
 export function usePost(postId: string) {
   return useQuery({
     queryKey: ["admin", "posts", postId],
-    queryFn: () => fetchWrapper.get<PostDto>(`/api/admin/analytics/posts/${postId}`),
+    queryFn: () => fetchWrapper.get<PostDto>(`/admin/analytics/posts/${postId}`),
     enabled: !!postId,
   });
 }
@@ -46,7 +46,7 @@ export function useDeletePost() {
 
   return useMutation({
     mutationFn: ({ postId, reason }: { postId: string; reason?: string }) =>
-      fetchWrapper.del(`/api/admin/content/posts/${postId}`, { reason }),
+      fetchWrapper.del(`/admin/content/posts/${postId}`, { reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
       showToast({
@@ -71,7 +71,7 @@ export function useBulkDeletePosts() {
 
   return useMutation({
     mutationFn: ({ postIds, reason }: { postIds: string[]; reason?: string }) =>
-      fetchWrapper.post(`/api/admin/content/posts/bulk/delete`, { postIds, reason }),
+      fetchWrapper.post(`/admin/content/posts/bulk/delete`, { postIds, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
       showToast({

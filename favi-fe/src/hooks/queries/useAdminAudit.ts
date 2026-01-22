@@ -28,7 +28,7 @@ export function useAdminAudit(filters: AuditLogsFilter = {}) {
     queryKey: ["admin", "audit", filters],
     queryFn: () =>
       fetchWrapper.get<PagedResult<AuditLogDto>>(
-        `/api/admin/audit?${queryParams.toString()}`
+        `/admin/audit?${queryParams.toString()}`
       ),
   });
 }
@@ -37,13 +37,13 @@ export function useActionTypes() {
   return useQuery<ActionType[]>({
     queryKey: ["admin", "audit", "action-types"],
     queryFn: () =>
-      fetchWrapper.get<ActionType[]>("/api/admin/audit/action-types"),
+      fetchWrapper.get<ActionType[]>("/admin/audit/action-types"),
   });
 }
 
 export function useAdminList() {
   return useQuery<AdminOption[]>({
     queryKey: ["admin", "audit", "admins"],
-    queryFn: () => fetchWrapper.get<AdminOption[]>("/api/admin/audit/admins"),
+    queryFn: () => fetchWrapper.get<AdminOption[]>("/admin/audit/admins"),
   });
 }

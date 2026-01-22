@@ -63,36 +63,36 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="Total Users"
-          value={formatNumber(stats?.users?.total || 0)}
+          value={formatNumber(stats?.totalUsers || 0)}
           icon="pi pi-users"
           iconColor="text-blue-500"
-          subtext={`${formatNumber(stats?.users?.today || 0)} new today`}
+          subtext={`${formatNumber(stats?.todayUsers || 0)} new today`}
           trend={{ value: 12, isPositive: true }}
           loading={statsLoading}
         />
         <StatsCard
           title="Total Posts"
-          value={formatNumber(stats?.posts?.total || 0)}
+          value={formatNumber(stats?.totalPosts || 0)}
           icon="pi pi-file"
           iconColor="text-green-500"
-          subtext={`${formatNumber(stats?.posts?.today || 0)} new today`}
+          subtext={`${formatNumber(stats?.todayPosts || 0)} new today`}
           trend={{ value: 8, isPositive: true }}
           loading={statsLoading}
         />
         <StatsCard
           title="Pending Reports"
-          value={stats?.reports?.pending || 0}
+          value={stats?.pendingReports || 0}
           icon="pi pi-flag"
           iconColor="text-yellow-500"
-          subtext={`${stats?.reports?.resolved || 0} resolved this week`}
+          subtext="Requires attention"
           loading={statsLoading}
         />
         <StatsCard
           title="Banned Users"
-          value={stats?.banned || 0}
+          value={stats?.bannedUsers || 0}
           icon="pi pi-ban"
           iconColor="text-red-500"
-          subtext={`${stats?.users?.banned || 0} currently banned`}
+          subtext="Currently restricted"
           loading={statsLoading}
         />
       </div>
@@ -110,10 +110,7 @@ export default function AdminDashboardPage() {
       {/* Top Lists Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Users */}
-        <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-          <Card.Title className="text-base font-semibold mb-4">
-            Top Active Users
-          </Card.Title>
+        <Card title="Top Active Users" className="shadow-sm border border-gray-100 dark:border-gray-800">
           {topUsersLoading ? (
             <div className="space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -137,8 +134,8 @@ export default function AdminDashboardPage() {
                     #{index + 1}
                   </span>
                   <Avatar
-                    image={user.avatar}
-                    icon={!user.avatar ? "pi pi-user" : undefined}
+                    image={user.avatarUrl || user.avatar}
+                    icon={!(user.avatarUrl || user.avatar) ? "pi pi-user" : undefined}
                     shape="circle"
                     size="normal"
                   />
@@ -147,7 +144,7 @@ export default function AdminDashboardPage() {
                       @{user.username}
                     </p>
                     <p className="text-xs text-gray-500">
-                      ❤️ {formatNumber(user.likeCount)} • 💬 {formatNumber(user.commentCount)}
+                      ❤️ {formatNumber(user.reactionsReceived ?? user.likeCount ?? 0)} • 💬 {formatNumber(user.postsCount ?? user.commentCount ?? 0)}
                     </p>
                   </div>
                   <Button
@@ -167,10 +164,7 @@ export default function AdminDashboardPage() {
         </Card>
 
         {/* Top Posts */}
-        <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-          <Card.Title className="text-base font-semibold mb-4">
-            Trending Posts
-          </Card.Title>
+        <Card title="Trending Posts" className="shadow-sm border border-gray-100 dark:border-gray-800">
           {topPostsLoading ? (
             <div className="space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -211,10 +205,10 @@ export default function AdminDashboardPage() {
                       {post.caption || "No caption"}
                     </p>
                     <p className="text-xs text-gray-500">
-                      by @{post.author?.username}
+                      by @{post.authorUsername || post.author?.username}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      ❤️ {formatNumber(post.likeCount)} • 💬 {formatNumber(post.commentCount)}
+                      ❤️ {formatNumber(post.reactionsCount ?? post.likeCount ?? 0)} • 💬 {formatNumber(post.commentsCount ?? post.commentCount ?? 0)}
                     </p>
                   </div>
                   <Button
@@ -235,10 +229,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-        <Card.Title className="text-base font-semibold mb-4">
-          Quick Actions
-        </Card.Title>
+      <Card title="Quick Actions" className="shadow-sm border border-gray-100 dark:border-gray-800">
         <div className="flex flex-wrap gap-3">
           <Button
             label="View All Users"

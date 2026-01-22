@@ -25,13 +25,13 @@ export default function HealthCard({
   children,
   className = "",
 }: HealthCardProps) {
-  const config = STATUS_CONFIG[status];
+  const config = STATUS_CONFIG[status] || STATUS_CONFIG.healthy;
 
   return (
     <Card
       className={`shadow-sm border border-gray-100 dark:border-gray-800 ${className}`}
     >
-      <Card.Title className="text-base font-semibold mb-4 flex items-center gap-2">
+      <div className="text-base font-semibold mb-4 flex items-center gap-2">
         <i className={`pi ${icon} text-lg`} />
         {title}
         <Tag
@@ -40,7 +40,7 @@ export default function HealthCard({
           icon={`pi ${config.icon}`}
           className="ml-auto"
         />
-      </Card.Title>
+      </div>
       {children}
     </Card>
   );

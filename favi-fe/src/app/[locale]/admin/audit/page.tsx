@@ -233,9 +233,9 @@ export default function AuditPage() {
 
       {/* Audit Logs Table */}
       <AuditLogsTable
-        auditLogs={auditData?.data}
+        auditLogs={auditData?.items}
         loading={isLoading}
-        totalRecords={auditData?.total || 0}
+        totalRecords={auditData?.totalCount || 0}
         first={first}
         onPageChange={handlePageChange}
         onFilterByAdmin={handleFilterByAdmin}

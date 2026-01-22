@@ -7,8 +7,18 @@ import {
   UserActivityChartData,
   ContentActivityChartData,
   PieChartData,
+  UserStatusChartData,
   PeriodComparisonData,
 } from "@/lib/api/admin";
+
+export type {
+  GrowthChartData,
+  UserActivityChartData,
+  ContentActivityChartData,
+  PieChartData,
+  UserStatusChartData,
+  PeriodComparisonData,
+};
 
 export interface AnalyticsDateRange {
   startDate?: string;
@@ -24,7 +34,7 @@ export function useGrowthChart(range?: AnalyticsDateRange) {
     queryKey: ["admin", "analytics", "growth", range],
     queryFn: () =>
       fetchWrapper.get<GrowthChartData>(
-        `/api/admin/analytics/charts/growth?${queryParams.toString()}`
+        `/admin/analytics/charts/growth?${queryParams.toString()}`
       ),
   });
 }
@@ -38,7 +48,7 @@ export function useUserActivityChart(range?: AnalyticsDateRange) {
     queryKey: ["admin", "analytics", "user-activity", range],
     queryFn: () =>
       fetchWrapper.get<UserActivityChartData>(
-        `/api/admin/analytics/charts/user-activity?${queryParams.toString()}`
+        `/admin/analytics/charts/user-activity?${queryParams.toString()}`
       ),
   });
 }
@@ -52,7 +62,7 @@ export function useContentActivityChart(range?: AnalyticsDateRange) {
     queryKey: ["admin", "analytics", "content-activity", range],
     queryFn: () =>
       fetchWrapper.get<ContentActivityChartData>(
-        `/api/admin/analytics/charts/content-activity?${queryParams.toString()}`
+        `/admin/analytics/charts/content-activity?${queryParams.toString()}`
       ),
   });
 }
@@ -60,28 +70,28 @@ export function useContentActivityChart(range?: AnalyticsDateRange) {
 export function useUserRolesChart() {
   return useQuery({
     queryKey: ["admin", "analytics", "user-roles"],
-    queryFn: () => fetchWrapper.get<PieChartData>("/api/admin/analytics/charts/user-roles"),
+    queryFn: () => fetchWrapper.get<PieChartData>("/admin/analytics/charts/user-roles"),
   });
 }
 
 export function useUserStatusChart() {
   return useQuery({
     queryKey: ["admin", "analytics", "user-status"],
-    queryFn: () => fetchWrapper.get<PieChartData>("/api/admin/analytics/charts/user-status"),
+    queryFn: () => fetchWrapper.get<UserStatusChartData>("/admin/analytics/charts/user-status"),
   });
 }
 
 export function usePostPrivacyChart() {
   return useQuery({
     queryKey: ["admin", "analytics", "post-privacy"],
-    queryFn: () => fetchWrapper.get<PieChartData>("/api/admin/analytics/charts/post-privacy"),
+    queryFn: () => fetchWrapper.get<PieChartData>("/admin/analytics/charts/post-privacy"),
   });
 }
 
 export function useReportStatusChart() {
   return useQuery({
     queryKey: ["admin", "analytics", "report-status"],
-    queryFn: () => fetchWrapper.get<PieChartData>("/api/admin/analytics/charts/report-status"),
+    queryFn: () => fetchWrapper.get<PieChartData>("/admin/analytics/charts/report-status"),
   });
 }
 
@@ -90,7 +100,7 @@ export function usePeriodComparison(period: "week" | "month" = "week") {
     queryKey: ["admin", "analytics", "comparison", period],
     queryFn: () =>
       fetchWrapper.get<PeriodComparisonData>(
-        `/api/admin/analytics/comparison?period=${period}`
+        `/admin/analytics/comparison?period=${period}`
       ),
   });
 }

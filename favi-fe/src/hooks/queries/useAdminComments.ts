@@ -31,7 +31,7 @@ export function useAdminComments(filters: CommentsFilter = {}) {
     queryKey: ["admin", "comments", filters],
     queryFn: () =>
       fetchWrapper.get<PagedResult<CommentDto>>(
-        `/api/admin/comments?${queryParams.toString()}`
+        `/admin/comments?${queryParams.toString()}`
       ),
   });
 }
@@ -39,7 +39,7 @@ export function useAdminComments(filters: CommentsFilter = {}) {
 export function useComment(commentId: string) {
   return useQuery<CommentDto>({
     queryKey: ["admin", "comments", commentId],
-    queryFn: () => fetchWrapper.get<CommentDto>(`/api/admin/comments/${commentId}`),
+    queryFn: () => fetchWrapper.get<CommentDto>(`/admin/comments/${commentId}`),
     enabled: !!commentId,
   });
 }
@@ -50,7 +50,7 @@ export function useDeleteComment() {
 
   return useMutation({
     mutationFn: ({ commentId, reason }: { commentId: string; reason?: string }) =>
-      fetchWrapper.del(`/api/admin/content/comments/${commentId}`, { reason }),
+      fetchWrapper.del(`/admin/content/comments/${commentId}`, { reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "comments"] });
       showToast({
@@ -75,7 +75,7 @@ export function useBulkDeleteComments() {
 
   return useMutation({
     mutationFn: ({ commentIds, reason }: { commentIds: string[]; reason?: string }) =>
-      fetchWrapper.post("/api/admin/content/comments/bulk/delete", { commentIds, reason }),
+      fetchWrapper.post("/admin/content/comments/bulk/delete", { commentIds, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "comments"] });
       showToast({
@@ -102,6 +102,6 @@ export function useCommentStats() {
     active: number;
   }>({
     queryKey: ["admin", "comments", "stats"],
-    queryFn: () => fetchWrapper.get("/api/admin/comments/stats"),
+    queryFn: () => fetchWrapper.get("/admin/comments/stats"),
   });
 }

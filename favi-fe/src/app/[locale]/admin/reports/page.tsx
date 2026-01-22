@@ -10,9 +10,8 @@ import {
   useAdminReports,
   useBulkResolveReports,
   useBulkRejectReports,
-  useReportStats,
-  ReportDto,
 } from "@/hooks/queries/useAdminReports";
+import { ReportDto } from "@/lib/api/admin";
 import { confirmDialog, ConfirmDialog } from "primereact/confirmdialog";
 import { Toast } from "primereact/toast";
 import { useOverlay } from "@/components/RootProvider";
@@ -54,7 +53,7 @@ export default function ReportsPage() {
 
   const debouncedSearch = useDebounce(search, 300);
 
-  const { data: statsData } = useReportStats();
+
 
   const { data, isLoading, refetch } = useAdminReports({
     search: debouncedSearch,
@@ -164,36 +163,6 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Stats Bar */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <i className="pi pi-exclamation-triangle text-yellow-500" />
-            <span className="text-sm text-yellow-700 dark:text-yellow-300">Pending</span>
-          </div>
-          <p className="text-2xl font-bold text-yellow-800 dark:text-yellow-200 mt-1">
-            {statsData?.pending || 0}
-          </p>
-        </div>
-        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <i className="pi pi-check-circle text-green-500" />
-            <span className="text-sm text-green-700 dark:text-green-300">Resolved</span>
-          </div>
-          <p className="text-2xl font-bold text-green-800 dark:text-green-200 mt-1">
-            {statsData?.resolved || 0}
-          </p>
-        </div>
-        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <i className="pi pi-times-circle text-red-500" />
-            <span className="text-sm text-red-700 dark:text-red-300">Rejected</span>
-          </div>
-          <p className="text-2xl font-bold text-red-800 dark:text-red-200 mt-1">
-            {statsData?.rejected || 0}
-          </p>
-        </div>
-      </div>
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
@@ -276,9 +245,9 @@ export default function ReportsPage() {
 
       {/* Reports Table */}
       <ReportsTable
-        reports={data?.data || []}
+        reports={data?.items || []}
         loading={isLoading}
-        totalRecords={data?.total || 0}
+        totalRecords={data?.totalCount || 0}
         first={first}
         onPageChange={handlePageChange}
         selection={selection}

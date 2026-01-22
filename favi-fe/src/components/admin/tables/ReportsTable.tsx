@@ -83,7 +83,7 @@ export default function ReportsTable({
         rejectReport.mutate({ reportId: report.id });
         break;
       case "author":
-        if (report.target.author) {
+        if (report.target?.author) {
           router.push(`/admin/users/${report.target.author.id}`);
         }
         break;
@@ -115,7 +115,7 @@ export default function ReportsTable({
       className: "text-orange-600",
     },
     { separator: true },
-    report.target.author && {
+    report.target?.author && {
       label: "View Author",
       icon: "pi pi-user",
       action: "author",
@@ -166,7 +166,7 @@ export default function ReportsTable({
         }}
       >
         <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-          {report.targetType === "post" && report.target.mediaUrl ? (
+          {report.targetType === "post" && report.target?.mediaUrl ? (
             <img
               src={report.target.mediaUrl}
               alt="Target"
@@ -183,9 +183,9 @@ export default function ReportsTable({
         <div className="min-w-0 flex-1">
           <p className="text-sm text-gray-900 dark:text-white truncate">
             {TARGET_TYPE_LABELS[report.targetType]}:{" "}
-            {report.target.caption?.substring(0, 50) ||
-              report.target.content?.substring(0, 50) ||
-              report.target.author?.username ||
+            {report.target?.caption?.substring(0, 50) ||
+              report.target?.content?.substring(0, 50) ||
+              report.target?.author?.username ||
               "Unknown"}
           </p>
         </div>
@@ -203,7 +203,7 @@ export default function ReportsTable({
           image={report.reporter.avatar}
           icon={!report.reporter.avatar ? "pi pi-user" : undefined}
           shape="circle"
-          size="small"
+          size="normal"
         />
         <span className="text-sm text-gray-900 dark:text-white">
           @{report.reporter.username}

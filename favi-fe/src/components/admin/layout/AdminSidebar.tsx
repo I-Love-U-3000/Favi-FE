@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "@/i18n/routing";
+import { Link } from "@/i18n/routing";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { Badge } from "primereact/badge";

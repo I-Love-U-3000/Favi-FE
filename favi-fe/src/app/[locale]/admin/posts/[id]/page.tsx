@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
-import Link from "@/i18n/routing";
+import { Link } from "@/i18n/routing";
 import { useRouter } from "next/navigation";
 import { Avatar } from "primereact/avatar";
 import { Button } from "primereact/button";
@@ -13,7 +13,8 @@ import { Column } from "primereact/column";
 import { TabView, TabPanel } from "primereact/tabview";
 import { confirmDialog, ConfirmDialog } from "primereact/confirmdialog";
 import { useOverlay } from "@/components/RootProvider";
-import { usePost, useDeletePost, PostDto } from "@/hooks/queries/useAdminPosts";
+import { usePost, useDeletePost } from "@/hooks/queries/useAdminPosts";
+import { PostDto } from "@/lib/api/admin";
 import DeleteContentDialog from "@/components/admin/modals/DeleteContentDialog";
 
 const PRIVACY_COLORS: Record<string, "success" | "info" | "warning" | undefined> = {
@@ -150,10 +151,7 @@ export default function PostDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Media Preview */}
         <div className="lg:col-span-2">
-          <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-            <Card.Title className="text-base font-semibold mb-4">
-              Media
-            </Card.Title>
+          <Card className="shadow-sm border border-gray-100 dark:border-gray-800" title="Media">
             <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden">
               {post.mediaType === "image" ? (
                 <img
@@ -175,33 +173,27 @@ export default function PostDetailPage({
         {/* Post Info */}
         <div className="space-y-6">
           {/* Caption */}
-          <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-            <Card.Title className="text-base font-semibold mb-4">
-              Caption
-            </Card.Title>
+          <Card className="shadow-sm border border-gray-100 dark:border-gray-800" title="Caption">
             <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
               {post.caption || "No caption"}
             </p>
           </Card>
 
           {/* Author */}
-          <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-            <Card.Title className="text-base font-semibold mb-4">
-              Author
-            </Card.Title>
+          <Card className="shadow-sm border border-gray-100 dark:border-gray-800" title="Author">
             <div
               className="flex items-center gap-3 cursor-pointer hover:opacity-80"
-              onClick={() => router.push(`/admin/users/${post.author.id}`)}
+              onClick={() => router.push(`/admin/users/${post.authorProfileId || post.author?.id}`)}
             >
               <Avatar
-                image={post.author.avatar}
-                icon={!post.author.avatar ? "pi pi-user" : undefined}
+                image={post.authorAvatar || post.author?.avatar}
+                icon={!(post.authorAvatar || post.author?.avatar) ? "pi pi-user" : undefined}
                 shape="circle"
                 size="large"
               />
               <div>
                 <p className="font-medium text-gray-900 dark:text-white">
-                  @{post.author.username}
+                  @{post.authorUsername || post.author?.username}
                 </p>
                 <p className="text-sm text-gray-500">View profile</p>
               </div>
@@ -210,24 +202,21 @@ export default function PostDetailPage({
           </Card>
 
           {/* Stats */}
-          <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-            <Card.Title className="text-base font-semibold mb-4">
-              Statistics
-            </Card.Title>
+          <Card className="shadow-sm border border-gray-100 dark:border-gray-800" title="Statistics">
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Likes</span>
-                <span className="font-medium">{formatNumber(post.likeCount)}</span>
+                <span className="font-medium">{formatNumber(post.reactionsCount ?? post.likeCount ?? 0)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Comments</span>
-                <span className="font-medium">{formatNumber(post.commentCount)}</span>
+                <span className="font-medium">{formatNumber(post.commentsCount ?? post.commentCount ?? 0)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Privacy</span>
                 <Tag
-                  value={post.privacy.charAt(0).toUpperCase() + post.privacy.slice(1)}
-                  severity={PRIVACY_COLORS[post.privacy]}
+                  value={post.privacy ? post.privacy.charAt(0).toUpperCase() + post.privacy.slice(1) : (post.privacyLevel === 0 ? "Public" : post.privacyLevel === 1 ? "Followers" : "Private")}
+                  severity={PRIVACY_COLORS[post.privacy || (post.privacyLevel === 0 ? "public" : post.privacyLevel === 1 ? "followers" : "private")]}
                 />
               </div>
               <div className="flex justify-between text-sm">
@@ -238,24 +227,21 @@ export default function PostDetailPage({
           </Card>
 
           {/* Actions */}
-          <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-            <Card.Title className="text-base font-semibold mb-4">
-              Quick Actions
-            </Card.Title>
+          <Card className="shadow-sm border border-gray-100 dark:border-gray-800" title="Quick Actions">
             <div className="space-y-2">
               <Button
                 label="View on Profile"
                 icon="pi pi-external-link"
                 className="w-full p-button-outlined"
                 onClick={() =>
-                  window.open(`/profile/${post.author.id}/posts/${post.id}`, "_blank")
+                  window.open(`/profile/${post.authorProfileId || post.author?.id}/posts/${post.id}`, "_blank")
                 }
               />
               <Button
                 label="View Author"
                 icon="pi pi-user"
                 className="w-full p-button-outlined"
-                onClick={() => router.push(`/admin/users/${post.author.id}`)}
+                onClick={() => router.push(`/admin/users/${post.authorProfileId || post.author?.id}`)}
               />
             </div>
           </Card>
@@ -267,8 +253,8 @@ export default function PostDetailPage({
         visible={showDeleteDialog}
         onHide={() => setShowDeleteDialog(false)}
         contentId={postId}
-        contentType="Post"
-        onConfirm={handleDeleteConfirm}
+        contentType="post"
+        onDelete={handleDeleteConfirm}
         loading={deletePost.isPending}
       />
     </div>

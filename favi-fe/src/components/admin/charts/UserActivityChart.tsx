@@ -97,9 +97,9 @@ export default function UserActivityChart({
   if (loading) {
     return (
       <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-        <Card.Title className="text-base font-semibold mb-4">
+        <div className="text-base font-semibold mb-4">
           User Activity
-        </Card.Title>
+        </div>
         <div className="h-80">
           <Skeleton width="100%" height="100%" />
         </div>
@@ -109,9 +109,9 @@ export default function UserActivityChart({
 
   return (
     <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-      <Card.Title className="text-base font-semibold mb-4">
+      <div className="text-base font-semibold mb-4">
         User Activity
-      </Card.Title>
+      </div>
       <div className="h-80">
         <Chart type="line" data={chartData} options={chartOptions} className="h-full" />
       </div>

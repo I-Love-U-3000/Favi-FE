@@ -85,15 +85,10 @@ export function useSignalRNotifications() {
 
     // Build connection
     const connection = new HubConnectionBuilder()
-      .withUrl(`${process.env.NEXT_PUBLIC_API_URL}/hubs/notifications`, {
-        skipNegotiation: true,
-        withCredentials: false,
+      .withUrl(`${process.env.NEXT_PUBLIC_API_URL}/notificationHub`, {
         accessTokenFactory: () => token || "",
       })
-      .withAutomaticReconnect({
-        reconnectDelay: [0, 2000, 10000, 30000], // Retry delays
-        maxRetries: 5
-      })
+      .withAutomaticReconnect([0, 2000, 10000, 30000])
       .configureLogging(LogLevel.Information)
       .build();
 

@@ -1,24 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchWrapper } from "@/lib/fetchWrapper";
 import { useOverlay } from "@/components/RootProvider";
-import { PagedResult, UserDto } from "@/lib/api/admin";
+import { PagedResult, UserDto, TopPostDto as UserPostDto } from "@/lib/api/admin";
 
 export interface UsersFilter {
   search?: string;
   role?: string;
   status?: string;
-  skip?: number;
-  take?: number;
-}
-
-// User Detail types
-export interface UserPostDto {
-  id: string;
-  caption: string;
-  mediaUrl: string;
-  likeCount: number;
-  commentCount: number;
-  createdAt: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface UserWarnHistoryDto {
@@ -42,14 +32,14 @@ export function useAdminUsers(filters: UsersFilter = {}) {
   if (filters.search) queryParams.append("search", filters.search);
   if (filters.role) queryParams.append("role", filters.role);
   if (filters.status) queryParams.append("status", filters.status);
-  if (filters.skip) queryParams.append("skip", filters.skip.toString());
-  if (filters.take) queryParams.append("take", filters.take.toString());
+  if (filters.page) queryParams.append("page", filters.page.toString());
+  if (filters.pageSize) queryParams.append("pageSize", filters.pageSize.toString());
 
   return useQuery<PagedResult<UserDto>>({
     queryKey: ["admin", "users", filters],
     queryFn: () =>
       fetchWrapper.get<PagedResult<UserDto>>(
-        `/api/admin/analytics/users?${queryParams.toString()}`
+        `/admin/analytics/users?${queryParams.toString()}`
       ),
   });
 }
@@ -57,7 +47,7 @@ export function useAdminUsers(filters: UsersFilter = {}) {
 export function useUser(userId: string) {
   return useQuery<UserDto>({
     queryKey: ["admin", "users", userId],
-    queryFn: () => fetchWrapper.get<UserDto>(`/api/profiles/${userId}`),
+    queryFn: () => fetchWrapper.get<UserDto>(`/profiles/${userId}`),
     enabled: !!userId,
   });
 }
@@ -68,7 +58,7 @@ export function useBanUser() {
 
   return useMutation({
     mutationFn: ({ userId, reason }: { userId: string; reason?: string }) =>
-      fetchWrapper.post(`/api/admin/users/${userId}/ban`, { reason }),
+      fetchWrapper.post(`/admin/users/${userId}/ban`, { reason }),
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "users", userId] });
@@ -94,7 +84,7 @@ export function useUnbanUser() {
 
   return useMutation({
     mutationFn: (userId: string) =>
-      fetchWrapper.del(`/api/admin/users/${userId}/ban`),
+      fetchWrapper.del(`/admin/users/${userId}/ban`),
     onSuccess: (_, userId) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "users", userId] });
@@ -120,7 +110,7 @@ export function useWarnUser() {
 
   return useMutation({
     mutationFn: ({ userId, reason }: { userId: string; reason?: string }) =>
-      fetchWrapper.post(`/api/admin/users/${userId}/warn`, { reason }),
+      fetchWrapper.post(`/admin/users/${userId}/warn`, { reason }),
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "users", userId] });
@@ -146,7 +136,7 @@ export function useBulkBan() {
 
   return useMutation({
     mutationFn: ({ userIds, reason }: { userIds: string[]; reason?: string }) =>
-      fetchWrapper.post(`/api/admin/users/bulk/ban`, { userIds, reason }),
+      fetchWrapper.post(`/admin/users/bulk/ban`, { userIds, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       showToast({
@@ -171,7 +161,7 @@ export function useBulkUnban() {
 
   return useMutation({
     mutationFn: (userIds: string[]) =>
-      fetchWrapper.post(`/api/admin/users/bulk/unban`, { userIds }),
+      fetchWrapper.post(`/admin/users/bulk/unban`, { userIds }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       showToast({
@@ -196,7 +186,7 @@ export function useBulkWarn() {
 
   return useMutation({
     mutationFn: ({ userIds, reason }: { userIds: string[]; reason?: string }) =>
-      fetchWrapper.post(`/api/admin/users/bulk/warn`, { userIds, reason }),
+      fetchWrapper.post(`/admin/users/bulk/warn`, { userIds, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       showToast({
@@ -221,7 +211,7 @@ export function useUserPosts(userId: string) {
     queryKey: ["admin", "users", userId, "posts"],
     queryFn: () =>
       fetchWrapper.get<PagedResult<UserPostDto>>(
-        `/api/admin/analytics/posts?authorId=${userId}`
+        `/admin/analytics/posts?authorId=${userId}`
       ),
     enabled: !!userId,
   });
@@ -232,7 +222,7 @@ export function useUserWarnHistory(userId: string) {
     queryKey: ["admin", "users", userId, "warns"],
     queryFn: () =>
       fetchWrapper.get<UserWarnHistoryDto[]>(
-        `/api/admin/users/${userId}/warn`
+        `/admin/users/${userId}/warn`
       ),
     enabled: !!userId,
   });
@@ -243,7 +233,7 @@ export function useUserBanHistory(userId: string) {
     queryKey: ["admin", "users", userId, "ban"],
     queryFn: () =>
       fetchWrapper.get<UserBanHistoryDto>(
-        `/api/admin/users/${userId}/ban`
+        `/admin/users/${userId}/ban`
       ),
     enabled: !!userId,
   });
@@ -254,7 +244,7 @@ export function useUserAuditLogs(userId: string) {
     queryKey: ["admin", "users", userId, "audit"],
     queryFn: () =>
       fetchWrapper.get<PagedResult<any>>(
-        `/api/admin/audit?targetProfileId=${userId}`
+        `/admin/audit?targetProfileId=${userId}`
       ),
     enabled: !!userId,
   });

@@ -4,7 +4,9 @@ import { ThemeProvider } from "@/theme/ThemeProvider";
 import { Toast } from "primereact/toast";
 import { RootProvider } from "@/components/RootProvider";
 import { AuthProvider } from "@/components/AuthProvider";
+import { QueryProvider } from "@/components/QueryProvider";
 import { NextIntlClientProvider } from "next-intl";
+import { getMessages } from "next-intl/server";
 import NavGate from "@/components/NavGate";
 import { HeartbeatProvider } from "@/components/HeartbeatProvider";
 import { CallProvider } from "@/components/CallProvider";
@@ -26,28 +28,35 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ locale: string }>;
 }) {
+  const { locale } = await params;
+  const messages = await getMessages();
+
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang={locale} className={inter.variable} suppressHydrationWarning>
       <body className="font-sans antialiased">
-        <NextIntlClientProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
           <ThemeProvider>
-            <Toast />
-            <AuthProvider>
-              <HeartbeatProvider />
-              <CallProvider>
-                <RootProvider>
-                  <div className="min-h-screen flex">
-                    <NavGate />
-                    <main className="flex-1">{children}</main>
-                  </div>
-                </RootProvider>
-              </CallProvider>
-            </AuthProvider>
+            <QueryProvider>
+              <Toast />
+              <AuthProvider>
+                <HeartbeatProvider />
+                <CallProvider>
+                  <RootProvider>
+                    <div className="min-h-screen flex">
+                      <NavGate />
+                      <main className="flex-1">{children}</main>
+                    </div>
+                  </RootProvider>
+                </CallProvider>
+              </AuthProvider>
+            </QueryProvider>
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

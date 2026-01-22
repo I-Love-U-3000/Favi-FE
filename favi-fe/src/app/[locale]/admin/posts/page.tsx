@@ -7,7 +7,8 @@ import { Dropdown } from "primereact/dropdown";
 import { Calendar } from "primereact/calendar";
 import { Menu } from "primereact/menu";
 import PostsTable from "@/components/admin/tables/PostsTable";
-import { useAdminPosts, useBulkDeletePosts, PostDto } from "@/hooks/queries/useAdminPosts";
+import { useAdminPosts, useBulkDeletePosts } from "@/hooks/queries/useAdminPosts";
+import { PostDto } from "@/lib/api/admin";
 import { confirmDialog, ConfirmDialog } from "primereact/confirmdialog";
 import { Toast } from "primereact/toast";
 import { useOverlay } from "@/components/RootProvider";
@@ -183,9 +184,9 @@ export default function PostsPage() {
 
       {/* Posts Table */}
       <PostsTable
-        posts={data?.data || []}
+        posts={data?.items || []}
         loading={isLoading}
-        totalRecords={data?.total || 0}
+        totalRecords={data?.totalCount || 0}
         first={first}
         onPageChange={handlePageChange}
         selection={selection}

@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchWrapper } from "@/lib/fetchWrapper";
 import { useOverlay } from "@/components/RootProvider";
-import { PagedResult, ReportDto, ReportHistoryItem } from "@/lib/api/admin";
+import { PagedResult, ReportDto } from "@/lib/api/admin";
 
 export interface ReportsFilter {
   search?: string;
@@ -27,7 +27,7 @@ export function useAdminReports(filters: ReportsFilter = {}) {
     queryKey: ["admin", "reports", filters],
     queryFn: () =>
       fetchWrapper.get<PagedResult<ReportDto>>(
-        `/api/admin/reports?${queryParams.toString()}`
+        `/admin/reports?${queryParams.toString()}`
       ),
   });
 }
@@ -35,7 +35,7 @@ export function useAdminReports(filters: ReportsFilter = {}) {
 export function useReport(reportId: string) {
   return useQuery({
     queryKey: ["admin", "reports", reportId],
-    queryFn: () => fetchWrapper.get<ReportDto>(`/api/admin/reports/${reportId}`),
+    queryFn: () => fetchWrapper.get<ReportDto>(`/admin/reports/${reportId}`),
     enabled: !!reportId,
   });
 }
@@ -54,7 +54,7 @@ export function useResolveReport() {
       action: "delete" | "resolve";
       notes?: string;
     }) =>
-      fetchWrapper.post(`/api/admin/reports/${reportId}/resolve`, {
+      fetchWrapper.post(`/admin/reports/${reportId}/resolve`, {
         action,
         notes,
       }),
@@ -82,7 +82,7 @@ export function useRejectReport() {
 
   return useMutation({
     mutationFn: ({ reportId, reason }: { reportId: string; reason?: string }) =>
-      fetchWrapper.post(`/api/admin/reports/${reportId}/reject`, { reason }),
+      fetchWrapper.post(`/admin/reports/${reportId}/reject`, { reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "reports"] });
       showToast({
@@ -107,7 +107,7 @@ export function useBulkResolveReports() {
 
   return useMutation({
     mutationFn: ({ reportIds, action }: { reportIds: string[]; action: "delete" | "resolve" }) =>
-      fetchWrapper.post(`/api/admin/reports/bulk/resolve`, { reportIds, action }),
+      fetchWrapper.post(`/admin/reports/bulk/resolve`, { reportIds, action }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "reports"] });
       showToast({
@@ -132,7 +132,7 @@ export function useBulkRejectReports() {
 
   return useMutation({
     mutationFn: ({ reportIds, reason }: { reportIds: string[]; reason?: string }) =>
-      fetchWrapper.post(`/api/admin/reports/bulk/reject`, { reportIds, reason }),
+      fetchWrapper.post(`/admin/reports/bulk/reject`, { reportIds, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "reports"] });
       showToast({
@@ -148,26 +148,5 @@ export function useBulkRejectReports() {
         detail: error?.message || "Failed to reject reports",
       });
     },
-  });
-}
-
-export function useReportStats() {
-  return useQuery({
-    queryKey: ["admin", "reports", "stats"],
-    queryFn: () =>
-      fetchWrapper.get<{ pending: number; resolved: number; rejected: number }>(
-        "/api/admin/reports/stats"
-      ),
-  });
-}
-
-export function useReportHistory(reportId: string) {
-  return useQuery<ReportHistoryItem[]>({
-    queryKey: ["admin", "reports", reportId, "history"],
-    queryFn: () =>
-      fetchWrapper.get<ReportHistoryItem[]>(
-        `/api/admin/reports/${reportId}/history`
-      ),
-    enabled: !!reportId,
   });
 }

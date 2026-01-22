@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Chart } from "primereact/chart";
 import { Skeleton } from "primereact/skeleton";
+import { Card } from "primereact/card";
 
 interface GrowthChartProps {
   data?: {
@@ -95,10 +96,7 @@ export default function GrowthChart({ data, loading = false }: GrowthChartProps)
 
   if (loading) {
     return (
-      <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-        <Card.Title className="text-base font-semibold mb-4">
-          Growth Trends
-        </Card.Title>
+      <Card title="Growth Trends" className="shadow-sm border border-gray-100 dark:border-gray-800">
         <div className="h-80">
           <Skeleton width="100%" height="100%" />
         </div>
@@ -107,10 +105,7 @@ export default function GrowthChart({ data, loading = false }: GrowthChartProps)
   }
 
   return (
-    <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-      <Card.Title className="text-base font-semibold mb-4">
-        Growth Trends
-      </Card.Title>
+    <Card title="Growth Trends" className="shadow-sm border border-gray-100 dark:border-gray-800">
       <div className="h-80">
         <Chart type="line" data={chartData} options={chartOptions} className="h-full" />
       </div>

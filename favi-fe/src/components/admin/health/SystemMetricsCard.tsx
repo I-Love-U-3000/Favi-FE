@@ -16,10 +16,10 @@ export default function SystemMetricsCard({
   if (loading) {
     return (
       <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-        <Card.Title className="text-base font-semibold mb-4 flex items-center gap-2">
+        <div className="text-base font-semibold mb-4 flex items-center gap-2">
           <i className="pi pi-chart-bar text-lg" />
           System Metrics
-        </Card.Title>
+        </div>
         <div className="space-y-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="space-y-2">
@@ -38,10 +38,10 @@ export default function SystemMetricsCard({
   if (!metrics) {
     return (
       <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-        <Card.Title className="text-base font-semibold mb-4 flex items-center gap-2">
+        <div className="text-base font-semibold mb-4 flex items-center gap-2">
           <i className="pi pi-chart-bar text-lg" />
           System Metrics
-        </Card.Title>
+        </div>
         <div className="text-center py-8 text-gray-500">
           <i className="pi pi-info-circle text-4xl mb-2 opacity-50" />
           <p>No metrics available</p>
@@ -52,10 +52,10 @@ export default function SystemMetricsCard({
 
   return (
     <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-      <Card.Title className="text-base font-semibold mb-4 flex items-center gap-2">
+      <div className="text-base font-semibold mb-4 flex items-center gap-2">
         <i className="pi pi-chart-bar text-lg" />
         System Metrics
-      </Card.Title>
+      </div>
       <div className="space-y-4">
         {/* CPU */}
         <div>

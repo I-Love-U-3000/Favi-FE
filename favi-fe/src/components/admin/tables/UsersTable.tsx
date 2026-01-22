@@ -9,7 +9,8 @@ import { Tag } from "primereact/tag";
 import { Avatar } from "primereact/avatar";
 import { Menu } from "primereact/menu";
 import { Skeleton } from "primereact/skeleton";
-import { useBanUser, useUnbanUser, useWarnUser, UserDto } from "@/hooks/queries/useAdminUsers";
+import { useBanUser, useUnbanUser, useWarnUser } from "@/hooks/queries/useAdminUsers";
+import { UserDto } from "@/lib/api/admin";
 import BanUserDialog from "@/components/admin/modals/BanUserDialog";
 import WarnUserDialog from "@/components/admin/modals/WarnUserDialog";
 
@@ -70,29 +71,29 @@ export default function UsersTable({
       icon: "pi pi-eye",
       action: "view",
     },
-    ...(user.status === "banned"
+    ...(user.isBanned
       ? [
-          {
-            label: "Unban User",
-            icon: "pi pi-check",
-            action: "unban",
-            className: "text-green-600",
-          },
-        ]
+        {
+          label: "Unban User",
+          icon: "pi pi-check",
+          action: "unban",
+          className: "text-green-600",
+        },
+      ]
       : [
-          {
-            label: "Ban User",
-            icon: "pi pi-ban",
-            action: "ban",
-            className: "text-red-600",
-          },
-          {
-            label: "Warn User",
-            icon: "pi pi-exclamation-triangle",
-            action: "warn",
-            className: "text-yellow-600",
-          },
-        ]),
+        {
+          label: "Ban User",
+          icon: "pi pi-ban",
+          action: "ban",
+          className: "text-red-600",
+        },
+        {
+          label: "Warn User",
+          icon: "pi pi-exclamation-triangle",
+          action: "warn",
+          className: "text-yellow-600",
+        },
+      ]),
     { separator: true },
     {
       label: "View Activity",
@@ -132,8 +133,8 @@ export default function UsersTable({
     return (
       <div className="flex items-center gap-3">
         <Avatar
-          image={user.avatar}
-          icon={!user.avatar ? "pi pi-user" : undefined}
+          image={user.avatarUrl || undefined}
+          icon={!user.avatarUrl ? "pi pi-user" : undefined}
           shape="circle"
           size="normal"
         />
@@ -141,7 +142,7 @@ export default function UsersTable({
           <div className="font-medium text-gray-900 dark:text-white">
             @{user.username}
           </div>
-          <div className="text-xs text-gray-500">{user.email}</div>
+          <div className="text-xs text-gray-500">{user.displayName || ''}</div>
         </div>
       </div>
     );
@@ -158,16 +159,13 @@ export default function UsersTable({
   };
 
   const statusTemplate = (user: UserDto) => {
-    const severity = {
-      active: "success",
-      banned: "danger",
-      inactive: "warning",
-    } as const;
+    const status = user.isBanned ? 'banned' : 'active';
+    const severity = user.isBanned ? 'danger' : 'success';
 
     return (
       <Tag
-        value={user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-        severity={severity[user.status]}
+        value={status.charAt(0).toUpperCase() + status.slice(1)}
+        severity={severity}
         className="text-xs"
       />
     );

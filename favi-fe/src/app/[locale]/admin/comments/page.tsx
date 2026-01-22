@@ -14,8 +14,8 @@ import {
   useCommentStats,
   useBulkDeleteComments,
   CommentsFilter,
-  CommentDto,
 } from "@/hooks/queries/useAdminComments";
+import { CommentDto } from "@/lib/api/admin";
 import DeleteContentDialog from "@/components/admin/modals/DeleteContentDialog";
 import { useTranslations } from "next-intl";
 
@@ -258,9 +258,9 @@ export default function CommentsPage() {
 
       {/* Comments Table */}
       <CommentsTable
-        comments={commentsData?.data}
+        comments={commentsData?.items}
         loading={isLoading}
-        totalRecords={commentsData?.total || 0}
+        totalRecords={commentsData?.totalCount || 0}
         first={first}
         onPageChange={handlePageChange}
         selection={selectedComments}
@@ -271,11 +271,9 @@ export default function CommentsPage() {
       <DeleteContentDialog
         visible={showBulkDeleteDialog}
         onHide={() => setShowBulkDeleteDialog(false)}
-        contentId=""
-        contentType="Comments"
-        isBulk
-        count={selectedComments.length}
-        onConfirm={(reason) => handleBulkDeleteConfirm(reason)}
+        contentId="bulk"
+        contentType="comment"
+        onDelete={(id, reason) => handleBulkDeleteConfirm(reason)}
         loading={bulkDeleteComments.isPending}
       />
     </div>

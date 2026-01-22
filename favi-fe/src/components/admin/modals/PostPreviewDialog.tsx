@@ -4,7 +4,7 @@ import { Dialog } from "primereact/dialog";
 import { Button } from "primereact/button";
 import { Avatar } from "primereact/avatar";
 import { Tag } from "primereact/tag";
-import { PostDto } from "@/hooks/queries/useAdminPosts";
+import { PostDto } from "@/lib/api/admin";
 
 interface PostPreviewDialogProps {
   visible: boolean;
@@ -21,6 +21,10 @@ export default function PostPreviewDialog({
   onDelete,
   deleteLoading = false,
 }: PostPreviewDialogProps) {
+  if (!post) {
+    return null;
+  }
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString("en-US", {
       year: "numeric",
@@ -83,8 +87,16 @@ export default function PostPreviewDialog({
             </div>
           </div>
           <Tag
-            value={post.privacy.charAt(0).toUpperCase() + post.privacy.slice(1)}
-            severity={privacySeverity[post.privacy]}
+            value={
+              post.privacy
+                ? post.privacy.charAt(0).toUpperCase() + post.privacy.slice(1)
+                : post.privacyLevel === 0
+                  ? "Public"
+                  : post.privacyLevel === 1
+                    ? "Followers"
+                    : "Private"
+            }
+            severity={privacySeverity[(post.privacy || "public") as keyof typeof privacySeverity]}
             className="ml-auto"
           />
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
-import Link from "@/i18n/routing";
+import { Link } from "@/i18n/routing";
 import { useRouter } from "next/navigation";
 import { Avatar } from "primereact/avatar";
 import { Button } from "primereact/button";
@@ -9,17 +9,14 @@ import { Tag } from "primereact/tag";
 import { Card } from "primereact/card";
 import { InputTextarea } from "primereact/inputtextarea";
 import { Skeleton } from "primereact/skeleton";
-import { Timeline } from "primereact/timeline";
 import { confirmDialog, ConfirmDialog } from "primereact/confirmdialog";
 import { Toast } from "primereact/toast";
 import {
   useReport,
-  useReportHistory,
   useResolveReport,
   useRejectReport,
-  ReportDto,
-  ReportHistoryItem,
 } from "@/hooks/queries/useAdminReports";
+import { ReportDto } from "@/lib/api/admin";
 import { useOverlay } from "@/components/RootProvider";
 
 const REASON_COLORS: Record<string, "success" | "info" | "warning" | "danger" | undefined> = {
@@ -49,7 +46,6 @@ export default function ReportDetailPage({
   const [notes, setNotes] = useState("");
 
   const { data: report, isLoading: reportLoading } = useReport(reportId);
-  const { data: history, isLoading: historyLoading } = useReportHistory(reportId);
 
   const resolveReport = useResolveReport();
   const rejectReport = useRejectReport();
@@ -136,7 +132,6 @@ export default function ReportDetailPage({
                   image={report.target.author.avatar}
                   icon={!report.target.author.avatar ? "pi pi-user" : undefined}
                   shape="circle"
-                  size="small"
                 />
                 <span className="font-medium text-sm">
                   @{report.target.author.username}
@@ -195,7 +190,6 @@ export default function ReportDetailPage({
                   image={report.target.author.avatar}
                   icon={!report.target.author.avatar ? "pi pi-user" : undefined}
                   shape="circle"
-                  size="small"
                 />
                 <span className="font-medium text-sm">
                   @{report.target.author.username}
@@ -218,34 +212,7 @@ export default function ReportDetailPage({
     }
   };
 
-  // Render timeline event
-  const timelineContent = (item: ReportHistoryItem) => {
-    const statusColors: Record<string, string> = {
-      created: "text-blue-500",
-      resolved: "text-green-500",
-      rejected: "text-red-500",
-      status_changed: "text-yellow-500",
-    };
 
-    return (
-      <div className="flex items-start gap-3">
-        <i
-          className={`pi pi-circle-fill mt-1 ${
-            statusColors[item.action] || "text-gray-500"
-          }`}
-          style={{ fontSize: "0.5rem" }}
-        />
-        <div>
-          <p className="text-sm text-gray-900 dark:text-white">{item.description}</p>
-          {item.performedBy && (
-            <p className="text-xs text-gray-500">
-              by @{item.performedBy.username} • {formatRelativeTime(item.createdAt)}
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  };
 
   // Loading state
   if (reportLoading) {
@@ -312,10 +279,7 @@ export default function ReportDetailPage({
         {/* Left Column - Report Info */}
         <div className="space-y-6">
           {/* Report Info Card */}
-          <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-            <Card.Title className="text-lg font-semibold mb-4">
-              Report Information
-            </Card.Title>
+          <Card className="shadow-sm border border-gray-100 dark:border-gray-800" title="Report Information">
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -349,7 +313,6 @@ export default function ReportDetailPage({
                     image={report.reporter.avatar}
                     icon={!report.reporter.avatar ? "pi pi-user" : undefined}
                     shape="circle"
-                    size="normal"
                   />
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">
@@ -376,8 +339,7 @@ export default function ReportDetailPage({
           </Card>
 
           {/* Notes Card */}
-          <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-            <Card.Title className="text-lg font-semibold mb-4">Admin Notes</Card.Title>
+          <Card className="shadow-sm border border-gray-100 dark:border-gray-800" title="Admin Notes">
             <InputTextarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -391,16 +353,12 @@ export default function ReportDetailPage({
         {/* Right Column - Target Preview */}
         <div className="space-y-6">
           {/* Target Preview Card */}
-          <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-            <Card.Title className="text-lg font-semibold mb-4">
-              Target Preview
-            </Card.Title>
+          <Card className="shadow-sm border border-gray-100 dark:border-gray-800" title="Target Preview">
             {renderTargetPreview()}
           </Card>
 
           {/* Action Buttons */}
-          <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-            <Card.Title className="text-lg font-semibold mb-4">Actions</Card.Title>
+          <Card className="shadow-sm border border-gray-100 dark:border-gray-800" title="Actions">
             <div className="space-y-3">
               <Button
                 label="Resolve with Delete"
@@ -432,40 +390,11 @@ export default function ReportDetailPage({
       </div>
 
       {/* Report History Timeline */}
-      <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-        <Card.Title className="text-lg font-semibold mb-4">Report History</Card.Title>
-        {historyLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} width="100%" height="60px" />
-            ))}
-          </div>
-        ) : history && history.length > 0 ? (
-          <Timeline
-            value={history}
-            content={timelineContent}
-            marker={(item) => (
-              <i
-                className={`pi pi-circle-fill ${
-                  item.action === "created"
-                    ? "text-blue-500"
-                    : item.action === "resolved"
-                    ? "text-green-500"
-                    : item.action === "rejected"
-                    ? "text-red-500"
-                    : "text-gray-500"
-                }`}
-                style={{ fontSize: "0.5rem" }}
-              />
-            )}
-            className="pl-4"
-          />
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <i className="pi pi-history text-4xl mb-2 opacity-50" />
-            <p>No history available</p>
-          </div>
-        )}
+      <Card className="shadow-sm border border-gray-100 dark:border-gray-800" title="Report History">
+        <div className="text-center py-8 text-gray-500">
+          <i className="pi pi-history text-4xl mb-2 opacity-50" />
+          <p>No history available</p>
+        </div>
       </Card>
     </div>
   );

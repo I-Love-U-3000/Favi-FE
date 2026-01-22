@@ -37,7 +37,7 @@ export default function BasePieChart({
   centerText,
 }: BasePieChartProps) {
   const chartData = useMemo(() => {
-    if (!data) {
+    if (!data || !data.data) {
       return {
         labels: [],
         datasets: [],
@@ -82,7 +82,7 @@ export default function BasePieChart({
   if (loading) {
     return (
       <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-        <Card.Title className="text-base font-semibold mb-4">{title}</Card.Title>
+        <div className="text-base font-semibold mb-4">{title}</div>
         <div className="h-64">
           <Skeleton width="100%" height="100%" />
         </div>
@@ -92,7 +92,7 @@ export default function BasePieChart({
 
   return (
     <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-      <Card.Title className="text-base font-semibold mb-4">{title}</Card.Title>
+      <div className="text-base font-semibold mb-4">{title}</div>
       <div className="h-64 relative">
         <Chart type="doughnut" data={chartData} options={chartOptions} className="h-full" />
         {centerText && (

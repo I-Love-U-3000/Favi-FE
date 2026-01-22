@@ -9,6 +9,7 @@ type AuthContextType = {
   isAuthenticated: boolean;
   isGuest: boolean;
   isAdmin: boolean;
+  isLoading: boolean;
   user: UserInfo;
   refresh: () => void;
   requireAuth: (onAuthed?: () => void) => boolean;
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<UserInfo>(null);
   const [isGuest, setIsGuest] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const router = useRouter();
 
   const compute = useCallback(() => {
@@ -36,6 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsAuthenticated(false);
       setUser(null);
       setIsGuest(false);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -56,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     authAPI.logout();
-    try { if (typeof window !== "undefined") localStorage.removeItem("guest_mode"); } catch {}
+    try { if (typeof window !== "undefined") localStorage.removeItem("guest_mode"); } catch { }
     compute();
     // Redirect to login page (locale-aware)
     router.push("/login");
@@ -77,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated,
       isGuest,
       isAdmin: isAdminResult,
+      isLoading,
       user
     });
 
@@ -84,6 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated,
       isGuest,
       isAdmin: isAdminResult,
+      isLoading,
       user,
       refresh: compute,
       requireAuth,
@@ -97,11 +103,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               localStorage.removeItem("guest_mode");
             }
           }
-        } catch {}
+        } catch { }
         compute();
       },
     };
-  }, [isAuthenticated, isGuest, user, compute, requireAuth, logout]);
+  }, [isAuthenticated, isGuest, isLoading, user, compute, requireAuth, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

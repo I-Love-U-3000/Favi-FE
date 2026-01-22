@@ -3,7 +3,7 @@
 import { useMemo, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import { Breadcrumb } from "primereact/breadcrumb";
+import { BreadCrumb } from "primereact/breadcrumb";
 import { InputText } from "primereact/inputtext";
 import { Menu } from "primereact/menu";
 import { Avatar } from "primereact/avatar";
@@ -89,13 +89,10 @@ export default function AdminHeader() {
     <header className="fixed top-0 left-0 right-0 h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 z-30 flex items-center px-6">
       {/* Breadcrumb */}
       <div className="hidden md:block">
-        <Breadcrumb
+        <BreadCrumb
           model={breadcrumbItems}
           home={{ icon: "pi pi-home", url: "/admin" }}
           className="!text-sm !bg-transparent !p-0"
-          itemClassName="!text-gray-600 dark:!text-gray-400"
-          linkClassName="hover:!text-primary"
-          unstyled
         />
       </div>
 
@@ -133,7 +130,6 @@ export default function AdminHeader() {
           model={notificationItems}
           popup
           className="!min-w-[280px] !mt-2"
-          itemClassName="!py-2"
         />
       </div>
 
