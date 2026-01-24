@@ -46,7 +46,7 @@ export function useSignalRChat() {
 
     // Build connection
     const connection = new HubConnectionBuilder()
-      .withUrl(`${process.env.NEXT_PUBLIC_API_URL}/hubs/chat`, {
+      .withUrl(`${process.env.NEXT_PUBLIC_HUB_URL}/chatHub`, {
         skipNegotiation: false,
         withCredentials: false,
         accessTokenFactory: () => token || "",

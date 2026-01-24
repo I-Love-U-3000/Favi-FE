@@ -1,19 +1,33 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+"use client";
+
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
+import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
+import { useAuth } from "@/components/AuthProvider";
 import { NotificationDto } from "@/types";
 import notificationAPI from "@/lib/api/notificationAPI";
-import { useAuth } from "@/components/AuthProvider";
-import * as signalR from "@microsoft/signalr";
-import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 
-export function useSignalRNotifications() {
+interface SignalRContextValue {
+  notifications: NotificationDto[];
+  unreadCount: number;
+  isConnected: boolean;
+  fetchNotifications: (page?: number, pageSize?: number) => Promise<void>;
+  markAsRead: (notificationId: string) => Promise<boolean>;
+  markAllAsRead: () => Promise<boolean>;
+}
+
+const SignalRContext = createContext<SignalRContextValue | undefined>(undefined);
+
+export function SignalRProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const connectionRef = useRef<signalR.HubConnection | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
+  const connectionRef = useRef<ReturnType<typeof HubConnectionBuilder> | null>(null);
+  const isInitializedRef = useRef(false);
+
   // Fetch notifications from API
-  const fetchNotifications = useCallback(async (page = 1, pageSize = 20) => {
+  const fetchNotifications = async (page = 1, pageSize = 20) => {
     try {
       const data = await notificationAPI.getNotifications(page, pageSize);
       if (page === 1) {
@@ -21,27 +35,23 @@ export function useSignalRNotifications() {
       } else {
         setNotifications(prev => [...prev, ...data.items]);
       }
-      return data;
     } catch (error) {
       console.error("Error fetching notifications:", error);
-      return null;
     }
-  }, []);
+  };
 
   // Fetch unread count
-  const fetchUnreadCount = useCallback(async () => {
+  const fetchUnreadCount = async () => {
     try {
       const count = await notificationAPI.getUnreadCount();
       setUnreadCount(count);
-      return count;
     } catch (error) {
       console.error("Error fetching unread count:", error);
-      return 0;
     }
-  }, []);
+  };
 
   // Mark notification as read
-  const markAsRead = useCallback(async (notificationId: string) => {
+  const markAsRead = async (notificationId: string) => {
     try {
       await notificationAPI.markAsRead(notificationId);
       setNotifications(prev =>
@@ -53,10 +63,10 @@ export function useSignalRNotifications() {
       console.error("Error marking notification as read:", error);
       return false;
     }
-  }, []);
+  };
 
   // Mark all as read
-  const markAllAsRead = useCallback(async () => {
+  const markAllAsRead = async () => {
     try {
       await notificationAPI.markAllAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
@@ -66,9 +76,9 @@ export function useSignalRNotifications() {
       console.error("Error marking all as read:", error);
       return false;
     }
-  }, []);
+  };
 
-  // Setup SignalR connection
+  // Setup SignalR connection (only once)
   useEffect(() => {
     if (!user || !user.id) {
       setNotifications([]);
@@ -77,11 +87,18 @@ export function useSignalRNotifications() {
       return;
     }
 
+    // Prevent multiple connections
+    if (isInitializedRef.current) {
+      return;
+    }
+
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
     if (!token) {
       console.warn("No access token found for SignalR connection");
       return;
     }
+
+    isInitializedRef.current = true;
 
     // Build connection
     const connection = new HubConnectionBuilder()
@@ -126,7 +143,6 @@ export function useSignalRNotifications() {
     connection.onreconnected(async (connectionId?: string | null) => {
       console.log("NotificationHub reconnected, connectionId:", connectionId);
       setIsConnected(true);
-      // Refresh notifications after reconnect
       fetchNotifications();
       fetchUnreadCount();
     });
@@ -137,7 +153,6 @@ export function useSignalRNotifications() {
       .then(() => {
         console.log("NotificationHub connected");
         setIsConnected(true);
-        // Initial fetch after connection
         fetchNotifications();
         fetchUnreadCount();
       })
@@ -154,16 +169,26 @@ export function useSignalRNotifications() {
         connectionRef.current.stop().catch(console.error);
         connectionRef.current = null;
       }
+      isInitializedRef.current = false;
     };
-  }, [user?.id, fetchNotifications, fetchUnreadCount]);
+  }, [user?.id]);
 
-  return {
+  const value: SignalRContextValue = {
     notifications,
     unreadCount,
     isConnected,
     fetchNotifications,
-    fetchUnreadCount,
     markAsRead,
     markAllAsRead,
   };
+
+  return <SignalRContext.Provider value={value}>{children}</SignalRContext.Provider>;
+}
+
+export function useSignalRContext() {
+  const context = useContext(SignalRContext);
+  if (!context) {
+    throw new Error("useSignalRContext must be used within a SignalRProvider");
+  }
+  return context;
 }

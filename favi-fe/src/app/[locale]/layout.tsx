@@ -10,6 +10,7 @@ import { getMessages } from "next-intl/server";
 import NavGate from "@/components/NavGate";
 import { HeartbeatProvider } from "@/components/HeartbeatProvider";
 import { CallProvider } from "@/components/CallProvider";
+import { SignalRProvider } from "@/lib/contexts/SignalRContext";
 import { Inter } from "next/font/google";
 
 const inter = Inter({
@@ -47,14 +48,16 @@ export default async function RootLayout({
               <Toast />
               <AuthProvider>
                 <HeartbeatProvider />
-                <CallProvider>
-                  <RootProvider>
-                    <div className="min-h-screen flex">
-                      <NavGate />
-                      <main className="flex-1">{children}</main>
-                    </div>
-                  </RootProvider>
-                </CallProvider>
+                <SignalRProvider>
+                  <CallProvider>
+                    <RootProvider>
+                      <div className="min-h-screen flex">
+                        <NavGate />
+                        <main className="flex-1">{children}</main>
+                      </div>
+                    </RootProvider>
+                  </CallProvider>
+                </SignalRProvider>
               </AuthProvider>
             </QueryProvider>
           </ThemeProvider>

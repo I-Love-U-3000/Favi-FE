@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import useProfile from "@/lib/hooks/useProfile";
 import { useOverlay } from "@/components/RootProvider";
-import { useSignalRNotifications } from "@/lib/hooks/useSignalRNotifications";
+import { useSignalRContext } from "@/lib/contexts/SignalRContext";
 import { Menu } from "primereact/menu";
 
 type Item = { label: string; href: string; icon: string };
@@ -37,7 +37,7 @@ export default function Navbar() {
     openNotificationDialog,
   } = useOverlay();
 
-  const { unreadCount } = useSignalRNotifications();
+  const { unreadCount } = useSignalRContext();
 
   const [isOpen, setIsOpen] = useState(true);
   const menuRef = useRef<Menu>(null);
