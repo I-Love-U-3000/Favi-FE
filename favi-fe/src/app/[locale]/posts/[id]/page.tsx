@@ -1051,6 +1051,10 @@ function CommentRow({
   const [userReaction, setUserReaction] = useState<ReactionType | null>(
     ((c.reactions?.currentUserReaction ?? null) as ReactionType | null)
   );
+  // Use c.reactions.total as authoritative source, fall back to summing byType
+  const [totalReactions, setTotalReactions] = useState<number>(
+    c.reactions?.total ?? Object.values(buildCommentReactionCounts(c.reactions)).reduce((a, b) => a + b, 0)
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerHoverTimers = useRef<{ open: number | null; close: number | null }>({ open: null, close: null });
 
@@ -1058,6 +1062,7 @@ function CommentRow({
     setDraft(c.content ?? "");
     setReactionCounts(buildCommentReactionCounts(c.reactions));
     setUserReaction((c.reactions?.currentUserReaction ?? null) as ReactionType | null);
+    setTotalReactions(c.reactions?.total ?? Object.values(buildCommentReactionCounts(c.reactions)).reduce((a, b) => a + b, 0));
     setPickerOpen(false);
     if (pickerHoverTimers.current.open) {
       window.clearTimeout(pickerHoverTimers.current.open);
@@ -1123,15 +1128,21 @@ function CommentRow({
       nextCounts[type] = (nextCounts[type] || 0) + 1;
     }
     setReactionCounts(nextCounts);
+    setTotalReactions(prev => {
+      let next = prev;
+      if (previousReaction) next = Math.max(0, next - 1);
+      if (previousReaction !== type) next = next + 1;
+      return next;
+    });
     const nextUserReaction = previousReaction === type ? null : type;
     setUserReaction(nextUserReaction);
     try {
       const result = await commentAPI.toggleReaction(commentId, type);
       // Update the comment in the parent items array with the latest reaction data
       // This ensures that when the page reloads, the reaction data is preserved
-      const total = Object.values(nextCounts).reduce((a, b) => a + b, 0);
+      const newTotal = Object.values(nextCounts).reduce((a, b) => a + b, 0);
       const reactionSummary: ReactionSummaryDto = {
-        total,
+        total: newTotal,
         byType: nextCounts,
         currentUserReaction: nextUserReaction,
       };
@@ -1139,11 +1150,12 @@ function CommentRow({
     } catch (e: any) {
       setReactionCounts(previousCounts);
       setUserReaction(previousReaction);
+      // Restore totalReactions by calculating from previousCounts
+      setTotalReactions(Object.values(previousCounts).reduce((a, b) => a + b, 0));
       alert(e?.error || e?.message || "Failed to react to comment");
     }
   };
 
-  const totalReactions = Object.values(reactionCounts).reduce((a, b) => a + b, 0);
 
   const openPicker = (delay = 360) => {
     if (pickerHoverTimers.current.close) {
