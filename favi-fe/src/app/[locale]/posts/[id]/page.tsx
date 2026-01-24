@@ -15,6 +15,7 @@ import { useTranslations } from "next-intl";
 import ShareToChatDialog from "@/components/ShareToChatDialog";
 import ReportDialog from "@/components/ReportDialog";
 import PostMenuDialog from "@/components/PostMenuDialog";
+import PostReactorsDialog from "@/components/PostReactorsDialog";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -128,7 +129,10 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
   const [userReaction, setUserReaction] = useState<ReactionType | null>(
     (cached?.currentUserReaction ?? post.reactions?.currentUserReaction ?? null) as any
   );
-  const totalReacts = Object.values(byType).reduce((a, b) => a + b, 0);
+  // Use post.reactions.total as authoritative source, fall back to summing byType
+  const [totalReacts, setTotalReacts] = useState<number>(
+    cached?.total ?? post.reactions?.total ?? Object.values(byType).reduce((a, b) => a + b, 0)
+  );
   const initialCommentCount =
     post.commentsCount ??
     (post as any).commentCount ??
@@ -138,6 +142,7 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
   const [shareCount, setShareCount] = useState<number>((post as any).shareCount ?? (post as any).shares ?? 0);
   const [shareToChatOpen, setShareToChatOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reactorsDialogOpen, setReactorsDialogOpen] = useState(false);
   const tReport = useTranslations("ReportButton");
   // reaction picker like feed
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -167,12 +172,20 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
         return next;
       });
       setUserReaction(nextType);
+      // Update total reacts count
+      setTotalReacts((prevTotal) => {
+        let next = prevTotal;
+        if (prev) next = Math.max(0, next - 1);
+        if (nextType) next = next + 1;
+        return next;
+      });
       await postAPI.toggleReaction(post.id, type);
       // persist to cache for feed sync
       const snapshot = { ...byType } as Record<ReactionType, number>;
       if (prev && snapshot[prev] > 0) snapshot[prev] -= 1;
       if (nextType) snapshot[nextType] = (snapshot[nextType] || 0) + 1;
-      writePostReaction(post.id, { byType: snapshot, currentUserReaction: nextType });
+      const newTotal = (cached?.total ?? post.reactions?.total ?? Object.values(snapshot).reduce((a, b) => a + b, 0));
+      writePostReaction(post.id, { byType: snapshot, currentUserReaction: nextType, total: newTotal });
     } catch { }
   };
 
@@ -379,7 +392,15 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
                       </div>
                     )}
                   </div>
-                  <span className="inline-flex items-center gap-1">{totalReacts}</span>
+                  <button
+                    type="button"
+                    onClick={() => totalReacts > 0 && setReactorsDialogOpen(true)}
+                    className="inline-flex items-center gap-1 hover:opacity-100 cursor-pointer"
+                    title={totalReacts > 0 ? "View reactions" : "No reactions yet"}
+                    disabled={totalReacts === 0}
+                  >
+                    {totalReacts}
+                  </button>
                   <span className="inline-flex items-center gap-1">
                     <i className="pi pi-comments" /> {commentCount}
                   </span>
@@ -493,6 +514,13 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
         targetId={post.id}
         reporterProfileId={user?.id || ""}
         targetName={username || display}
+      />
+
+      {/* Post Reactors Dialog */}
+      <PostReactorsDialog
+        visible={reactorsDialogOpen}
+        onHide={() => setReactorsDialogOpen(false)}
+        postId={post.id}
       />
     </div>
   );

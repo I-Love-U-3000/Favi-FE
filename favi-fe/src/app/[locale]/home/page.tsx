@@ -245,7 +245,10 @@ function PostListItem({ post }: { post: PostResponse }) {
     hoverTimer.current = window.setTimeout(() => setPickerOpen(false), ms) as unknown as number;
   };
 
-  const totalReacts = Object.values(byType).reduce((a, b) => a + b, 0);
+  // Use post.reactions.total as authoritative source, fall back to summing byType
+  const [totalReacts, setTotalReacts] = useState<number>(
+    cached?.total ?? post.reactions?.total ?? Object.values(byType).reduce((a, b) => a + b, 0)
+  );
 
   const [shareOpen, setShareOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -315,6 +318,14 @@ function PostListItem({ post }: { post: PostResponse }) {
 
       setUserReaction(prev === type ? null : type);
 
+      // Update total reacts count
+      setTotalReacts((prevTotal) => {
+        let next = prevTotal;
+        if (prev) next = Math.max(0, next - 1);
+        if (prev !== type) next = next + 1;
+        return next;
+      });
+
       const res = await postAPI.toggleReaction(post.id, type);
       if (res && res.removed) setUserReaction(null);
 
@@ -325,6 +336,7 @@ function PostListItem({ post }: { post: PostResponse }) {
       writePostReaction(post.id, {
         byType: snapshot,
         currentUserReaction: prev === type ? null : type,
+        total: totalReacts,
       });
     } catch {
       // ignore
