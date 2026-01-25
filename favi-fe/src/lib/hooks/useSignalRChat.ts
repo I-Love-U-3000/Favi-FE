@@ -9,11 +9,12 @@ export function useSignalRChat() {
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const connectionRef = useRef<signalR.HubConnection | null>(null);
+  const initializedRef = useRef<string | null>(null); // Track initialized userId to prevent duplicate connections
   const [isConnected, setIsConnected] = useState(false);
 
   // Fetch conversations and calculate total unread count
   const fetchUnreadCount = useCallback(async () => {
-    if (!user) {
+    if (!user || !user.id) {
       setUnreadCount(0);
       return 0;
     }
@@ -32,9 +33,16 @@ export function useSignalRChat() {
 
   // Setup SignalR connection
   useEffect(() => {
+    // Guard: Don't connect if no user
     if (!user || !user.id) {
       setUnreadCount(0);
       setIsConnected(false);
+      initializedRef.current = null;
+      return;
+    }
+
+    // Guard: Don't create a new connection if we already have one for this user
+    if (initializedRef.current === user.id && connectionRef.current) {
       return;
     }
 
@@ -44,6 +52,10 @@ export function useSignalRChat() {
       return;
     }
 
+    // Mark this user as initialized
+    initializedRef.current = user.id;
+
+    // Custom logger to filter out cleanup errors
     // Build connection
     const connection = new HubConnectionBuilder()
       .withUrl(`${process.env.NEXT_PUBLIC_HUB_URL}/chatHub`, {
@@ -55,7 +67,17 @@ export function useSignalRChat() {
         reconnectDelay: [0, 2000, 10000, 30000],
         maxRetries: 5
       })
-      .configureLogging(LogLevel.Information)
+      .configureLogging({
+        log: (logLevel, message) => {
+          // Filter out expected cleanup errors to reduce console noise
+          if (message.includes('stopped during negotiation') || 
+              message.includes('Failed to start the connection') ||
+              message.includes('connection was stopped')) {
+            return; // Don't log these expected errors
+          }
+          console.log(`[SignalR ${LogLevel[logLevel]}]`, message);
+        }
+      })
       .build();
 
     // Listen for new messages - update unread count
@@ -99,6 +121,12 @@ export function useSignalRChat() {
         fetchUnreadCount();
       })
       .catch((error: Error) => {
+        // Silently ignore errors during cleanup (connection stopped while starting/negotiating)
+        const errorMsg = error?.message || '';
+        if (errorMsg.includes('stopped') || errorMsg.includes('negotiation') || errorMsg.includes('Failed to start')) {
+          // Expected error during cleanup, don't log
+          return;
+        }
         console.error("Error connecting to ChatHub:", error);
         setIsConnected(false);
       });
@@ -107,9 +135,21 @@ export function useSignalRChat() {
 
     // Cleanup on unmount
     return () => {
+      // Stop the old connection safely
       if (connectionRef.current) {
-        connectionRef.current.stop().catch(console.error);
+        const oldConnection = connectionRef.current;
         connectionRef.current = null;
+        // Stop the connection and ignore any errors during cleanup
+        oldConnection.stop().catch((err) => {
+          // Silently ignore errors during cleanup to prevent console spam
+          if (err && typeof err === 'object' && 'message' in err) {
+            const msg = (err as { message: string }).message;
+            // Only log unexpected errors, not expected cleanup errors
+            if (!msg.includes('stopped') && !msg.includes('negotiation')) {
+              console.warn("SignalR cleanup warning:", msg);
+            }
+          }
+        });
       }
     };
   }, [user?.id, fetchUnreadCount]);

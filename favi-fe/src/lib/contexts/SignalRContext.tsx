@@ -24,10 +24,14 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
 
   const connectionRef = useRef<ReturnType<typeof HubConnectionBuilder> | null>(null);
-  const isInitializedRef = useRef(false);
+  const isInitializedRef = useRef<string | null>(null); // Track userId to prevent duplicate connections
 
   // Fetch notifications from API
   const fetchNotifications = async (page = 1, pageSize = 20) => {
+    if (!user || !user.id) {
+      console.warn("Cannot fetch notifications: user not authenticated");
+      return;
+    }
     try {
       const data = await notificationAPI.getNotifications(page, pageSize);
       if (page === 1) {
@@ -42,6 +46,10 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
 
   // Fetch unread count
   const fetchUnreadCount = async () => {
+    if (!user || !user.id) {
+      console.warn("Cannot fetch unread count: user not authenticated");
+      return;
+    }
     try {
       const count = await notificationAPI.getUnreadCount();
       setUnreadCount(count);
@@ -84,11 +92,12 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
       setNotifications([]);
       setUnreadCount(0);
       setIsConnected(false);
+      isInitializedRef.current = null;
       return;
     }
 
-    // Prevent multiple connections
-    if (isInitializedRef.current) {
+    // Prevent multiple connections for the same user
+    if (isInitializedRef.current === user.id && connectionRef.current) {
       return;
     }
 
@@ -98,7 +107,8 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    isInitializedRef.current = true;
+    // Mark this user as initialized
+    isInitializedRef.current = user.id;
 
     // Build connection
     const connection = new HubConnectionBuilder()
@@ -106,7 +116,17 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
         accessTokenFactory: () => token || "",
       })
       .withAutomaticReconnect([0, 2000, 10000, 30000])
-      .configureLogging(LogLevel.Information)
+      .configureLogging({
+        log: (logLevel, message) => {
+          // Filter out expected cleanup errors to reduce console noise
+          if (message.includes('stopped during negotiation') || 
+              message.includes('Failed to start the connection') ||
+              message.includes('connection was stopped')) {
+            return; // Don't log these expected errors
+          }
+          console.log(`[SignalR ${LogLevel[logLevel]}]`, message);
+        }
+      })
       .build();
 
     // Set up event handlers
@@ -157,6 +177,11 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
         fetchUnreadCount();
       })
       .catch((error: Error) => {
+        // Silently ignore errors during cleanup (stopped during negotiation)
+        if (error?.message?.includes('stopped') || error?.message?.includes('negotiation')) {
+          // Expected error during cleanup, don't log
+          return;
+        }
         console.error("Error connecting to NotificationHub:", error);
         setIsConnected(false);
       });
@@ -165,11 +190,23 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
 
     // Cleanup on unmount
     return () => {
+      // Stop the old connection safely
       if (connectionRef.current) {
-        connectionRef.current.stop().catch(console.error);
+        const oldConnection = connectionRef.current;
         connectionRef.current = null;
+        // Stop the connection and ignore any errors during cleanup
+        oldConnection.stop().catch((err) => {
+          // Silently ignore errors during cleanup to prevent console spam
+          if (err && typeof err === 'object' && 'message' in err) {
+            const msg = (err as { message: string }).message;
+            // Only log unexpected errors, not expected cleanup errors
+            if (!msg.includes('stopped') && !msg.includes('negotiation')) {
+              console.warn("SignalR cleanup warning:", msg);
+            }
+          }
+        });
       }
-      isInitializedRef.current = false;
+      isInitializedRef.current = null;
     };
   }, [user?.id]);
 

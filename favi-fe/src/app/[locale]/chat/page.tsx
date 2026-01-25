@@ -109,6 +109,8 @@ export default function ChatPage() {
   const loadedConversationsRef = useRef<Set<string>>(new Set());
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const chatHubRef = useRef<signalR.HubConnection | null>(null);
+  const chatHubInitializedRef = useRef<string | null>(null); // Track initialized userId to prevent duplicate connections
+  const [isChatHubConnected, setIsChatHubConnected] = useState(false);
 
   // ---- CALL CONTEXT ----
   const call = useCall();
@@ -218,6 +220,12 @@ export default function ChatPage() {
   // ------------- 2. Hàm load messages cho 1 conversation -------------
   const loadMessages = useCallback(
     async (conversation: ChatConversation) => {
+      // Guard: Don't load messages if user is not authenticated
+      if (!currentUserId) {
+        console.warn("Cannot load messages: user not authenticated");
+        return;
+      }
+
       try {
         const page = (await chatAPI.getMessages(
           conversation.id,
@@ -287,10 +295,12 @@ export default function ChatPage() {
   // Khi `selectedConversationId` thay đổi (do click hoặc do initial select) thì load messages
   useEffect(() => {
     if (!selectedConversationId) return;
+    // Guard: Don't load messages if user is not authenticated
+    if (!currentUserId) return;
     const conv = conversations.find((c) => c.id === selectedConversationId);
     if (!conv) return;
     loadMessages(conv);
-  }, [selectedConversationId, loadMessages]);
+  }, [selectedConversationId, loadMessages, currentUserId]);
 
   // Scroll to bottom when conversation changes or messages are loaded
   useEffect(() => {
@@ -317,7 +327,17 @@ export default function ChatPage() {
 
   // ------------- 3. SignalR: Connect to ChatHub and join conversation -------------
   useEffect(() => {
-    if (!currentUserId) return;
+    // Guard: Don't connect if no user
+    if (!currentUserId) {
+      // Clear the initialized ref when user logs out
+      chatHubInitializedRef.current = null;
+      return;
+    }
+
+    // Guard: Don't create a new connection if we already have one for this user
+    if (chatHubInitializedRef.current === currentUserId && chatHubRef.current) {
+      return;
+    }
 
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
     if (!token) {
@@ -325,9 +345,15 @@ export default function ChatPage() {
       return;
     }
 
+    // Mark this user as initialized
+    chatHubInitializedRef.current = currentUserId;
+
+    // Custom logger to filter out cleanup errors
+    const customLogger = signalR.LogLevel.Information;
+    
     // Build connection
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${process.env.NEXT_PUBLIC_API_URL}/hubs/chat`, {
+      .withUrl(`${process.env.NEXT_PUBLIC_HUB_URL}/chatHub`, {
         skipNegotiation: false,
         withCredentials: false,
         accessTokenFactory: () => token || "",
@@ -336,7 +362,17 @@ export default function ChatPage() {
         reconnectDelay: [0, 2000, 10000, 30000],
         maxRetries: 5
       })
-      .configureLogging(signalR.LogLevel.Information)
+      .configureLogging({
+        log: (logLevel, message) => {
+          // Filter out expected cleanup errors to reduce console noise
+          if (message.includes('stopped during negotiation') || 
+              message.includes('Failed to start the connection') ||
+              message.includes('connection was stopped')) {
+            return; // Don't log these expected errors
+          }
+          console.log(`[SignalR ${signalR.LogLevel[logLevel]}]`, message);
+        }
+      })
       .build();
 
     // Listen for new messages
@@ -378,23 +414,72 @@ export default function ChatPage() {
       );
     });
 
+    // Track connection state
+    connection.onclose(() => {
+      console.log("ChatHub connection closed");
+      setIsChatHubConnected(false);
+    });
+
+    connection.onreconnecting(() => {
+      console.log("ChatHub reconnecting");
+      setIsChatHubConnected(false);
+    });
+
+    connection.onreconnected(() => {
+      console.log("ChatHub reconnected");
+      setIsChatHubConnected(true);
+      // Re-join the current conversation after reconnecting
+      if (selectedConversationId) {
+        connection
+          .invoke("JoinConversation", selectedConversationId)
+          .catch((err) => console.error("Error re-joining conversation:", err));
+      }
+    });
+
     // Start connection
     connection
       .start()
       .then(() => {
         console.log("ChatHub connected");
+        setIsChatHubConnected(true);
+        // Join the current conversation after connecting
+        if (selectedConversationId) {
+          connection
+            .invoke("JoinConversation", selectedConversationId)
+            .catch((err) => console.error("Error joining conversation:", err));
+        }
       })
       .catch((error: Error) => {
+        // Silently ignore errors during cleanup (connection stopped while starting/negotiating)
+        const errorMsg = error?.message || '';
+        if (errorMsg.includes('stopped') || errorMsg.includes('negotiation') || errorMsg.includes('Failed to start')) {
+          // Expected error during cleanup, don't log
+          return;
+        }
         console.error("Error connecting to ChatHub:", error);
+        setIsChatHubConnected(false);
       });
 
     chatHubRef.current = connection;
 
-    // Cleanup on unmount
+    // Cleanup on unmount or when currentUserId changes
     return () => {
+      setIsChatHubConnected(false);
+      // Stop the old connection safely
       if (chatHubRef.current) {
-        chatHubRef.current.stop().catch(console.error);
+        const oldConnection = chatHubRef.current;
         chatHubRef.current = null;
+        // Stop the connection and ignore any errors during cleanup
+        oldConnection.stop().catch((err) => {
+          // Silently ignore errors during cleanup to prevent console spam
+          if (err && typeof err === 'object' && 'message' in err) {
+            const msg = (err as { message: string }).message;
+            // Only log unexpected errors, not expected cleanup errors
+            if (!msg.includes('stopped') && !msg.includes('negotiation')) {
+              console.warn("SignalR cleanup warning:", msg);
+            }
+          }
+        });
       }
     };
   }, [currentUserId]);
@@ -403,14 +488,16 @@ export default function ChatPage() {
   useEffect(() => {
     if (!chatHubRef.current || !selectedConversationId) return;
 
-    // Join the new conversation
-    chatHubRef.current
-      .invoke("JoinConversation", selectedConversationId)
-      .catch((err) => console.error("Error joining conversation:", err));
+    // Only join if the connection is actually connected
+    if (chatHubRef.current.state === signalR.HubConnectionState.Connected) {
+      chatHubRef.current
+        .invoke("JoinConversation", selectedConversationId)
+        .catch((err) => console.error("Error joining conversation:", err));
+    }
 
     // Leave previous conversation when unmounting or changing
     return () => {
-      if (chatHubRef.current) {
+      if (chatHubRef.current && chatHubRef.current.state === signalR.HubConnectionState.Connected) {
         chatHubRef.current
           .invoke("LeaveConversation", selectedConversationId)
           .catch((err) => console.error("Error leaving conversation:", err));
