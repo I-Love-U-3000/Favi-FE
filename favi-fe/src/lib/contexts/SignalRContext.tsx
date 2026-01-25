@@ -3,16 +3,18 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 import { useAuth } from "@/components/AuthProvider";
-import { NotificationDto } from "@/types";
+import { NotificationDto, PagedResult } from "@/types";
 import notificationAPI from "@/lib/api/notificationAPI";
+import { toast } from "@/hooks/use-toast";
 
 interface SignalRContextValue {
   notifications: NotificationDto[];
   unreadCount: number;
   isConnected: boolean;
-  fetchNotifications: (page?: number, pageSize?: number) => Promise<void>;
+  fetchNotifications: (page?: number, pageSize?: number) => Promise<PagedResult<NotificationDto> | undefined>;
   markAsRead: (notificationId: string) => Promise<boolean>;
   markAllAsRead: () => Promise<boolean>;
+  deleteNotification: (notificationId: string) => Promise<boolean>;
 }
 
 const SignalRContext = createContext<SignalRContextValue | undefined>(undefined);
@@ -30,7 +32,7 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
   const fetchNotifications = async (page = 1, pageSize = 20) => {
     if (!user || !user.id) {
       console.warn("Cannot fetch notifications: user not authenticated");
-      return;
+      return undefined;
     }
     try {
       const data = await notificationAPI.getNotifications(page, pageSize);
@@ -39,8 +41,10 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
       } else {
         setNotifications(prev => [...prev, ...data.items]);
       }
+      return data;
     } catch (error) {
       console.error("Error fetching notifications:", error);
+      return undefined;
     }
   };
 
@@ -82,6 +86,34 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
       return true;
     } catch (error) {
       console.error("Error marking all as read:", error);
+      return false;
+    }
+  };
+
+  // Delete notification
+  const deleteNotification = async (notificationId: string) => {
+    try {
+      // Find the notification before deleting to check if it was unread
+      const notificationToDelete = notifications.find(n => n.id === notificationId);
+      const wasUnread = notificationToDelete?.isRead === false;
+
+      await notificationAPI.deleteNotification(notificationId);
+
+      // Update both notifications and potentially unread count in one go
+      setNotifications(prev => {
+        const filtered = prev.filter(n => n.id !== notificationId);
+
+        // If the deleted notification was unread, update unread count
+        if (wasUnread) {
+          setUnreadCount(prevCount => Math.max(0, prevCount - 1));
+        }
+
+        return filtered;
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Error deleting notification:", error);
       return false;
     }
   };
@@ -134,6 +166,12 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
       console.log("New notification received:", notification);
       setNotifications(prev => [notification, ...prev]);
       setUnreadCount(prev => prev + 1);
+
+      // Show toast notification
+      toast({
+        title: "New notification",
+        description: notification.message,
+      });
 
       // Optionally show browser notification
       if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
@@ -217,6 +255,7 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
     fetchNotifications,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
   };
 
   return <SignalRContext.Provider value={value}>{children}</SignalRContext.Provider>;

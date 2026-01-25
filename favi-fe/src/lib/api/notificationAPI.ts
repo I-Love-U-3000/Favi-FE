@@ -27,6 +27,12 @@ export const notificationAPI = {
       undefined,
       true
     ),
+
+  deleteNotification: (notificationId: string) =>
+    fetchWrapper.del<void>(
+      `/notifications/${notificationId}`,
+      true
+    ),
 };
 
 export default notificationAPI;

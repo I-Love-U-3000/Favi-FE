@@ -15,7 +15,7 @@ interface NotificationDialogProps {
 
 export default function NotificationDialog({ visible, onHide }: NotificationDialogProps) {
   const router = useRouter();
-  const { notifications, unreadCount, isConnected, fetchNotifications, markAsRead, markAllAsRead } = useSignalRContext();
+  const { notifications, unreadCount, isConnected, fetchNotifications, markAsRead, markAllAsRead, deleteNotification } = useSignalRContext();
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
@@ -68,6 +68,20 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
 
     // Close dialog
     onHide();
+  };
+
+  const handleDelete = async (e: React.MouseEvent, notificationId: string) => {
+    e.stopPropagation(); // Prevent triggering the notification click
+
+
+    try {
+      const success = await deleteNotification(notificationId);
+      if (success) {
+        console.log("Notification deleted");
+      }
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+    }
   };
 
   const timeAgo = (dateString: string) => {
@@ -154,10 +168,10 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
           ) : (
             <div className="divide-y" style={{ borderColor: "var(--border)" }}>
               {notifications.map((notification) => (
-                <button
+                <div
                   key={notification.id}
                   onClick={() => handleClickNotification(notification)}
-                  className="w-full text-left notif-item transition-colors"
+                  className="w-full text-left notif-item transition-colors cursor-pointer"
                   style={{
                     backgroundColor: !notification.isRead ? "var(--bg-highlight)" : "transparent",
                   }}
@@ -187,13 +201,26 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
                       </p>
                     </div>
 
-                    {!notification.isRead && (
-                      <div className="flex-shrink-0">
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {!notification.isRead && (
                         <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                      </div>
-                    )}
+                      )}
+
+                      {deleteNotification && (
+                        <button
+                          onClick={(e) => handleDelete(e, notification.id)}
+                          className="p-1.5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                          title="Delete notification"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-red-500">
+                            <path d="M18 6 6 12 12 12 12-6 6 12 12"></path>
+                            <path d="M6 6l12 12"></path>
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}

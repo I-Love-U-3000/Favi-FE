@@ -12,6 +12,7 @@ import { HeartbeatProvider } from "@/components/HeartbeatProvider";
 import { CallProvider } from "@/components/CallProvider";
 import { SignalRProvider } from "@/lib/contexts/SignalRContext";
 import { Inter } from "next/font/google";
+import { Toaster } from "@/components/ui/toaster";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -46,6 +47,7 @@ export default async function RootLayout({
           <ThemeProvider>
             <QueryProvider>
               <Toast />
+              <Toaster />
               <AuthProvider>
                 <HeartbeatProvider />
                 <SignalRProvider>
