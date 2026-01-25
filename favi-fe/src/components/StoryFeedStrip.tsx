@@ -6,6 +6,7 @@ import storyAPI from "@/lib/api/storyAPI";
 import type { StoryFeedResponse } from "@/types";
 import { useTranslations } from "next-intl";
 import StoryViewerDialog from "@/components/StoryViewerDialog";
+import StoryCreateDialog from "@/components/StoryCreateDialog";
 
 interface StoryItem {
   profileId: string;
@@ -24,6 +25,7 @@ export default function StoryFeedStrip() {
   const [error, setError] = useState<string | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>();
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -86,7 +88,46 @@ export default function StoryFeedStrip() {
   }
 
   if (stories.length === 0) {
-    return null;
+    return (
+      <>
+        <div className="w-full border-b overflow-hidden" style={{ borderColor: "var(--border)" }}>
+          <div className="flex flex-col items-center justify-center py-4 px-2 text-center text-sm gap-2" style={{ color: "var(--text-secondary)" }}>
+            <div className="flex items-center">
+              <i className="pi pi-image text-2xl mr-2 opacity-50" />
+              <span className="opacity-70">No stories to show</span>
+            </div>
+            <button
+              onClick={() => setCreateDialogOpen(true)}
+              className="px-4 py-1.5 rounded-full bg-sky-500 hover:bg-sky-600 text-white text-xs font-medium transition-colors flex items-center gap-1.5"
+            >
+              <i className="pi pi-plus" />
+              Add your story
+            </button>
+          </div>
+        </div>
+        <StoryCreateDialog
+          visible={createDialogOpen}
+          onHide={() => setCreateDialogOpen(false)}
+          onStoryCreated={() => {
+            setCreateDialogOpen(false);
+            // Trigger a refresh by setting loading and clearing stories
+            setLoading(true);
+            setStories([]);
+            storyAPI.getFeed().then((feed) => {
+              const storyItems: StoryItem[] = feed.map((item) => ({
+                profileId: item.profileId,
+                username: item.profileUsername,
+                avatarUrl: item.profileAvatarUrl,
+                stories: item.stories,
+                hasViewed: item.stories.every((s) => s.hasViewed),
+              }));
+              setStories(storyItems);
+              setStoryFeeds(feed);
+            }).catch(console.error).finally(() => setLoading(false));
+          }}
+        />
+      </>
+    );
   }
 
   return (
