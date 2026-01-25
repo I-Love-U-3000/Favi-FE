@@ -473,7 +473,7 @@ export default function ProfilePage() {
           height: x.medias?.[0]?.height || 0,
           createdAtISO: x.createdAt,
           likeCount: x.reactions?.total ?? 0,
-          commentCount: 0,
+          commentCount: Number(x.commentCount ?? x.commentsCount ?? 0) || 0,
           tags: (x.tags || []).map(t => t.name),
         }));
         if (!cancelled) setPosts(mapped);
