@@ -11,10 +11,10 @@ export default function SharedPostCard({ repost, onNavigateToOriginal, onProfile
   const router = useRouter();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-0 mb-0 max-w-3xl">
       {/* Sharer Info */}
       <div
-        className="flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all hover:opacity-80"
+        className="flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all hover:opacity-80 mb-2"
         style={{ backgroundColor: "var(--bg-primary)" }}
         onClick={onProfileClick}
       >
@@ -34,14 +34,14 @@ export default function SharedPostCard({ repost, onNavigateToOriginal, onProfile
           </div>
         </div>
         <div className="text-xs opacity-60" style={{ color: "var(--text-secondary)" }}>
-          Shared a post
+          Shared a post at {new Date(repost.createdAt).toLocaleString()}
         </div>
       </div>
 
       {/* Sharer's Caption */}
       {repost.caption && (
         <div
-          className="p-4 rounded-xl"
+          className="p-4 rounded-xl mb-2"
           style={{ backgroundColor: "var(--bg-primary)" }}
         >
           <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text)" }}>
@@ -86,25 +86,19 @@ export default function SharedPostCard({ repost, onNavigateToOriginal, onProfile
 
         {/* Original Post Media */}
         {repost.originalPostMedias && repost.originalPostMedias.length > 0 && (
-          <div className={`grid gap-1 ${repost.originalPostMedias.length === 1 ? 'grid-cols-1' : repost.originalPostMedias.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+          <div className={`grid gap-1 ${repost.originalPostMedias.length === 1 ? 'grid-cols-1' : repost.originalPostMedias.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`} style={{ maxHeight: '400px', overflow: 'hidden' }}>
             {repost.originalPostMedias.map((media) => (
-              <div key={media.id} className="aspect-square relative">
+              <div key={media.id} className="relative" style={{ height: '300px' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={media.url}
                   alt="Post media"
                   className="w-full h-full object-cover"
-                  style={{ maxHeight: '500px' }}
                 />
               </div>
             ))}
           </div>
         )}
-      </div>
-
-      {/* Timestamp */}
-      <div className="text-center text-xs opacity-60" style={{ color: "var(--text-secondary)" }}>
-        Shared {new Date(repost.createdAt).toLocaleString()}
       </div>
     </div>
   );
