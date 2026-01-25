@@ -206,18 +206,16 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
                         <div className="w-2 h-2 bg-blue-500 rounded-full" />
                       )}
 
-                      {deleteNotification && (
-                        <button
-                          onClick={(e) => handleDelete(e, notification.id)}
-                          className="p-1.5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-                          title="Delete notification"
-                        >
+                      <button
+                        onClick={(e) => handleDelete(e, notification.id)}
+                        className="p-1.5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                        title="Delete notification"
+                      >
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-red-500">
                             <path d="M18 6 6 12 12 12 12-6 6 12 12"></path>
                             <path d="M6 6l12 12"></path>
                           </svg>
-                        </button>
-                      )}
+                    </button>
                     </div>
                   </div>
                 </div>

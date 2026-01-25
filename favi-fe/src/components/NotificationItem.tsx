@@ -84,16 +84,17 @@ export function NotificationItem({ notification, onMarkAsRead, onDelete }: Notif
   const timeAgo = new Date(notification.createdAt).toLocaleString();
 
   return (
-    <style>{`.notif-item-panel:hover { background-color: var(--bg) !important; }`}</style>
-    <div
-      className={`relative p-4 notif-item-panel transition-colors cursor-pointer border-b ${
-        !notification.isRead ? "bg-blue-50/30 dark:bg-blue-900/10" : "opacity-70"
-      }`}
-      style={{
-        color: "var(--text)",
-        borderColor: "var(--border)"
-      }}
-    >
+    <>
+      <style>{`.notif-item-panel:hover { background-color: var(--bg) !important; }`}</style>
+      <div
+        className={`relative p-4 notif-item-panel transition-colors cursor-pointer border-b ${
+          !notification.isRead ? "bg-blue-50/30 dark:bg-blue-900/10" : "opacity-70"
+        }`}
+        style={{
+          color: "var(--text)",
+          borderColor: "var(--border)"
+        }}
+      >
       <div className="flex items-center gap-3">
         {/* Icon */}
         <div className="flex-shrink-0 text-2xl">{getIcon()}</div>
@@ -137,5 +138,6 @@ export function NotificationItem({ notification, onMarkAsRead, onDelete }: Notif
         </div>
       </div>
     </div>
+    </>
   );
 }

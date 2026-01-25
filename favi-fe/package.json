@@ -35,6 +35,7 @@
     "recharts": "^3.6.0",
     "repomix": "^1.7.0",
     "tailwind-merge": "^3.4.0",
+    "tailwindcss-animate": "^1.0.7",
     "unicornstudio-react": "^1.4.33-1"
   },
   "devDependencies": {

@@ -323,13 +323,17 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
               {(post.tags || []).length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {post.tags.map((t) => (
-                    <span
+                    <button
                       key={t.id}
-                      className="px-2 py-1 text-xs rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/search?q=${encodeURIComponent(t.name)}&mode=tag`);
+                      }}
+                      className="px-2 py-1 text-xs rounded-full cursor-pointer hover:opacity-80 transition-opacity"
                       style={{ backgroundColor: "var(--bg)", border: "1px solid var(--border)" }}
                     >
                       #{t.name}
-                    </span>
+                    </button>
                   ))}
                 </div>
               )}

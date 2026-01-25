@@ -1,15 +1,29 @@
-const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+// Generic type for request body
+export type RequestBody = unknown;
 
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+// Error response type
+export interface ApiError {
+  status: number;
+  error?: string;
+  message?: string;
+}
+
+// Response wrapper type
+export type ApiResponse<T> = T;
+
+// Refresh token response type
+export interface RefreshTokenResponse {
+  accessToken?: string;
+  access_token?: string;
+  refreshToken?: string;
+  refresh_token?: string;
 }
 
 /**
  * Recursively convert PascalCase keys to camelCase
  * Handles nested objects and arrays
  */
-function toCamelCase(obj: any): any {
+function toCamelCase(obj: unknown): unknown {
   if (obj === null || typeof obj !== "object") {
     return obj;
   }
@@ -18,27 +32,30 @@ function toCamelCase(obj: any): any {
     return obj.map(toCamelCase);
   }
 
-  return Object.keys(obj).reduce((acc, key) => {
+  return Object.keys(obj as Record<string, unknown>).reduce((acc, key) => {
     // Convert PascalCase to camelCase
     const camelKey = key.charAt(0).toLowerCase() + key.slice(1);
-    acc[camelKey] = toCamelCase(obj[key]);
+    acc[camelKey] = toCamelCase((obj as Record<string, unknown>)[key]);
     return acc;
-  }, {} as Record<string, any>);
+  }, {} as Record<string, unknown>);
 }
 
-async function handleResponse(res: Response) {
+async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw {
       status: res.status,
-      error: (data as any)?.error || (data as any)?.message || "Request failed",
+      error: (data as ApiError)?.error || (data as ApiError)?.message || "Request failed",
     };
   }
   // Convert backend PascalCase to frontend camelCase
-  return toCamelCase(data);
+  return toCamelCase(data) as ApiResponse<T>;
 }
 
-async function tryRefreshAndRetry(url: string, init: RequestInit): Promise<any> {
+async function tryRefreshAndRetry<T>(
+  url: string,
+  init: RequestInit
+): Promise<ApiResponse<T>> {
   const refreshToken =
     typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
   if (!refreshToken) throw { status: 401, message: "No refresh token" };
@@ -51,7 +68,7 @@ async function tryRefreshAndRetry(url: string, init: RequestInit): Promise<any> 
 
   if (!refreshRes.ok) throw { status: 401, message: "Refresh token expired" };
 
-  const refreshData = await refreshRes.json();
+  const refreshData = await refreshRes.json() as RefreshTokenResponse;
   const newAccess = refreshData?.accessToken ?? refreshData?.access_token;
   const newRefresh = refreshData?.refreshToken ?? refreshData?.refresh_token;
 
@@ -67,15 +84,22 @@ async function tryRefreshAndRetry(url: string, init: RequestInit): Promise<any> 
   };
 
   const retryRes = await fetch(url, retryInit);
-  return handleResponse(retryRes);
+  return handleResponse<T>(retryRes);
+}
+
+const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+
+function getAuthHeaders(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 async function request<T>(
   method: string,
   path: string,
-  body?: any,
+  body?: RequestBody,
   auth = true
-): Promise<T> {
+): Promise<ApiResponse<T>> {
   if (!baseUrl) throw new Error("Missing NEXT_PUBLIC_API_URL");
   const url = String(baseUrl) + path;
 
@@ -102,14 +126,15 @@ async function request<T>(
   let res: Response;
   try {
     res = await fetch(url, init);
-  } catch (e: any) {
-    throw { status: 0, error: e?.message || "Network error" };
+  } catch (e: unknown) {
+    const error = e as Error;
+    throw { status: 0, error: error?.message || "Network error" };
   }
 
   if (res.status === 401 && auth) {
     try {
-      return await tryRefreshAndRetry(url, init);
-    } catch (err) {
+      return await tryRefreshAndRetry<T>(url, init);
+    } catch (err: unknown) {
       console.warn("Token refresh failed", err);
       if (typeof window !== "undefined") {
         localStorage.removeItem("access_token");
@@ -119,13 +144,13 @@ async function request<T>(
     }
   }
 
-  return handleResponse(res);
+  return handleResponse<T>(res);
 }
 
 export const fetchWrapper = {
   get:  <T>(path: string, auth = true) => request<T>("GET", path, undefined, auth),
-  post: <T>(path: string, body?: any, auth = true) => request<T>("POST", path, body, auth),
-  put:  <T>(path: string, body?: any, auth = true) => request<T>("PUT", path, body, auth),
-  patch:<T>(path: string, body?: any, auth = true) => request<T>("PATCH", path, body, auth),
-  del:  <T>(path: string, body?: any, auth = true) => request<T>("DELETE", path, body, auth),
+  post: <T>(path: string, body?: RequestBody, auth = true) => request<T>("POST", path, body, auth),
+  put:  <T>(path: string, body?: RequestBody, auth = true) => request<T>("PUT", path, body, auth),
+  patch:<T>(path: string, body?: RequestBody, auth = true) => request<T>("PATCH", path, body, auth),
+  del:  <T>(path: string, body?: RequestBody, auth = true) => request<T>("DELETE", path, body, auth),
 };
