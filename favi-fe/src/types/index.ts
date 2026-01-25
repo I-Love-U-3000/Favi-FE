@@ -485,6 +485,7 @@ export type CollectionReactionResponse = {
   createdAt: string;
 };
 
+export type CommentReactionResponse = {  profileId: string;  username: string;  displayName: string | null;  avatarUrl: string | null;  reactionType: ReactionType;  createdAt: string;};
 // Repost/Share types
 export type CreateRepostRequest = {
   caption?: string | null;

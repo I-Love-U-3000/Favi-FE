@@ -16,6 +16,7 @@ import ShareToChatDialog from "@/components/ShareToChatDialog";
 import ReportDialog from "@/components/ReportDialog";
 import PostMenuDialog from "@/components/PostMenuDialog";
 import PostReactorsDialog from "@/components/PostReactorsDialog";
+import CommentReactorsDialog from "@/components/CommentReactorsDialog";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -591,6 +592,7 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
   const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(highlightCommentId || null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
+  const [reactorsDialogOpen, setReactorsDialogOpen] = useState<string | null>(null);
   const commentsPanelRef = useRef<HTMLDivElement>(null);
   const syncedInitialCount = useRef(false);
 
@@ -856,6 +858,7 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
                   onDeleteComment={handleDeleteComment}
                   requireAuth={requireAuth}
                   onReport={(id, name) => { setReportTarget({ id, name }); setReportDialogOpen(true); }}
+                  onOpenReactorsDialog={(commentId) => { setReactorsDialogOpen(commentId); }}
                   onReactionUpdate={(commentId, reactions) => {
                     setItems(prev => prev.map(item => getId(item) === commentId ? { ...item, reactions } : item));
                   }}
@@ -882,6 +885,7 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
                           onDeleteComment={handleDeleteComment}
                           requireAuth={requireAuth}
                           onReport={(id, name) => { setReportTarget({ id, name }); setReportDialogOpen(true); }}
+                          onOpenReactorsDialog={(commentId) => { setReactorsDialogOpen(commentId); }}
                           onReactionUpdate={(commentId, reactions) => {
                             setItems(prev => prev.map(item => getId(item) === commentId ? { ...item, reactions } : item));
                           }}
@@ -993,6 +997,15 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
           targetName={reportTarget.name}
         />
       )}
+
+      {/* Comment Reactors Dialog */}
+      {reactorsDialogOpen && (
+        <CommentReactorsDialog
+          visible={!!reactorsDialogOpen}
+          onHide={() => setReactorsDialogOpen(null)}
+          commentId={reactorsDialogOpen}
+        />
+      )}
     </div>
   );
 }
@@ -1013,6 +1026,7 @@ function CommentRow({
   requireAuth,
   onReport,
   onReactionUpdate,
+  onOpenReactorsDialog,
 }: {
   c: CommentResponse;
   isHighlighted?: boolean;
@@ -1029,6 +1043,7 @@ function CommentRow({
   requireAuth: () => boolean;
   onReport?: (commentId: string, authorName: string) => void;
   onReactionUpdate?: (commentId: string, reactions: ReactionSummaryDto) => void;
+  onOpenReactorsDialog?: (commentId: string) => void;
 }) {
   const router = useRouter();
   const tReport = useTranslations("ReportButton");
@@ -1284,7 +1299,13 @@ function CommentRow({
             onHoverEnd={closePickerWithDelay}
           />
           {totalReactions > 0 && (
-            <span className="text-xs opacity-70">{totalReactions}</span>
+            <button
+              type="button"
+              className="text-xs opacity-70 hover:opacity-100 cursor-pointer bg-transparent border-0 p-0"
+              onClick={() => onOpenReactorsDialog?.(commentId)}
+            >
+              {totalReactions}
+            </button>
           )}
           <button className="text-xs opacity-80 hover:opacity-100" onClick={onReply}>
             Trả lời
