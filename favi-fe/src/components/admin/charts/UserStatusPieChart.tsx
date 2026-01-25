@@ -53,6 +53,7 @@ export default function UserStatusPieChart({ data, loading = false }: UserStatus
         labels: {
           usePointStyle: true,
           padding: 20,
+          color: "#cbd5e1",
         },
       },
       tooltip: {
@@ -75,7 +76,10 @@ export default function UserStatusPieChart({ data, loading = false }: UserStatus
 
   if (loading) {
     return (
-      <Card title="User Status Distribution" className="shadow-sm border border-gray-100 dark:border-gray-800">
+      <Card
+        header={<div className="px-6 pt-6 font-bold text-lg text-white">User Status Distribution</div>}
+        className="shadow-xl border border-white/5 bg-[#0f172a] rounded-[2rem] overflow-hidden"
+      >
         <div className="h-64">
           <Skeleton width="100%" height="100%" />
         </div>
@@ -86,11 +90,14 @@ export default function UserStatusPieChart({ data, loading = false }: UserStatus
   const total = (data?.active || 0) + (data?.banned || 0) + (data?.inactive || 0);
 
   return (
-    <Card title="User Status Distribution" className="shadow-sm border border-gray-100 dark:border-gray-800">
+    <Card
+      header={<div className="px-6 pt-6 font-bold text-lg text-white">User Status Distribution</div>}
+      className="shadow-xl border border-white/5 bg-[#0f172a] rounded-[2rem] overflow-hidden"
+    >
       <div className="h-64">
         <Chart type="doughnut" data={chartData} options={chartOptions} className="h-full" />
       </div>
-      <div className="text-center mt-2 text-sm text-gray-500">
+      <div className="text-center mt-2 text-sm text-slate-400">
         Total: {total.toLocaleString()} users
       </div>
     </Card>

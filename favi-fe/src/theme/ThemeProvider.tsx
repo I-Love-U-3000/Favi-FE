@@ -9,7 +9,7 @@ import "primeicons/primeicons.css";
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
     <NextThemeProvider
-      attribute="class"
+      attribute="data-theme"
       defaultTheme={DEFAULT_THEME_KEY}
       enableSystem={false}
       storageKey="favi-theme"
@@ -51,6 +51,13 @@ function ThemeLoader({ children }: { children: React.ReactNode }) {
       html.classList.add(info.className);
       prevClass.current = info.className;
       html.dataset.themeMode = info.mode;
+
+      if (info.mode === "dark") {
+        html.classList.add("dark");
+      } else {
+        html.classList.remove("dark");
+      }
+
       try {
         const computed = getComputedStyle(html);
         const read = (token: string, fallback: string) => {

@@ -29,9 +29,9 @@ export default function HealthCard({
 
   return (
     <Card
-      className={`shadow-sm border border-gray-100 dark:border-gray-800 ${className}`}
+      className={`shadow-xl border border-slate-100 dark:border-white/5 bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden ${className}`}
     >
-      <div className="text-base font-semibold mb-4 flex items-center gap-2">
+      <div className="text-base font-semibold mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
         <i className={`pi ${icon} text-lg`} />
         {title}
         <Tag

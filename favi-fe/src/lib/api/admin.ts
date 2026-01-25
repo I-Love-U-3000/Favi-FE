@@ -291,65 +291,79 @@ export interface PeriodComparisonData {
 }
 
 // ============================================================================
-// Health Types
+// Health Types (Backend: HealthStatusResponse)
 // ============================================================================
 
 export interface HealthStatus {
-  status: "healthy" | "degraded" | "unhealthy";
+  status: "Healthy" | "Degraded" | "Unhealthy" | "healthy" | "degraded" | "unhealthy";
   timestamp: string;
-  version: string;
-  uptime: number;
+  totalDurationMs: number;
+  entries: HealthCheckEntryDto[];
 }
 
+export interface HealthCheckEntryDto {
+  name: string;
+  status: string;
+  description?: string;
+  durationMs: number;
+  data?: Record<string, unknown>;
+  exception?: string;
+  tags: string[];
+}
+
+// ============================================================================
+// System Metrics Types (Backend: SystemMetricsResponse)
+// ============================================================================
+
 export interface SystemMetrics {
+  memory: {
+    workingSetMB: number;
+    privateMemoryMB: number;
+    gcMemoryMB: number;
+  };
   cpu: {
     usagePercent: number;
-    cores: number;
   };
-  memory: {
-    usedMB: number;
-    totalMB: number;
-    usagePercent: number;
+  process: {
+    threadCount: number;
+    handleCount: number;
+    uptimeSeconds: number;
+    uptimeFormatted: string;
   };
-  disk: {
-    usedGB: number;
-    totalGB: number;
-    usagePercent: number;
+  garbageCollection: {
+    gen0Collections: number;
+    gen1Collections: number;
+    gen2Collections: number;
   };
-  network: {
-    bytesIn: number;
-    bytesOut: number;
-  };
+  timestamp: string;
 }
+
+// ============================================================================
+// Detailed Health Types (Backend: DetailedHealthResponse)
+// ============================================================================
 
 export interface ServiceHealth {
   name: string;
-  status: "healthy" | "degraded" | "unhealthy";
-  responseTimeMs: number;
+  status: string;
   message?: string;
-  details?: Record<string, any>;
+  responseTimeMs: number;
+  data?: Record<string, unknown>;
+}
+
+export interface DatabaseHealth {
+  status: string;
+  message?: string;
+  responseTimeMs: number;
 }
 
 export interface DetailedHealth {
-  overall: HealthStatus;
+  overallStatus: string;
+  timestamp: string;
+  totalCheckDurationMs: number;
   metrics: SystemMetrics;
   services: ServiceHealth[];
-  database: {
-    status: "healthy" | "degraded" | "unhealthy";
-    responseTimeMs: number;
-    connections: number;
-    maxConnections: number;
-  };
-  cache: {
-    status: "healthy" | "degraded" | "unhealthy";
-    connected: boolean;
-    hitRate: number;
-  };
-  storage: {
-    status: "healthy" | "degraded" | "unhealthy";
-    availableGB: number;
-    usedGB: number;
-  };
+  database: DatabaseHealth;
+  entries?: HealthCheckEntryDto[]; // Fallback từ /api/admin/health
 }
 
 // ============================================================================

@@ -1,176 +1,225 @@
 @import "tailwindcss";
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
-@theme {
-  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-}
-
+/* 1. Base Variables */
 :root {
-  --bg: var(--surface-b, #f4f4f4);
-  --bg-secondary: var(--surface-a, #ffffff);
-  --text: var(--text-color, #222);
-  --text-secondary: var(--text-color-secondary, #666);
-  --primary: var(--primary-color, #3b82f6);
-  --accent: var(--primary-500, #60a5fa);
-  --border: var(--surface-d, #e5e7eb);
-  --error: var(--red-500, #f87171);
-  --success: var(--green-500, #22c55e);
-  --warning: var(--yellow-500, #fbbf24);
-  --input-bg: var(--surface-a, #ffffff);
-  --input-border: var(--surface-d, #e5e7eb);
+  --bg: #f8fafc;
+  --bg-secondary: #ffffff;
+  --text: #0f172a;
+  --text-secondary: #64748b;
+  --primary: #3b82f6;
+  --accent: #60a5fa;
+  --border: #e2e8f0;
+  --error: #ef4444;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --input-bg: #ffffff;
+  --input-border: #e2e8f0;
+  --sidebar-bg: #0f172a;
+  --sidebar-text: #f1f5f9;
+  --sidebar-text-muted: #cbd5e1;
+  --sidebar-hover: #1e293b;
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
-@font-face {
-  font-family: "Fulcher";
-  src: url("/fonts/Fulcher.otf");
-  
+/* Dark mode variables */
+html.dark,
+html[data-theme-mode="dark"],
+:root.dark {
+  --bg: #020617;
+  --bg-secondary: #0f172a;
+  --text: #ffffff;
+  --text-secondary: #cbd5e1;
+  --border: #1e293b;
+  --input-bg: #1e293b;
+  --input-border: #334155;
 }
 
-.font-fulcher {
-  font-family: "Fulcher";
+/* 2. Tailwind Theme Extension */
+@theme {
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --color-primary: var(--primary);
+  --color-bg: var(--bg);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-secondary);
+  --color-border: var(--border);
 }
 
-/* Apply theme variables to page base */
-html, body {
+/* 3. Global Base */
+html,
+body {
   background-color: var(--bg);
   color: var(--text);
   font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
-/* Fix Primereact Card border-radius and apply to all cards */
-.p-card {
-  border-radius: 24px !important;
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+/* ============================================
+   ADMIN LAYOUT DARK MODE OVERRIDES
+   Chỉ áp dụng trong khu vực admin
+   ============================================ */
+
+.admin-layout body,
+.admin-layout {
+  background-color: #020617 !important;
+  color: #ffffff !important;
+}
+
+/* PrimeReact components in admin - Dark Mode */
+.admin-layout .p-card,
+.admin-layout .p-panel,
+.admin-layout .p-dialog,
+.admin-layout .p-menu,
+.admin-layout .p-menubar,
+.admin-layout .p-datatable {
+  background: #0f172a !important;
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #1e293b !important;
+}
+
+/* Admin Cards */
+.admin-layout .p-card {
+  border-radius: 1rem !important;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
 }
 
-.p-card .p-card-body,
-.p-card .p-card-content,
-.p-card .p-card-header {
-  border-radius: inherit !important;
+.admin-layout .p-card:hover {
+  transform: translateY(-4px);
 }
 
-/* Login card with more rounded corners */
-.p-card.rounded-login,
-.p-card.rounded-login > .p-card-body,
-.p-card.rounded-login > .p-card-content {
-  border-radius: 32px !important;
+/* Admin DataTable */
+.admin-layout .p-datatable .p-datatable-thead > tr > th {
+  background-color: #0f172a !important;
+  color: #cbd5e1 !important;
+  border-color: #1e293b !important;
 }
 
-/* Force rounded corners on all Card elements */
-.rounded-login,
-.rounded-login > *,
-.rounded-login .p-card-header,
-.rounded-login .p-card-body,
-.rounded-login .p-card-content {
-  border-radius: 32px !important;
+.admin-layout .p-datatable .p-datatable-tbody > tr {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
 }
 
-/* First child (header) - top corners only */
-.rounded-login .p-card-header {
-  border-radius: 32px 32px 0 0 !important;
+.admin-layout .p-datatable .p-datatable-tbody > tr > td {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #1e293b !important;
 }
 
-/* Last child (content/body) - bottom corners only */
-.rounded-login .p-card-body,
-.rounded-login .p-card-content {
-  border-radius: 0 0 32px 32px !important;
+.admin-layout .p-datatable .p-datatable-tbody > tr:hover {
+  background-color: #1e293b !important;
 }
 
-/* Ensure links inherit text color by default */
-a { color: inherit; }
-
-/* Navbar glass effect - ensure it works */
-aside.backdrop-blur-2xl {
-  -webkit-backdrop-filter: blur(40px);
-  backdrop-filter: blur(40px);
+.admin-layout .p-datatable .p-paginator-bottom {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
 }
 
-/* Share-sheet style for post composer */
-.p-dialog.share-sheet .p-dialog-content {
-  border-radius: 16px;
-}
-.p-dialog.share-sheet {
-  animation: sheet-in 160ms ease-out;
-}
-@keyframes sheet-in {
-  from { transform: translateY(8px); opacity: 0.96; }
-  to { transform: translateY(0); opacity: 1; }
+.admin-layout .p-datatable .p-paginator-bottom .p-paginator-element {
+  color: #cbd5e1 !important;
 }
 
-/* Glassmorphism base */
-.glass {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.20);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+.admin-layout .p-datatable .p-datatable-footer {
+  background-color: #0f172a !important;
+  color: #cbd5e1 !important;
 }
 
-/* Dark mode tune */
-.dark .glass {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.10);
+/* Admin Menu */
+.admin-layout .p-menu {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
 }
 
-/* PrimeReact Menu glass */
-.p-menu.p-menu-overlay.glass-menu {
-  background: rgba(255, 255, 255, 0.12) !important;
-  border: 1px solid rgba(255, 255, 255, 0.20) !important;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25) !important;
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  overflow: hidden;
+.admin-layout .p-menu .p-menuitem-link {
+  color: #cbd5e1 !important;
 }
 
-.dark .p-menu.p-menu-overlay.glass-menu {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.10) !important;
+.admin-layout .p-menu .p-menuitem-link:hover {
+  background-color: #1e293b !important;
 }
 
-/* Menu items hover/active feel */
-.p-menu.glass-menu .p-menuitem-link {
-  background: transparent;
-}
-.p-menu.glass-menu .p-menuitem-link:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-.dark .p-menu.glass-menu .p-menuitem-link:hover {
-  background: rgba(255, 255, 255, 0.06);
+.admin-layout .p-menu .p-menuitem-text {
+  color: #cbd5e1 !important;
 }
 
-/* Glass post card (feed) */
-.glass-post {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(0, 0, 0, 0.30);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+.admin-layout .p-menu .p-menuitem-icon {
+  color: #cbd5e1 !important;
 }
 
-.dark .glass-post {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.30);
+.admin-layout .p-menubar {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
 }
 
-/* Glassy small chips/buttons */
-.glass-chip {
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+/* Admin Dialog */
+.admin-layout .p-dialog {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
 }
 
-.dark .glass-chip {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
+.admin-layout .p-dialog .p-dialog-header {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
 }
 
-/* Story Viewers Dialog - ensure it appears on top of StoryViewerDialog */
-body > .p-dialog-mask {
-  z-index: 10000 !important;
+.admin-layout .p-dialog .p-dialog-content {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
 }
-body > .p-dialog {
-  z-index: 10001 !important;
+
+.admin-layout .p-dialog .p-dialog-footer {
+  background-color: #0f172a !important;
+}
+
+/* Admin Tag colors */
+.admin-layout .p-tag {
+  color: #ffffff !important;
+}
+
+/* Admin Text colors */
+.admin-layout .text-secondary,
+.admin-layout .p-breadcrumb .p-menuitem-text,
+.admin-layout .p-breadcrumb .p-breadcrumb-chevron {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.admin-layout .p-breadcrumb .p-menuitem-link:hover .p-menuitem-text {
+  color: #ffffff !important;
+}
+
+/* Admin Input visibility */
+.admin-layout .p-inputtext::placeholder {
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.admin-layout .p-inputtext,
+.admin-layout .p-calendar,
+.admin-layout .p-dropdown {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  border-color: #334155 !important;
+}
+
+.admin-layout .p-card-title,
+.admin-layout .p-card-content {
+  color: #ffffff !important;
+}
+
+.admin-layout .p-datatable .p-datatable-tbody > tr > td {
+  color: #ffffff !important;
 }

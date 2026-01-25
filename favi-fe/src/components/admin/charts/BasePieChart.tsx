@@ -81,8 +81,8 @@ export default function BasePieChart({
 
   if (loading) {
     return (
-      <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-        <div className="text-base font-semibold mb-4">{title}</div>
+      <Card className="shadow-xl border border-slate-100 dark:border-white/5 bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden">
+        <div className="text-base font-semibold mb-4 text-slate-900 dark:text-white">{title}</div>
         <div className="h-64">
           <Skeleton width="100%" height="100%" />
         </div>
@@ -91,13 +91,13 @@ export default function BasePieChart({
   }
 
   return (
-    <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-      <div className="text-base font-semibold mb-4">{title}</div>
+    <Card className="shadow-xl border border-slate-100 dark:border-white/5 bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden">
+      <div className="text-base font-semibold mb-4 text-slate-900 dark:text-white">{title}</div>
       <div className="h-64 relative">
         <Chart type="doughnut" data={chartData} options={chartOptions} className="h-full" />
         {centerText && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className="text-2xl font-bold text-gray-700 dark:text-gray-300">
+            <span className="text-2xl font-bold text-slate-700 dark:text-slate-300">
               {centerText}
             </span>
           </div>

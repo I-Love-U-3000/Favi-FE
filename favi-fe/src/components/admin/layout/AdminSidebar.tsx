@@ -5,6 +5,7 @@ import { Link } from "@/i18n/routing";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { Badge } from "primereact/badge";
+import { Avatar } from "primereact/avatar";
 import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 
@@ -39,8 +40,10 @@ export default function AdminSidebar() {
   }, [pathname]);
 
   const itemClass = (active: boolean) =>
-    `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
-     ${active ? "bg-primary/20 text-primary font-medium" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"}`;
+    `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group
+     ${active
+      ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30 font-bold"
+      : "text-slate-100/70 hover:bg-white/10 hover:text-white"}`;
 
   const handleLogout = () => {
     logout();
@@ -56,18 +59,20 @@ export default function AdminSidebar() {
       <div className="fixed inset-0 bg-black/50 z-30 lg:hidden hidden" id="sidebar-overlay" />
 
       <aside
-        className="fixed top-0 left-0 h-screen w-64 z-40 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col"
+        className="fixed top-0 left-0 h-screen w-72 z-40 bg-[#0f172a] border-r border-white/5 flex flex-col transition-all duration-300 shadow-2xl"
       >
         {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-200 dark:border-gray-800">
-          <img src="/favi-logo.png" alt="logo" className="w-8 h-8 rounded-full" />
-          <span className="text-lg font-semibold text-gray-900 dark:text-white">
-            {t("Title")}
+        <div className="flex items-center gap-3 px-6 py-10">
+          <div className="w-11 h-11 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <img src="/favi-logo.png" alt="logo" className="w-7 h-7 object-contain brightness-0 invert" />
+          </div>
+          <span className="text-2xl font-black text-white tracking-tighter">
+            ADMIN
           </span>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-4 py-2 space-y-2 overflow-y-auto custom-scrollbar">
           {NAV_ITEMS.map((item) => {
             const active = pathname === item.href || (item.href !== "/admin" && pathname?.startsWith(item.href));
 
@@ -77,8 +82,8 @@ export default function AdminSidebar() {
                 href={item.href}
                 className={itemClass(active)}
               >
-                <i className={`${item.icon} text-lg ${active ? "" : "opacity-70"}`} />
-                <span className="text-sm">{getLabel(item.labelKey)}</span>
+                <i className={`${item.icon} text-xl ${active ? "text-white" : "text-white/60 group-hover:text-white"}`} />
+                <span className="text-[15px] font-semibold tracking-tight">{getLabel(item.labelKey)}</span>
                 {item.badgeKey && (
                   <Badge
                     value={getLabel(item.badgeKey)}
@@ -92,35 +97,38 @@ export default function AdminSidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="px-3 py-4 border-t border-gray-200 dark:border-gray-800">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center">
-                <i className="pi pi-user text-primary text-sm" />
-              </div>
+        <div className="px-4 py-8 mt-auto">
+          <div className="p-4 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <Avatar
+                image={(user as any)?.avatarUrl}
+                icon={!((user as any)?.avatarUrl) ? "pi pi-user" : undefined}
+                shape="circle"
+                className="w-12 h-12 border-2 border-white/20 shadow-lg"
+              />
               <div className="min-w-0">
-                <div className="text-xs font-medium truncate text-gray-900 dark:text-white">
-                  {(user as any)?.email || "Admin"}
+                <div className="text-[15px] font-bold truncate text-white">
+                  {(user as any)?.displayName || "Admin User"}
                 </div>
-                <div className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Administrator
+                <div className="text-[10px] text-white/50 font-black uppercase tracking-[0.2em]">
+                  Super Admin
                 </div>
               </div>
             </div>
 
             <button
               onClick={handleLogout}
-              className="p-2 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+              className="w-10 h-10 rounded-2xl bg-white/5 text-white/40 hover:text-rose-400 hover:bg-rose-400/10 transition-all flex items-center justify-center border border-transparent hover:border-rose-400/20"
               title={t("UnbanUser")}
             >
-              <i className="pi pi-sign-out text-sm" />
+              <i className="pi pi-sign-out text-base" />
             </button>
           </div>
         </div>
       </aside>
 
       {/* Spacer for fixed sidebar */}
-      <div className="w-64 shrink-0 hidden lg:block" />
+      <div className="w-72 shrink-0 hidden lg:block" />
     </>
   );
 }

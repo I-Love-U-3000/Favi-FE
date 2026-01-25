@@ -59,6 +59,7 @@ export default function GrowthChart({ data, loading = false }: GrowthChartProps)
         labels: {
           usePointStyle: true,
           padding: 20,
+          color: "#cbd5e1",
         },
       },
       tooltip: {
@@ -96,7 +97,10 @@ export default function GrowthChart({ data, loading = false }: GrowthChartProps)
 
   if (loading) {
     return (
-      <Card title="Growth Trends" className="shadow-sm border border-gray-100 dark:border-gray-800">
+      <Card
+        header={<div className="px-6 pt-6 font-bold text-lg text-white">Growth Trends</div>}
+        className="shadow-xl border border-white/5 bg-[#0f172a] rounded-[2rem] overflow-hidden"
+      >
         <div className="h-80">
           <Skeleton width="100%" height="100%" />
         </div>
@@ -105,7 +109,10 @@ export default function GrowthChart({ data, loading = false }: GrowthChartProps)
   }
 
   return (
-    <Card title="Growth Trends" className="shadow-sm border border-gray-100 dark:border-gray-800">
+    <Card
+      header={<div className="px-6 pt-6 font-bold text-lg text-white">Growth Trends</div>}
+      className="shadow-xl border border-white/5 bg-[#0f172a] rounded-[2rem] overflow-hidden"
+    >
       <div className="h-80">
         <Chart type="line" data={chartData} options={chartOptions} className="h-full" />
       </div>

@@ -106,8 +106,8 @@ export default function ContentActivityChart({
 
   if (loading) {
     return (
-      <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-        <div className="text-base font-semibold mb-4">
+      <Card className="shadow-xl border border-slate-100 dark:border-white/5 bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden">
+        <div className="text-base font-semibold mb-4 text-slate-900 dark:text-white">
           Content Activity
         </div>
         <div className="h-80">
@@ -118,8 +118,8 @@ export default function ContentActivityChart({
   }
 
   return (
-    <Card className="shadow-sm border border-gray-100 dark:border-gray-800">
-      <div className="text-base font-semibold mb-4">
+    <Card className="shadow-xl border border-slate-100 dark:border-white/5 bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden">
+      <div className="text-base font-semibold mb-4 text-slate-900 dark:text-white">
         Content Activity
       </div>
       <div className="h-80">

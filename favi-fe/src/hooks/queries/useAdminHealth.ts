@@ -6,6 +6,7 @@ import {
   HealthStatus,
   SystemMetrics,
   DetailedHealth,
+  HealthCheckEntryDto,
   formatUptime,
   formatBytes,
 } from "@/lib/api/admin";
@@ -13,24 +14,33 @@ import {
 export function useHealth() {
   return useQuery<HealthStatus>({
     queryKey: ["admin", "health"],
-    queryFn: () => fetchWrapper.get<HealthStatus>("/api/admin/health"),
+    queryFn: () => fetchWrapper.get<HealthStatus>("/admin/health"),
     refetchInterval: 30000,
+    networkMode: "always",
+    gcTime: 5 * 60 * 1000, // 5 phút
+    staleTime: 0, // Luôn fetch fresh data
   });
 }
 
 export function useHealthMetrics() {
   return useQuery<SystemMetrics>({
     queryKey: ["admin", "health", "metrics"],
-    queryFn: () => fetchWrapper.get<SystemMetrics>("/api/admin/health/metrics"),
+    queryFn: () => fetchWrapper.get<SystemMetrics>("/admin/health/metrics"),
     refetchInterval: 30000,
+    networkMode: "always",
+    gcTime: 5 * 60 * 1000,
+    staleTime: 0,
   });
 }
 
 export function useHealthDetailed() {
   return useQuery<DetailedHealth>({
     queryKey: ["admin", "health", "detailed"],
-    queryFn: () => fetchWrapper.get<DetailedHealth>("/api/admin/health/detailed"),
+    queryFn: () => fetchWrapper.get<DetailedHealth>("/admin/health/detailed"),
     refetchInterval: 30000,
+    networkMode: "always",
+    gcTime: 5 * 60 * 1000,
+    staleTime: 0,
   });
 }
 
@@ -39,9 +49,11 @@ export function useHealthStatus() {
   const { data: metrics, isLoading: metricsLoading } = useHealthMetrics();
   const { data: detailed, isLoading: detailedLoading } = useHealthDetailed();
 
+  const overallStatus = health?.status?.toLowerCase() || "unknown";
+
   return {
-    overallStatus: health?.status || "unknown",
-    isHealthy: health?.status === "healthy",
+    overallStatus: overallStatus as "healthy" | "degraded" | "unhealthy" | "unknown",
+    isHealthy: overallStatus === "healthy",
     isLoading: healthLoading || metricsLoading || detailedLoading,
     health,
     metrics,
@@ -49,4 +61,4 @@ export function useHealthStatus() {
   };
 }
 
-export { formatUptime, formatBytes };
+export { formatUptime, formatBytes, HealthCheckEntryDto };

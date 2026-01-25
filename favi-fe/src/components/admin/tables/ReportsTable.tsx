@@ -9,7 +9,8 @@ import { Tag } from "primereact/tag";
 import { Avatar } from "primereact/avatar";
 import { Menu } from "primereact/menu";
 import { Skeleton } from "primereact/skeleton";
-import { ReportDto, useResolveReport, useRejectReport } from "@/hooks/queries/useAdminReports";
+import { useResolveReport, useRejectReport } from "@/hooks/queries/useAdminReports";
+import { ReportDto } from "@/lib/api/admin";
 import ReportDetailDialog from "@/components/admin/modals/ReportDetailDialog";
 import ResolveReportDialog from "@/components/admin/modals/ResolveReportDialog";
 
@@ -159,13 +160,13 @@ export default function ReportsTable({
   const targetTemplate = (report: ReportDto) => {
     return (
       <div
-        className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 -m-2 rounded-lg transition"
+        className="flex items-center gap-3 cursor-pointer hover:bg-slate-800 p-2 -m-2 rounded-lg transition"
         onClick={() => {
           setSelectedReport(report);
           setShowDetailDialog(true);
         }}
       >
-        <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-800 flex items-center justify-center">
           {report.targetType === "post" && report.target?.mediaUrl ? (
             <img
               src={report.target.mediaUrl}
@@ -173,15 +174,15 @@ export default function ReportsTable({
               className="w-full h-full object-cover"
             />
           ) : report.targetType === "post" ? (
-            <i className="pi pi-image text-gray-400" />
+            <i className="pi pi-image text-slate-400" />
           ) : report.targetType === "user" ? (
-            <i className="pi pi-user text-gray-400" />
+            <i className="pi pi-user text-slate-400" />
           ) : (
-            <i className="pi pi-comment text-gray-400" />
+            <i className="pi pi-comment text-slate-400" />
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-gray-900 dark:text-white truncate">
+          <p className="text-sm text-white truncate">
             {TARGET_TYPE_LABELS[report.targetType]}:{" "}
             {report.target?.caption?.substring(0, 50) ||
               report.target?.content?.substring(0, 50) ||
@@ -197,16 +198,16 @@ export default function ReportsTable({
     return (
       <div
         className="flex items-center gap-2 cursor-pointer hover:opacity-80"
-        onClick={() => router.push(`/admin/users/${report.reporter.id}`)}
+        onClick={() => report.reporter?.id && router.push(`/admin/users/${report.reporter.id}`)}
       >
         <Avatar
-          image={report.reporter.avatar}
-          icon={!report.reporter.avatar ? "pi pi-user" : undefined}
+          image={report.reporter?.avatar}
+          icon={!report.reporter?.avatar ? "pi pi-user" : undefined}
           shape="circle"
           size="normal"
         />
-        <span className="text-sm text-gray-900 dark:text-white">
-          @{report.reporter.username}
+        <span className="text-sm text-white">
+          @{report.reporter?.username || "Unknown"}
         </span>
       </div>
     );
@@ -234,7 +235,7 @@ export default function ReportsTable({
 
   const dateTemplate = (report: ReportDto) => {
     return (
-      <span className="text-sm text-gray-600 dark:text-gray-400">
+      <span className="text-sm text-slate-400">
         {new Date(report.createdAt).toLocaleDateString()}
       </span>
     );
@@ -242,7 +243,7 @@ export default function ReportsTable({
 
   const header = (
     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4">
-      <span className="text-sm text-gray-500">
+      <span className="text-sm text-slate-400">
         {loading ? "Loading..." : `${totalRecords} reports found`}
       </span>
     </div>
@@ -250,19 +251,19 @@ export default function ReportsTable({
 
   const emptyMessage = (
     <div className="text-center py-8">
-      <i className="pi pi-flag text-4xl text-gray-300 mb-2" />
-      <p className="text-gray-500">No reports found</p>
+      <i className="pi pi-flag text-4xl text-slate-600 mb-2" />
+      <p className="text-slate-500">No reports found</p>
     </div>
   );
 
   if (loading) {
     return (
       <div className="card">
-        <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+        <div className="p-4 border border-slate-800 rounded-lg">
           {[1, 2, 3, 4, 5].map((i) => (
             <div
               key={i}
-              className="flex items-center gap-3 py-3 border-b last:border-0 border-gray-100 dark:border-gray-800"
+              className="flex items-center gap-3 py-3 border-b last:border-0 border-slate-800"
             >
               <Skeleton width="20px" height="20px" />
               <Skeleton width="40px" height="40px" borderRadius="8px" />
@@ -290,6 +291,7 @@ export default function ReportsTable({
           emptyMessage={emptyMessage}
           selection={selection}
           onSelectionChange={(e) => onSelectionChange(e.value)}
+          selectionMode="multiple"
           dataKey="id"
           paginator
           rows={20}
