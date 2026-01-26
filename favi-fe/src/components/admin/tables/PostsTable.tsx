@@ -123,6 +123,8 @@ export default function PostsTable({
   };
 
   const contentTemplate = (post: PostDto) => {
+    // Backend trả về `medias` array, không phải `mediaUrl`
+    const mediaUrl = post.mediaUrl || post.medias?.[0]?.thumbnailUrl || post.medias?.[0]?.url;
     return (
       <div
         className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 -m-2 rounded-lg transition"
@@ -132,9 +134,9 @@ export default function PostsTable({
         }}
       >
         <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-800">
-          {post.mediaUrl ? (
+          {mediaUrl ? (
             <img
-              src={post.mediaUrl}
+              src={mediaUrl}
               alt="Post thumbnail"
               className="w-full h-full object-cover"
             />

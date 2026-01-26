@@ -35,7 +35,7 @@ export function useAdminPosts(filters: PostsFilter = {}) {
 export function usePost(postId: string) {
   return useQuery({
     queryKey: ["admin", "posts", postId],
-    queryFn: () => fetchWrapper.get<PostDto>(`/admin/analytics/posts/${postId}`),
+    queryFn: () => fetchWrapper.get<PostDto>(`/posts/${postId}`),
     enabled: !!postId,
   });
 }

@@ -119,6 +119,16 @@ export default function PostPreviewDialog({
             )}
           </div>
         )}
+        {/* Media array fallback - backend trả về `medias` array */}
+        {!post.mediaUrl && post.medias && post.medias.length > 0 && (
+          <div className="rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+            <img
+              src={post.medias[0].thumbnailUrl || post.medias[0].url}
+              alt="Post media"
+              className="w-full max-h-80 object-contain"
+            />
+          </div>
+        )}
 
         {/* Caption */}
         <div className="text-gray-900 dark:text-white whitespace-pre-wrap">

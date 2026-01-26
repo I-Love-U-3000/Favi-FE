@@ -153,19 +153,39 @@ export default function PostDetailPage({
         <div className="lg:col-span-2">
           <Card className="shadow-sm border border-gray-100 dark:border-gray-800" title="Media">
             <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden">
-              {post.mediaType === "image" ? (
-                <img
-                  src={post.mediaUrl}
-                  alt="Post media"
-                  className="max-w-full max-h-full object-contain"
-                />
-              ) : (
-                <video
-                  src={post.mediaUrl}
-                  controls
-                  className="max-w-full max-h-full"
-                />
-              )}
+              {!post.mediaUrl ? (
+                <div className="text-center text-gray-400">
+                  <i className="pi pi-image text-6xl mb-2" />
+                  <p>No media available</p>
+                </div>
+              ) : (() => {
+                // Determine if media is video based on mediaType or file extension
+                const isVideo = post.mediaType === "video" ||
+                  post.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i);
+
+                if (isVideo) {
+                  return (
+                    <video
+                      src={post.mediaUrl}
+                      controls
+                      className="max-w-full max-h-full"
+                    />
+                  );
+                }
+
+                // Default to image
+                return (
+                  <img
+                    src={post.mediaUrl}
+                    alt="Post media"
+                    className="max-w-full max-h-full object-contain"
+                    onError={(e) => {
+                      console.error('Failed to load image:', post.mediaUrl);
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                );
+              })()}
             </div>
           </Card>
         </div>

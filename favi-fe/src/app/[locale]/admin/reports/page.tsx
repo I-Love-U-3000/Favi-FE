@@ -101,11 +101,47 @@ export default function ReportsPage() {
   };
 
   const handleExport = (format: string) => {
-    toast.showToast({
-      severity: "info",
-      summary: "Export",
-      detail: `Exporting reports as ${format}...`,
-    });
+    try {
+      if (!data?.items || data.items.length === 0) {
+        toast.showToast({
+          severity: "warn",
+          summary: "No Data",
+          detail: "No reports to export",
+        });
+        return;
+      }
+
+      const { exportToCSV, exportToJSON, exportToExcel, prepareReportsForExport } = require("@/lib/utils/exportUtils");
+      const preparedData = prepareReportsForExport(data.items);
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `reports_export_${timestamp}`;
+
+      switch (format.toUpperCase()) {
+        case "CSV":
+          exportToCSV(preparedData, filename);
+          break;
+        case "JSON":
+          exportToJSON(preparedData, filename);
+          break;
+        case "EXCEL":
+          exportToExcel(preparedData, filename);
+          break;
+        default:
+          throw new Error(`Unsupported format: ${format}`);
+      }
+
+      toast.showToast({
+        severity: "success",
+        summary: "Export Successful",
+        detail: `Reports exported as ${format}`,
+      });
+    } catch (error: any) {
+      toast.showToast({
+        severity: "error",
+        summary: "Export Failed",
+        detail: error.message || "Failed to export reports",
+      });
+    }
   };
 
   const exportItems = [

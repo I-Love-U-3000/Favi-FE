@@ -107,11 +107,24 @@ export interface UserActivity {
 // Post Types
 // ============================================================================
 
+export interface MediaDto {
+  id: string;
+  postId: string;
+  url: string;
+  publicId?: string;
+  width: number;
+  height: number;
+  format?: string;
+  position: number;
+  thumbnailUrl?: string;
+}
+
 export interface PostDto {
   id: string;
   caption: string;
-  mediaUrl?: string;
+  mediaUrl?: string; // legacy field
   mediaType?: "image" | "video";
+  medias?: MediaDto[]; // backend trả về array
   authorProfileId: string;
   authorUsername: string;
   authorDisplayName?: string;
@@ -473,7 +486,7 @@ export const getPosts = async (
 };
 
 export const getPost = async (id: string): Promise<PostDto> => {
-  return fetchWrapper.get<PostDto>(`/admin/analytics/posts/${id}`);
+  return fetchWrapper.get<PostDto>(`/posts/${id}`);
 };
 
 export const deletePost = async (postId: string, reason?: string) => {
