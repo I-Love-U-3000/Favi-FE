@@ -21,6 +21,11 @@ function normalizePrivacy(raw: unknown): PrivacyKind {
 
 export default function PostCard({ post }: { post: PostResponse }) {
   const router = useRouter();
+
+  const handleTagClick = (tagName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    router.push(`/search?q=${encodeURIComponent(tagName)}&mode=tag`);
+  };
   const medias = post.medias || [];
   const privacy: PrivacyKind = normalizePrivacy(
     (post as any).privacyLevel ?? (post as any).privacy
@@ -113,12 +118,12 @@ export default function PostCard({ post }: { post: PostResponse }) {
             {post.tags.slice(0, 3).map((tag) => (
               <span
                 key={tag.id}
-                className="text-xs px-2 py-1 rounded-full cursor-pointer"
+                className="text-xs px-2 py-1 rounded-full cursor-pointer hover:opacity-80 transition-opacity"
                 style={{
                   backgroundColor: "var(--accent)",
                   color: "var(--text)",
                 }}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => handleTagClick(tag.name, e)}
               >
                 #{tag.name}
               </span>

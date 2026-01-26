@@ -473,7 +473,7 @@ export default function ProfilePage() {
           height: x.medias?.[0]?.height || 0,
           createdAtISO: x.createdAt,
           likeCount: x.reactions?.total ?? 0,
-          commentCount: 0,
+          commentCount: Number(x.commentsCount ?? x.commentsCount ?? 0) || 0,
           tags: (x.tags || []).map(t => t.name),
         }));
         if (!cancelled) setPosts(mapped);
@@ -975,14 +975,15 @@ export default function ProfilePage() {
                   <p>No reposts yet</p>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {reposts.map((repost) => (
-                    <SharedPostCard
-                      key={repost.id}
-                      repost={repost}
-                      onNavigateToOriginal={() => router.push(`/posts/${repost.originalPostId}`)}
-                      onProfileClick={() => router.push(`/u/${repost.username}`)}
-                    />
+                <div className="flex flex-col gap-0">
+                  {reposts.map((repost, index) => (
+                    <div key={repost.id} className={index < reposts.length - 1 ? "mb-3" : ""}>
+                      <SharedPostCard
+                        repost={repost}
+                        onNavigateToOriginal={() => router.push(`/posts/${repost.originalPostId}`)}
+                        onProfileClick={() => router.push(`/u/${repost.username}`)}
+                      />
+                    </div>
                   ))}
                 </div>
               )}

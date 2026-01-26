@@ -14,7 +14,7 @@ import postAPI from "@/lib/api/postAPI";
 import { useAuth } from "@/components/AuthProvider";
 
 /* ==================== Types & Utils ==================== */
-type Mode = "keyword" | "semantic";
+type Mode = "keyword" | "semantic" | "tag";
 
 function ResultCard({ post }: { post: PostResponse }) {
   const medias = post.medias || [];
@@ -134,6 +134,14 @@ export default function SearchPage() {
   const [hasMoreSemantic, setHasMoreSemantic] = useState(true);
   const [semanticSearched, setSemanticSearched] = useState(false);
 
+  // Tag search state
+  const [tagResults, setTagResults] = useState<PostResponse[]>([]);
+  const [tagLoading, setTagLoading] = useState(false);
+  const [tagError, setTagError] = useState<string | null>(null);
+  const [tagPage, setTagPage] = useState(1);
+  const [hasMoreTag, setHasMoreTag] = useState(true);
+  const [tagSearched, setTagSearched] = useState(false);
+
   // Sync URL when inputs change (without triggering search)
   useEffect(() => {
     const params = new URLSearchParams(sp.toString());
@@ -226,6 +234,57 @@ export default function SearchPage() {
     }
   }, [query, isAuthenticated]);
 
+  // Tag search function
+  const performTagSearch = useCallback(async () => {
+    if (!query.trim()) {
+      return;
+    }
+
+    setTagLoading(true);
+    setTagError(null);
+    setTagPage(1);
+    setTagResults([]);
+    setHasMoreTag(true);
+    setTagSearched(true);
+
+    try {
+      // Remove # prefix if present for search
+      const searchQuery = query.trim().startsWith('#') ? query.trim().substring(1) : query.trim();
+      console.log("Searching for tag:", searchQuery);
+      const result: SearchResult = await searchAPI.search({
+        query: searchQuery,
+        mode: "tag",
+        page: 1,
+        pageSize: 20,
+      });
+
+      console.log("Search API result:", result);
+
+      // Fetch full post data for each search result
+      const searchPosts = result.posts || [];
+      console.log("Found search posts:", searchPosts.length);
+
+      if (searchPosts.length > 0) {
+        const fullPosts = await Promise.all(
+          searchPosts.map((sp) => postAPI.getById(sp.id))
+        );
+        console.log("Full posts fetched:", fullPosts.length);
+        setTagResults(fullPosts);
+      } else {
+        console.log("No posts found for tag:", query.trim());
+        setTagResults([]);
+      }
+
+      setHasMoreTag((result.posts?.length || 0) === 20);
+    } catch (error: any) {
+      console.error("Tag search error:", error);
+      console.error("Error details:", error?.response?.data || error.message);
+      setTagError(error?.error || error?.message || "Failed to search by tags");
+    } finally {
+      setTagLoading(false);
+    }
+  }, [query]);
+
   // Load more keyword results
   const loadMoreKeyword = useCallback(async () => {
     if (keywordLoading || !hasMoreKeyword) {
@@ -293,6 +352,42 @@ export default function SearchPage() {
     }
   }, [semanticLoading, hasMoreSemantic, semanticPage, query]);
 
+  // Load more tag results
+  const loadMoreTag = useCallback(async () => {
+    if (tagLoading || !hasMoreTag) {
+      return;
+    }
+
+    setTagLoading(true);
+
+    try {
+      const nextPage = tagPage + 1;
+      // Remove # prefix if present for search
+      const searchQuery = query.trim().startsWith('#') ? query.trim().substring(1) : query.trim();
+      const result: SearchResult = await searchAPI.search({
+        query: searchQuery,
+        mode: "tag",
+        page: nextPage,
+        pageSize: 20,
+      });
+
+      // Fetch full post data for each search result
+      const searchPosts = result.posts || [];
+      const fullPosts = await Promise.all(
+        searchPosts.map((sp) => postAPI.getById(sp.id))
+      );
+
+      setTagResults((prev) => [...prev, ...fullPosts]);
+      setTagPage(nextPage);
+      setHasMoreTag((result.posts?.length || 0) === 20);
+    } catch (error: any) {
+      console.error("Load more tag search error:", error);
+      setTagError(error?.error || error?.message || "Failed to load more results");
+    } finally {
+      setTagLoading(false);
+    }
+  }, [tagLoading, hasMoreTag, tagPage, query]);
+
   // Handle tag selection
   const handleSelectTag = (tag: string) => {
     setQuery(tag);
@@ -302,19 +397,21 @@ export default function SearchPage() {
   const handleSearch = () => {
     if (mode === "keyword") {
       performKeywordSearch();
-    } else {
+    } else if (mode === "semantic") {
       performSemanticSearch();
+    } else {
+      performTagSearch();
     }
   };
 
   // Get current results and state
-  const currentResults = mode === "keyword" ? keywordResults : semanticResults;
-  const currentLoading = mode === "keyword" ? keywordLoading : semanticLoading;
-  const currentError = mode === "keyword" ? keywordError : semanticError;
-  const currentHasMore = mode === "keyword" ? hasMoreKeyword : hasMoreSemantic;
-  const currentSearched = mode === "keyword" ? keywordSearched : semanticSearched;
-  const loadMore = mode === "keyword" ? loadMoreKeyword : loadMoreSemantic;
-  const currentPage = mode === "keyword" ? keywordPage : semanticPage;
+  const currentResults = mode === "keyword" ? keywordResults : mode === "tag" ? tagResults : semanticResults;
+  const currentLoading = mode === "keyword" ? keywordLoading : mode === "tag" ? tagLoading : semanticLoading;
+  const currentError = mode === "keyword" ? keywordError : mode === "tag" ? tagError : semanticError;
+  const currentHasMore = mode === "keyword" ? hasMoreKeyword : mode === "tag" ? hasMoreTag : hasMoreSemantic;
+  const currentSearched = mode === "keyword" ? keywordSearched : mode === "tag" ? tagSearched : semanticSearched;
+  const loadMore = mode === "keyword" ? loadMoreKeyword : mode === "tag" ? loadMoreTag : loadMoreSemantic;
+  const currentPage = mode === "keyword" ? keywordPage : mode === "tag" ? tagPage : semanticPage;
 
   return (
     <div className="min-h-screen pb-24" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
@@ -333,8 +430,8 @@ export default function SearchPage() {
           {/* Tabs header */}
           <div className="mt-3">
             <TabView
-              activeIndex={["keyword", "semantic"].indexOf(mode)}
-              onTabChange={(e) => setMode(["keyword", "semantic"][e.index] as Mode)}
+              activeIndex={["keyword", "tag", "semantic"].indexOf(mode)}
+              onTabChange={(e) => setMode(["keyword", "tag", "semantic"][e.index] as Mode)}
               pt={{
                 navContainer: { className: "bg-[var(--surface-ground,transparent)]/80 backdrop-blur-md rounded-t-2xl" },
                 panelContainer: { className: "rounded-b-2xl" },
@@ -362,6 +459,28 @@ export default function SearchPage() {
                 {mode === "keyword" && keywordTags.length > 0 && !keywordLoading && (
                   <TagCloud tags={keywordTags} onSelectTag={handleSelectTag} />
                 )}
+              </TabPanel>
+
+              <TabPanel
+                header={<span className="inline-flex items-center gap-2"><i className="pi pi-hashtag" />Tags</span>}
+              >
+                <div className="flex w-full items-center gap-2">
+                  <span className="p-input-icon-left flex-1">
+                    <InputText
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") handleSearch();
+                      }}
+                      placeholder="Enter tag names..."
+                      className="w-full"
+                    />
+                  </span>
+                  <Button label="Search" onClick={handleSearch} icon="pi pi-search" />
+                </div>
+                <p className="mt-2 text-xs opacity-60">
+                  Search posts by their tags. Enter tag names separated by spaces or commas.
+                </p>
               </TabPanel>
 
               <TabPanel

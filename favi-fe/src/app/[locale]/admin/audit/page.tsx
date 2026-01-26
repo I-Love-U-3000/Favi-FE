@@ -12,7 +12,6 @@ import {
   useAdminAudit,
   useActionTypes,
   useAdminList,
-  AuditLogsFilter,
 } from "@/hooks/queries/useAdminAudit";
 import { exportAuditLogs } from "@/lib/api/admin";
 

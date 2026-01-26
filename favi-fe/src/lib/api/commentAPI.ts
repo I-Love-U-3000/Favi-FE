@@ -1,5 +1,6 @@
 import { fetchWrapper } from "@/lib/fetchWrapper";
 import type {
+  CommentReactionResponse,
   CommentResponse,
   CommentTreeResponse,
   CreateCommentRequest,
@@ -38,7 +39,9 @@ export const commentAPI = {
 
   toggleReaction: async (id: string, type: ReactionType) =>
     camelize(await fetchWrapper.post<any>(`/Comments/${id}/reactions?type=${encodeURIComponent(type)}`, undefined, true)),
+
+  getReactors: async (commentId: string) =>
+    camelize<CommentReactionResponse[]>(await fetchWrapper.get<any>(`/Comments/${commentId}/reactors`, true)),
 };
 
 export default commentAPI;
-

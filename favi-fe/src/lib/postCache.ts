@@ -7,6 +7,7 @@ const PREFIX = "post_cache:";
 export type ReactionCache = {
   byType: Record<ReactionType, number>;
   currentUserReaction?: ReactionType | null;
+  total?: number;
   updatedAt: number; // epoch ms
 };
 
@@ -33,6 +34,7 @@ export function writePostReaction(id: string, data: Omit<ReactionCache, "updated
     const payload: ReactionCache = {
       byType: data.byType,
       currentUserReaction: data.currentUserReaction,
+      total: data.total,
       updatedAt: data.updatedAt ?? Date.now(),
     };
     localStorage.setItem(keyFor(id), JSON.stringify(payload));

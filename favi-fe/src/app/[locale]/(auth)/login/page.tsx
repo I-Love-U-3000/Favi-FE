@@ -40,7 +40,7 @@ export default function LoginPage() {
     ) => {
       toastRef.current?.show({ severity, summary, detail, life: 3500 });
     },
-    []
+    [toastRef]
   );
 
   const onChange = useCallback(
@@ -112,7 +112,7 @@ export default function LoginPage() {
         setLoading(false);
       }
     },
-    [loading, values.identifier, values.password, showToast, router]
+    [loading, values.identifier, values.password, showToast, router, refresh]
   );
 
 

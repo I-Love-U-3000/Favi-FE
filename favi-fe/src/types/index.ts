@@ -23,7 +23,7 @@ export type DecodedJwt = {
   nbf?: number;           
   email?: string;
   role?: string | string[];
-  [key: string]: any;     
+  [key: string]: unknown; 
 };
 
 export type ProfileUpdateInput = {
@@ -320,8 +320,11 @@ export type FollowResponse = {
 };
 
 // Search types
+export type SearchMode = "keyword" | "tag" | "semantic";
+
 export type SearchRequest = {
   query: string;
+  mode?: SearchMode;
   page: number;
   pageSize: number;
 };
@@ -485,6 +488,7 @@ export type CollectionReactionResponse = {
   createdAt: string;
 };
 
+export type CommentReactionResponse = {  profileId: string;  username: string;  displayName: string | null;  avatarUrl: string | null;  reactionType: ReactionType;  createdAt: string;};
 // Repost/Share types
 export type CreateRepostRequest = {
   caption?: string | null;

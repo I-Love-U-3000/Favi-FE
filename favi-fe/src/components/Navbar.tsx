@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import useProfile from "@/lib/hooks/useProfile";
 import { useOverlay } from "@/components/RootProvider";
-import { useSignalRNotifications } from "@/lib/hooks/useSignalRNotifications";
+import { useSignalRContext } from "@/lib/contexts/SignalRContext";
 import { Menu } from "primereact/menu";
 
 type Item = { label: string; href: string; icon: string };
@@ -16,6 +16,7 @@ const NAV: Item[] = [
   { label: "Explore", href: "/search", icon: "pi pi-search" },
   { label: "Chat", href: "/chat", icon: "pi pi-comments" },
   { label: "Notifications", href: "/notifications", icon: "pi pi-bell" },
+  { label: "Archive", href: "/archive", icon: "pi pi-archive" },
   { label: "Profile", href: "/profile/u_001", icon: "pi pi-user" },
   { label: "Friends", href: "/friends", icon: "pi pi-users" },
   { label: "Settings", href: "/settings", icon: "pi pi-cog" },
@@ -37,7 +38,7 @@ export default function Navbar() {
     openNotificationDialog,
   } = useOverlay();
 
-  const { unreadCount } = useSignalRNotifications();
+  const { unreadCount } = useSignalRContext();
 
   const [isOpen, setIsOpen] = useState(true);
   const menuRef = useRef<Menu>(null);
@@ -59,6 +60,7 @@ export default function Navbar() {
     { label: "New Post", icon: "pi pi-image", command: () => openPostComposer() },
     { label: "New Collection", icon: "pi pi-folder", command: () => openCollectionComposer() },
     { label: "New Story", icon: "pi pi-circle-on", command: () => openStoryComposer() },
+    { label: "View Archive", icon: "pi pi-archive", command: () => window.location.href = "/archive" },
   ];
 
   const handleCreateClick = (event: React.MouseEvent) => {
