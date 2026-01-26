@@ -211,6 +211,7 @@ function MoreMenuButton() {
 
 function PhotoGrid({ items }: { items: PhotoPost[] }) {
   const { openAddToCollectionDialog } = useOverlay();
+  const [nsfwConfirmedProfilePosts, setNsfwConfirmedProfilePosts] = useState<Set<string>>(new Set());
 
   const handleAddToCollection = (e: React.MouseEvent, postId: string) => {
     e.preventDefault();
@@ -218,41 +219,63 @@ function PhotoGrid({ items }: { items: PhotoPost[] }) {
     openAddToCollectionDialog(postId);
   };
 
+  const handleShowNSFW = (e: React.MouseEvent, postId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setNsfwConfirmedProfilePosts(prev => new Set(prev).add(postId));
+  };
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-      {items.map(p => (
-        <Link key={p.id} href={`/posts/${p.id}`} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={p.imageUrl}
-            alt={p.alt ?? ""}
-            className="h-44 w-full object-cover transition-transform group-hover:scale-105"
-            loading="lazy"
-          />
-          <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 p-2 text-xs
-                          bg-gradient-to-t from-black/60 to-transparent text-white opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="flex items-center gap-3">
-              <span className="pi pi-heart" /> {p.likeCount}
-              <span className="pi pi-comments" /> {p.commentCount}
-            </div>
-            <div className="flex gap-1 items-center">
-              <button
-                type="button"
-                onClick={(e) => handleAddToCollection(e, p.id)}
-                className="p-1 rounded-full hover:bg-white/20 transition-colors"
-                title="Add to collection"
-              >
-                <i className="pi pi-bookmark text-sm" />
-              </button>
-              <div className="flex gap-1">
-                {p.tags?.slice(0, 2).map(t => (
-                  <Tag key={t} value={t} rounded className="!text-[10px]" />
-                ))}
+      {items.map(p => {
+        const isNSFW = p.isNSFW === true;
+        return (
+          <Link key={p.id} href={`/posts/${p.id}`} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={p.imageUrl}
+              alt={p.alt ?? ""}
+              className={`h-44 w-full object-cover transition-transform group-hover:scale-105 ${isNSFW && !nsfwConfirmedProfilePosts.has(p.id) ? 'blur-2xl scale-110' : ''}`}
+              loading="lazy"
+            />
+            {/* NSFW overlay */}
+            {isNSFW && !nsfwConfirmedProfilePosts.has(p.id) && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <button
+                  type="button"
+                  onClick={(e) => handleShowNSFW(e, p.id)}
+                  className="px-3 py-1.5 bg-black/70 hover:bg-black/80 text-white text-xs rounded-lg backdrop-blur-sm transition-colors"
+                >
+                  <i className="pi pi-eye mr-1" />
+                  Show NSFW
+                </button>
+              </div>
+            )}
+            <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 p-2 text-xs
+                            bg-gradient-to-t from-black/60 to-transparent text-white opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-3">
+                <span className="pi pi-heart" /> {p.likeCount}
+                <span className="pi pi-comments" /> {p.commentCount}
+              </div>
+              <div className="flex gap-1 items-center">
+                <button
+                  type="button"
+                  onClick={(e) => handleAddToCollection(e, p.id)}
+                  className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                  title="Add to collection"
+                >
+                  <i className="pi pi-bookmark text-sm" />
+                </button>
+                <div className="flex gap-1">
+                  {p.tags?.slice(0, 2).map(t => (
+                    <Tag key={t} value={t} rounded className="!text-[10px]" />
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        </Link>
-      ))}
+          </Link>
+        );
+      })}
     </div>
   );
 }
@@ -475,6 +498,7 @@ export default function ProfilePage() {
           likeCount: x.reactions?.total ?? 0,
           commentCount: Number(x.commentsCount ?? x.commentsCount ?? 0) || 0,
           tags: (x.tags || []).map(t => t.name),
+          isNSFW: x.isNSFW,
         }));
         if (!cancelled) setPosts(mapped);
         if (!cancelled) {

@@ -526,4 +526,5 @@ export type RepostResponse = {
   reactions: ReactionSummaryDto;  // Reactions on this repost (separate from original post)
   repostsCount: number;  // Total reposts of the original post
   isRepostedByCurrentUser: boolean;
+  isNSFW?: boolean;
 };
