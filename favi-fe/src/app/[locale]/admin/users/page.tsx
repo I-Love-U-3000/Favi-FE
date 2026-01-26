@@ -14,6 +14,8 @@ import { UserDto } from "@/lib/api/admin";
 import { confirmDialog, ConfirmDialog } from "primereact/confirmdialog";
 import { Toast } from "primereact/toast";
 import { useOverlay } from "@/components/RootProvider";
+import BanUserDialog from "@/components/admin/modals/BanUserDialog";
+import WarnUserDialog from "@/components/admin/modals/WarnUserDialog";
 
 const ROLE_OPTIONS = [
   { label: "All Roles", value: "" },
@@ -37,6 +39,8 @@ export default function UsersPage() {
   const [status, setStatus] = useState("");
   const [first, setFirst] = useState(0);
   const [selection, setSelection] = useState<UserDto[]>([]);
+  const [showBulkBanDialog, setShowBulkBanDialog] = useState(false);
+  const [showBulkWarnDialog, setShowBulkWarnDialog] = useState(false);
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -67,38 +71,35 @@ export default function UsersPage() {
     setSelection([]);
   };
 
-  const handleBulkBan = () => {
-    confirmDialog({
-      message: `Are you sure you want to ban ${selection.length} users?`,
-      header: "Confirm Ban",
-      icon: "pi pi-exclamation-triangle",
-      acceptClassName: "p-button-danger",
-      accept: () => {
-        bulkBan.mutate({
-          userIds: selection.map((u) => u.id),
-        });
-        setSelection([]);
-      },
+  const handleBulkBan = (reason?: string) => {
+    bulkBan.mutate({
+      profileIds: selection.map((u) => u.id),
+      reason,
     });
+    setSelection([]);
+    setShowBulkBanDialog(false);
   };
 
   const handleBulkUnban = () => {
-    bulkUnban.mutate(selection.map((u) => u.id));
-    setSelection([]);
-  };
-
-  const handleBulkWarn = () => {
     confirmDialog({
-      message: `Send warning to ${selection.length} users?`,
-      header: "Confirm Warning",
-      icon: "pi pi-exclamation-triangle",
+      message: `Are you sure you want to unban ${selection.length} users?`,
+      header: "Confirm Unban",
+      icon: "pi pi-question-circle",
+      acceptClassName: "p-button-success",
       accept: () => {
-        bulkWarn.mutate({
-          userIds: selection.map((u) => u.id),
-        });
+        bulkUnban.mutate(selection.map((u) => u.id));
         setSelection([]);
       },
     });
+  };
+
+  const handleBulkWarn = (reason?: string) => {
+    bulkWarn.mutate({
+      profileIds: selection.map((u) => u.id),
+      reason,
+    });
+    setSelection([]);
+    setShowBulkWarnDialog(false);
   };
 
   const handleExport = (format: string) => {
@@ -204,7 +205,7 @@ export default function UsersPage() {
               icon="pi pi-ban"
               severity="danger"
               size="small"
-              onClick={handleBulkBan}
+              onClick={() => setShowBulkBanDialog(true)}
               loading={bulkBan.isPending}
             />
             <Button
@@ -220,7 +221,7 @@ export default function UsersPage() {
               icon="pi pi-exclamation-triangle"
               severity="warning"
               size="small"
-              onClick={handleBulkWarn}
+              onClick={() => setShowBulkWarnDialog(true)}
               loading={bulkWarn.isPending}
             />
             <Button
@@ -243,6 +244,26 @@ export default function UsersPage() {
         onPageChange={handlePageChange}
         selection={selection}
         onSelectionChange={setSelection}
+      />
+
+      {/* Bulk Ban Dialog */}
+      <BanUserDialog
+        visible={showBulkBanDialog}
+        onHide={() => setShowBulkBanDialog(false)}
+        userId=""
+        userName={`${selection.length} users`}
+        onBan={handleBulkBan}
+        loading={bulkBan.isPending}
+      />
+
+      {/* Bulk Warn Dialog */}
+      <WarnUserDialog
+        visible={showBulkWarnDialog}
+        onHide={() => setShowBulkWarnDialog(false)}
+        userId=""
+        userName={`${selection.length} users`}
+        onWarn={handleBulkWarn}
+        loading={bulkWarn.isPending}
       />
     </div>
   );

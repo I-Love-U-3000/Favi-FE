@@ -158,6 +158,12 @@ export default function ReportsTable({
   };
 
   const targetTemplate = (report: ReportDto) => {
+    const normalizedTargetType = report.targetType.toLowerCase();
+    const displayText = report.target?.caption?.substring(0, 50) ||
+      report.target?.content?.substring(0, 50) ||
+      report.target?.author?.username ||
+      `ID: ${report.targetId.substring(0, 8)}...`;
+
     return (
       <div
         className="flex items-center gap-3 cursor-pointer hover:bg-slate-800 p-2 -m-2 rounded-lg transition"
@@ -167,15 +173,15 @@ export default function ReportsTable({
         }}
       >
         <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-800 flex items-center justify-center">
-          {report.targetType === "post" && report.target?.mediaUrl ? (
+          {normalizedTargetType === "post" && report.target?.mediaUrl ? (
             <img
               src={report.target.mediaUrl}
               alt="Target"
               className="w-full h-full object-cover"
             />
-          ) : report.targetType === "post" ? (
+          ) : normalizedTargetType === "post" ? (
             <i className="pi pi-image text-slate-400" />
-          ) : report.targetType === "user" ? (
+          ) : normalizedTargetType === "user" ? (
             <i className="pi pi-user text-slate-400" />
           ) : (
             <i className="pi pi-comment text-slate-400" />
@@ -183,11 +189,8 @@ export default function ReportsTable({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm text-white truncate">
-            {TARGET_TYPE_LABELS[report.targetType]}:{" "}
-            {report.target?.caption?.substring(0, 50) ||
-              report.target?.content?.substring(0, 50) ||
-              report.target?.author?.username ||
-              "Unknown"}
+            {TARGET_TYPE_LABELS[normalizedTargetType] || report.targetType}:{" "}
+            {displayText}
           </p>
         </div>
       </div>
@@ -195,10 +198,13 @@ export default function ReportsTable({
   };
 
   const reporterTemplate = (report: ReportDto) => {
+    const reporterId = report.reporter?.id || report.reporterProfileId;
+    const displayName = report.reporter?.username || `ID: ${report.reporterProfileId.substring(0, 8)}...`;
+
     return (
       <div
         className="flex items-center gap-2 cursor-pointer hover:opacity-80"
-        onClick={() => report.reporter?.id && router.push(`/admin/users/${report.reporter.id}`)}
+        onClick={() => reporterId && router.push(`/admin/users/${reporterId}`)}
       >
         <Avatar
           image={report.reporter?.avatar}
@@ -207,27 +213,29 @@ export default function ReportsTable({
           size="normal"
         />
         <span className="text-sm text-white">
-          @{report.reporter?.username || "Unknown"}
+          @{displayName}
         </span>
       </div>
     );
   };
 
   const reasonTemplate = (report: ReportDto) => {
+    const reasonCode = report.reasonCode || report.reason.toLowerCase().replace(/\s+/g, '_');
     return (
       <Tag
         value={report.reason}
-        severity={REASON_COLORS[report.reasonCode] || "info"}
+        severity={REASON_COLORS[reasonCode] || "info"}
         className="text-xs"
       />
     );
   };
 
   const statusTemplate = (report: ReportDto) => {
+    const normalizedStatus = report.status.toLowerCase();
     return (
       <Tag
         value={report.status.charAt(0).toUpperCase() + report.status.slice(1)}
-        severity={STATUS_COLORS[report.status] || "info"}
+        severity={STATUS_COLORS[normalizedStatus] || "info"}
         className="text-xs"
       />
     );

@@ -11,7 +11,7 @@ interface BanUserDialogProps {
   onHide: () => void;
   userId: string;
   userName: string;
-  onBan: (userId: string, reason?: string) => void;
+  onBan: (reason?: string) => void;
   loading?: boolean;
 }
 
@@ -26,7 +26,7 @@ export default function BanUserDialog({
   const [reason, setReason] = useState("");
 
   const handleBan = () => {
-    onBan(userId, reason);
+    onBan(reason);
     setReason("");
   };
 

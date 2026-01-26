@@ -79,6 +79,7 @@ export interface UserDto {
   username: string;
   displayName?: string;
   avatarUrl?: string;
+  email?: string;
   createdAt: string;
   lastActiveAt: string;
   isBanned: boolean;
@@ -137,9 +138,11 @@ export interface PostDto {
 
 export interface ReportDto {
   id: string;
-  targetType: "post" | "user" | "comment";
+  targetType: "post" | "user" | "comment" | "Post" | "User" | "Comment";
   targetId: string;
-  target: {
+  reporterProfileId: string;
+  // Optional nested objects - may not be populated by backend
+  target?: {
     id: string;
     caption?: string;
     content?: string;
@@ -151,17 +154,19 @@ export interface ReportDto {
       displayName: string;
     };
   };
-  reporter: {
+  reporter?: {
     id: string;
     username: string;
     avatar: string;
     displayName: string;
   };
   reason: string;
-  reasonCode: "spam" | "harassment" | "inappropriate" | "misinformation" | "other";
-  status: "pending" | "resolved" | "rejected";
+  reasonCode?: "spam" | "harassment" | "inappropriate" | "misinformation" | "other";
+  status: "pending" | "resolved" | "rejected" | "Pending" | "Resolved" | "Rejected";
   notes?: string;
+  data?: any;
   createdAt: string;
+  actedAt?: string;
   resolvedAt?: string;
   resolvedBy?: string;
 }

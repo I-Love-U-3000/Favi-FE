@@ -34,7 +34,7 @@ export default function UsersTable({
   onSelectionChange,
 }: UsersTableProps) {
   const router = useRouter();
-  const menuRef = useRef<Menu>(null);
+  const menuRefs = useRef<Map<string, Menu>>(new Map());
   const [selectedUser, setSelectedUser] = useState<UserDto | null>(null);
   const [showBanDialog, setShowBanDialog] = useState(false);
   const [showWarnDialog, setShowWarnDialog] = useState(false);
@@ -44,6 +44,7 @@ export default function UsersTable({
   const warnUser = useWarnUser();
 
   const handleMenuAction = (e: { item: { action: string } }, user: UserDto) => {
+    console.log("View profile for user:", { id: user.id, username: user.username });
     switch (e.item.action) {
       case "view":
         router.push(`/admin/users/${user.id}`);
@@ -111,19 +112,23 @@ export default function UsersTable({
           icon="pi pi-ellipsis-v"
           className="p-button-text p-button-sm p-button-rounded"
           onClick={(e) => {
-            setSelectedUser(user);
-            menuRef.current?.toggle(e);
+            e.stopPropagation();
+            const menu = menuRefs.current.get(user.id);
+            menu?.toggle(e);
           }}
+          aria-label="Actions"
         />
         <Menu
-          ref={menuRef}
           model={items.map((item) => ({
-            label: item.label,
-            icon: item.icon,
-            className: item.className,
+            ...item,
             command: () => handleMenuAction({ item }, user),
           }))}
           popup
+          ref={(el) => {
+            if (el) {
+              menuRefs.current.set(user.id, el);
+            }
+          }}
         />
       </div>
     );

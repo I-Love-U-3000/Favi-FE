@@ -13,18 +13,37 @@ export interface UsersFilter {
 
 export interface UserWarnHistoryDto {
   id: string;
+  profileId: string;
+  actionType: "Ban" | "Warn";
   reason: string;
   createdAt: string;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  active: boolean;
+  adminActionId: string;
   adminId: string;
-  adminName: string;
 }
 
 export interface UserBanHistoryDto {
   id: string;
+  profileId: string;
+  actionType: "Ban" | "Warn";
   reason: string;
   createdAt: string;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  active: boolean;
+  adminActionId: string;
   adminId: string;
-  adminName: string;
+}
+
+export interface BanHistoryResponse {
+  bans: UserBanHistoryDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  activeBan: UserBanHistoryDto | null;
 }
 
 export function useAdminUsers(filters: UsersFilter = {}) {
@@ -49,6 +68,7 @@ export function useUser(userId: string) {
     queryKey: ["admin", "users", userId],
     queryFn: () => fetchWrapper.get<UserDto>(`/profiles/${userId}`),
     enabled: !!userId,
+    staleTime: 0, // Always fetch fresh data when userId changes
   });
 }
 
@@ -62,6 +82,7 @@ export function useBanUser() {
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "users", userId] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "users", userId, "ban"] });
       showToast({
         severity: "success",
         summary: "Success",
@@ -88,6 +109,7 @@ export function useUnbanUser() {
     onSuccess: (_, userId) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "users", userId] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "users", userId, "ban"] });
       showToast({
         severity: "success",
         summary: "Success",
@@ -114,6 +136,7 @@ export function useWarnUser() {
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "users", userId] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "users", userId, "warns"] });
       showToast({
         severity: "success",
         summary: "Success",
@@ -135,8 +158,8 @@ export function useBulkBan() {
   const { showToast } = useOverlay();
 
   return useMutation({
-    mutationFn: ({ userIds, reason }: { userIds: string[]; reason?: string }) =>
-      fetchWrapper.post(`/admin/users/bulk/ban`, { userIds, reason }),
+    mutationFn: ({ profileIds, reason }: { profileIds: string[]; reason?: string }) =>
+      fetchWrapper.post(`/admin/users/bulk/ban`, { profileIds, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       showToast({
@@ -160,8 +183,8 @@ export function useBulkUnban() {
   const { showToast } = useOverlay();
 
   return useMutation({
-    mutationFn: (userIds: string[]) =>
-      fetchWrapper.post(`/admin/users/bulk/unban`, { userIds }),
+    mutationFn: (profileIds: string[]) =>
+      fetchWrapper.post(`/admin/users/bulk/unban`, { profileIds }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       showToast({
@@ -185,8 +208,8 @@ export function useBulkWarn() {
   const { showToast } = useOverlay();
 
   return useMutation({
-    mutationFn: ({ userIds, reason }: { userIds: string[]; reason?: string }) =>
-      fetchWrapper.post(`/admin/users/bulk/warn`, { userIds, reason }),
+    mutationFn: ({ profileIds, reason }: { profileIds: string[]; reason?: string }) =>
+      fetchWrapper.post(`/admin/users/bulk/warn`, { profileIds, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       showToast({
@@ -214,28 +237,39 @@ export function useUserPosts(userId: string) {
         `/admin/analytics/posts?authorId=${userId}`
       ),
     enabled: !!userId,
+    staleTime: 0,
   });
 }
 
+export interface WarnHistoryResponse {
+  warnings: UserWarnHistoryDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export function useUserWarnHistory(userId: string) {
-  return useQuery<UserWarnHistoryDto[]>({
+  return useQuery<WarnHistoryResponse>({
     queryKey: ["admin", "users", userId, "warns"],
     queryFn: () =>
-      fetchWrapper.get<UserWarnHistoryDto[]>(
-        `/admin/users/${userId}/warn`
+      fetchWrapper.get<WarnHistoryResponse>(
+        `/admin/users/${userId}/warnings`
       ),
     enabled: !!userId,
+    staleTime: 0,
   });
 }
 
 export function useUserBanHistory(userId: string) {
-  return useQuery<UserBanHistoryDto>({
+  return useQuery<BanHistoryResponse>({
     queryKey: ["admin", "users", userId, "ban"],
     queryFn: () =>
-      fetchWrapper.get<UserBanHistoryDto>(
-        `/admin/users/${userId}/ban`
+      fetchWrapper.get<BanHistoryResponse>(
+        `/admin/users/${userId}/ban-history?pageSize=100`
       ),
     enabled: !!userId,
+    staleTime: 0,
   });
 }
 
@@ -247,5 +281,6 @@ export function useUserAuditLogs(userId: string) {
         `/admin/audit?targetProfileId=${userId}`
       ),
     enabled: !!userId,
+    staleTime: 0,
   });
 }

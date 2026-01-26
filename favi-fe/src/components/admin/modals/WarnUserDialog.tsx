@@ -11,7 +11,7 @@ interface WarnUserDialogProps {
   onHide: () => void;
   userId: string;
   userName: string;
-  onWarn: (userId: string, reason?: string) => void;
+  onWarn: (reason?: string) => void;
   loading?: boolean;
 }
 
@@ -26,7 +26,7 @@ export default function WarnUserDialog({
   const [reason, setReason] = useState("");
 
   const handleWarn = () => {
-    onWarn(userId, reason);
+    onWarn(reason);
     setReason("");
   };
 

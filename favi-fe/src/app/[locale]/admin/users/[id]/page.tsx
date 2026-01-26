@@ -40,6 +40,7 @@ export default function UserDetailPage({
   const [showWarnDialog, setShowWarnDialog] = useState(false);
 
   const { data: user, isLoading: userLoading } = useUser(userId);
+  console.log("User detail page - userId:", userId, "user:", user);
   const { data: posts, isLoading: postsLoading } = useUserPosts(userId);
   const { data: warnHistory, isLoading: warnLoading } = useUserWarnHistory(userId);
   const { data: banHistory, isLoading: banLoading } = useUserBanHistory(userId);
@@ -48,7 +49,8 @@ export default function UserDetailPage({
   const unbanUser = useUnbanUser();
   const warnUser = useWarnUser();
 
-  const formatNumber = (num: number) => {
+  const formatNumber = (num: number | undefined | null) => {
+    if (num === undefined || num === null) return "0";
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
@@ -114,11 +116,13 @@ export default function UserDetailPage({
           icon="pi pi-external-link"
           className="p-button-text p-button-sm"
           tooltip="View post"
+          onClick={() => window.open(`/posts/${post.id}`, "_blank")}
         />
         <Button
           icon="pi pi-trash"
           className="p-button-text p-button-sm p-button-danger"
           tooltip="Delete post"
+          onClick={() => console.log("Delete post", post.id)}
         />
       </div>
     );
@@ -271,15 +275,19 @@ export default function UserDetailPage({
 
             <div className="space-y-1">
               <p className="text-xs text-gray-500 uppercase tracking-wide">Email</p>
-              <div
-                className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg -m-2 transition"
-                onClick={() => handleCopy(user.email, "Email")}
-              >
-                <span className="font-medium text-gray-900 dark:text-white">
-                  {user.email}
-                </span>
-                <i className="pi pi-copy text-xs text-gray-400" />
-              </div>
+              {user.email ? (
+                <div
+                  className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg -m-2 transition"
+                  onClick={() => handleCopy(user.email!, "Email")}
+                >
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {user.email}
+                  </span>
+                  <i className="pi pi-copy text-xs text-gray-400" />
+                </div>
+              ) : (
+                <span className="text-gray-400 italic">Not available</span>
+              )}
             </div>
 
             <div className="space-y-1">
@@ -366,9 +374,9 @@ export default function UserDetailPage({
                   <Skeleton key={i} width="100%" height="60px" />
                 ))}
               </div>
-            ) : warnHistory && warnHistory.length > 0 ? (
+            ) : warnHistory?.warnings && warnHistory.warnings.length > 0 ? (
               <DataTable
-                value={warnHistory}
+                value={warnHistory.warnings}
                 dataKey="id"
                 className="p-datatable-sm"
                 responsiveLayout="scroll"
@@ -380,8 +388,8 @@ export default function UserDetailPage({
                 />
                 <Column header="Reason" field="reason" />
                 <Column
-                  header="Admin"
-                  body={(row: any) => row.adminName || row.adminId}
+                  header="Admin ID"
+                  body={(row: any) => row.adminId}
                   style={{ width: "150px" }}
                 />
               </DataTable>
@@ -397,23 +405,57 @@ export default function UserDetailPage({
           <TabPanel header="Ban History">
             {banLoading ? (
               <Skeleton width="100%" height="100px" />
-            ) : banHistory ? (
+            ) : banHistory?.bans && banHistory.bans.length > 0 ? (
               <div className="space-y-4">
-                <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                  <i className="pi pi-ban text-red-500 text-xl" />
-                  <div>
-                    <p className="font-medium text-red-700 dark:text-red-300">Currently Banned</p>
-                    <p className="text-sm text-red-600 dark:text-red-400">
-                      {formatDate(banHistory.createdAt)}
-                    </p>
+                {/* Active Ban Status */}
+                {banHistory.activeBan ? (
+                  <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                    <i className="pi pi-ban text-red-500 text-xl" />
+                    <div>
+                      <p className="font-medium text-red-700 dark:text-red-300">Currently Banned</p>
+                      <p className="text-sm text-red-600 dark:text-red-400">
+                        {formatDate(banHistory.activeBan.createdAt)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                {banHistory.reason && (
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Reason</p>
-                    <p className="text-gray-900 dark:text-white">{banHistory.reason}</p>
+                ) : (
+                  <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <i className="pi pi-check-circle text-green-500 text-xl" />
+                    <div>
+                      <p className="font-medium text-green-700 dark:text-green-300">Not Currently Banned</p>
+                    </div>
                   </div>
                 )}
+
+                {/* Ban History Table */}
+                <DataTable
+                  value={banHistory.bans}
+                  dataKey="id"
+                  className="p-datatable-sm"
+                  responsiveLayout="scroll"
+                >
+                  <Column
+                    header="Date"
+                    body={(row: any) => formatDate(row.createdAt)}
+                    style={{ width: "180px" }}
+                  />
+                  <Column header="Reason" field="reason" />
+                  <Column
+                    header="Status"
+                    body={(row: any) => (
+                      <Tag
+                        value={row.active ? "Active" : "Revoked"}
+                        severity={row.active ? "danger" : "success"}
+                      />
+                    )}
+                    style={{ width: "100px" }}
+                  />
+                  <Column
+                    header="Admin ID"
+                    body={(row: any) => row.adminId}
+                    style={{ width: "200px" }}
+                  />
+                </DataTable>
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">

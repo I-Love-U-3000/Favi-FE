@@ -93,15 +93,15 @@ export default function ReportDetailDialog({
             </label>
             <div
               className="flex items-center gap-2 mt-1 cursor-pointer hover:opacity-80"
-              onClick={() => router.push(`/admin/users/${report.reporter.id}`)}
+              onClick={() => router.push(`/admin/users/${report.reporter?.id || report.reporterProfileId}`)}
             >
               <Avatar
-                image={report.reporter.avatar}
-                icon={!report.reporter.avatar ? "pi pi-user" : undefined}
+                image={report.reporter?.avatar}
+                icon={!report.reporter?.avatar ? "pi pi-user" : undefined}
                 shape="circle"
               />
               <span className="font-medium text-gray-900 dark:text-white">
-                @{report.reporter.username}
+                @{report.reporter?.username || `ID: ${report.reporterProfileId.substring(0, 8)}...`}
               </span>
             </div>
           </div>
@@ -112,7 +112,7 @@ export default function ReportDetailDialog({
             <div className="mt-1">
               <Tag
                 value={report.reason}
-                severity={REASON_COLORS[report.reasonCode] || "info"}
+                severity={REASON_COLORS[report.reasonCode || report.reason.toLowerCase().replace(/\s+/g, '_')] || "info"}
               />
             </div>
           </div>
@@ -132,9 +132,9 @@ export default function ReportDetailDialog({
               <Tag
                 value={report.status.charAt(0).toUpperCase() + report.status.slice(1)}
                 severity={
-                  report.status === "pending"
+                  report.status.toLowerCase() === "pending"
                     ? "warning"
-                    : report.status === "resolved"
+                    : report.status.toLowerCase() === "resolved"
                       ? "success"
                       : "danger"
                 }
@@ -148,12 +148,12 @@ export default function ReportDetailDialog({
         {/* Target Preview */}
         <div>
           <label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">
-            Reported {TARGET_TYPE_LABELS[report.targetType]}
+            Reported {TARGET_TYPE_LABELS[report.targetType.toLowerCase()] || report.targetType}
           </label>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-            {report.targetType === "post" && (
+            {report.targetType.toLowerCase() === "post" && (
               <div className="flex gap-4">
-                {report.target.mediaUrl && (
+                {report.target?.mediaUrl && (
                   <div className="w-32 h-32 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-700">
                     <img
                       src={report.target.mediaUrl}
@@ -163,11 +163,11 @@ export default function ReportDetailDialog({
                   </div>
                 )}
                 <div className="flex-1">
-                  {report.target.author && (
+                  {report.target?.author && (
                     <div
                       className="flex items-center gap-2 mb-2 cursor-pointer hover:opacity-80"
                       onClick={() =>
-                        router.push(`/admin/users/${report.target.author?.id}`)
+                        report.target?.author?.id && router.push(`/admin/users/${report.target.author.id}`)
                       }
                     >
                       <Avatar
@@ -181,36 +181,36 @@ export default function ReportDetailDialog({
                     </div>
                   )}
                   <p className="text-gray-900 dark:text-white">
-                    {report.target.caption || "No caption"}
+                    {report.target?.caption || `Target ID: ${report.targetId.substring(0, 8)}...`}
                   </p>
                 </div>
               </div>
             )}
-            {report.targetType === "user" && (
+            {report.targetType.toLowerCase() === "user" && (
               <div className="flex items-center gap-3">
                 <Avatar
-                  image={report.target.author?.avatar}
-                  icon={!report.target.author?.avatar ? "pi pi-user" : undefined}
+                  image={report.target?.author?.avatar}
+                  icon={!report.target?.author?.avatar ? "pi pi-user" : undefined}
                   shape="circle"
                   size="large"
                 />
                 <div>
                   <p className="font-medium text-gray-900 dark:text-white">
-                    {report.target.author?.displayName || "Unknown User"}
+                    {report.target?.author?.displayName || `User ID: ${report.targetId.substring(0, 8)}...`}
                   </p>
                   <p className="text-sm text-gray-500">
-                    @{report.target.author?.username}
+                    @{report.target?.author?.username || report.targetId.substring(0, 8)}
                   </p>
                 </div>
               </div>
             )}
-            {report.targetType === "comment" && (
+            {report.targetType.toLowerCase() === "comment" && (
               <div>
-                {report.target.author && (
+                {report.target?.author && (
                   <div
                     className="flex items-center gap-2 mb-2 cursor-pointer hover:opacity-80"
                     onClick={() =>
-                      router.push(`/admin/users/${report.target.author?.id}`)
+                      report.target?.author?.id && router.push(`/admin/users/${report.target.author.id}`)
                     }
                   >
                     <Avatar
@@ -224,7 +224,7 @@ export default function ReportDetailDialog({
                   </div>
                 )}
                 <p className="text-gray-900 dark:text-white">
-                  {report.target.content}
+                  {report.target?.content || `Comment ID: ${report.targetId.substring(0, 8)}...`}
                 </p>
               </div>
             )}

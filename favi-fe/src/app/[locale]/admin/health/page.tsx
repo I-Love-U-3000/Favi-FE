@@ -20,7 +20,7 @@ const STATUS_CONFIG = {
 };
 
 export default function HealthPage() {
-  const { overallStatus, health, metrics, detailed, isLoading, isHealthy } =
+  const { overallStatus, health, metrics, detailed, isLoading, isHealthy, refetch } =
     useHealthStatus();
   const t = useTranslations("AdminPanel");
 
@@ -92,6 +92,7 @@ export default function HealthPage() {
             label={t("Refresh")}
             className="p-button-outlined"
             loading={isLoading}
+            onClick={() => refetch()}
           />
         </div>
       </div>
@@ -105,18 +106,16 @@ export default function HealthPage() {
         </div>
       ) : (
         <div
-          className={`p-4 rounded-lg border ${
-            isHealthy
-              ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
-              : "bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800"
-          }`}
+          className={`p-4 rounded-lg border ${isHealthy
+            ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
+            : "bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800"
+            }`}
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div className="flex items-center gap-3">
               <i
-                className={`pi ${config.icon} text-xl ${
-                  isHealthy ? "text-green-500" : "text-yellow-500"
-                }`}
+                className={`pi ${config.icon} text-xl ${isHealthy ? "text-green-500" : "text-yellow-500"
+                  }`}
               />
               <div>
                 <Tag

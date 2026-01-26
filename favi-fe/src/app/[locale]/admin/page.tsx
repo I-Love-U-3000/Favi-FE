@@ -6,6 +6,7 @@ import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Avatar } from "primereact/avatar";
 import { Skeleton } from "primereact/skeleton";
+import { Link } from "@/i18n/routing";
 import StatsCard from "@/components/admin/layout/StatsCard";
 import GrowthChart from "@/components/admin/charts/GrowthChart";
 import UserStatusPieChart from "@/components/admin/charts/UserStatusPieChart";
@@ -129,9 +130,10 @@ export default function AdminDashboardPage() {
           ) : topUsers && topUsers.length > 0 ? (
             <div className="space-y-4 px-4 pb-8">
               {topUsers.map((user, index) => (
-                <div
+                <Link
                   key={user.id}
-                  className="flex items-center gap-6 p-5 rounded-[2rem] hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-500 group"
+                  href={`/admin/users/${user.id}`}
+                  className="flex items-center gap-6 p-5 rounded-[2rem] hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-500 group block"
                 >
                   <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/10 flex items-center justify-center font-black text-slate-500 dark:text-white/50 group-hover:bg-blue-600 group-hover:text-white transition-all text-lg shrink-0 shadow-inner">
                     {index + 1}
@@ -160,7 +162,7 @@ export default function AdminDashboardPage() {
                     icon="pi pi-arrow-right"
                     className="p-button-rounded p-button-outlined !border-slate-200 dark:!border-white/10 !text-slate-400 dark:!text-white/40 group-hover:!bg-blue-600 group-hover:!text-white group-hover:!border-blue-600 transition-all opacity-0 group-hover:opacity-100"
                   />
-                </div>
+                </Link>
               ))}
             </div>
           ) : (
@@ -188,9 +190,10 @@ export default function AdminDashboardPage() {
           ) : topPosts && topPosts.length > 0 ? (
             <div className="space-y-4 px-4 pb-8">
               {topPosts.map((post, index) => (
-                <div
+                <Link
                   key={post.id}
-                  className="flex items-center gap-6 p-5 rounded-[2rem] hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-500 group"
+                  href={`/admin/posts/${post.id}`}
+                  className="flex items-center gap-6 p-5 rounded-[2rem] hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-500 group block"
                 >
                   <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/10 flex items-center justify-center font-black text-slate-500 dark:text-white/50 group-hover:bg-blue-600 group-hover:text-white transition-all text-lg shrink-0 shadow-inner">
                     {index + 1}
@@ -228,7 +231,7 @@ export default function AdminDashboardPage() {
                     icon="pi pi-arrow-up-right"
                     className="p-button-rounded p-button-outlined !border-slate-200 dark:!border-white/10 !text-slate-400 dark:!text-white/40 group-hover:!bg-blue-600 group-hover:!text-white group-hover:!border-blue-600 transition-all opacity-0 group-hover:opacity-100"
                   />
-                </div>
+                </Link>
               ))}
             </div>
           ) : (
@@ -243,30 +246,38 @@ export default function AdminDashboardPage() {
       {/* Quick Actions */}
       <Card header={<div className="px-6 pt-6 font-bold text-lg text-white">Quick Actions</div>} className="shadow-lg border border-slate-800 bg-[#0f172a] rounded-3xl overflow-hidden mb-10">
         <div className="flex flex-wrap gap-4 px-2">
-          <Button
-            label="View All Users"
-            icon="pi pi-users"
-            className="!rounded-2xl !px-6 !py-3 !border-slate-600 !text-slate-200 hover:!bg-slate-800 transition-all font-bold shadow-sm"
-            outlined
-          />
-          <Button
-            label="Manage Reports"
-            icon="pi pi-flag"
-            className="!rounded-2xl !px-6 !py-3 !border-amber-700 !text-amber-400 hover:!bg-amber-900/30 transition-all font-bold shadow-sm"
-            outlined
-          />
-          <Button
-            label="View Analytics"
-            icon="pi pi-chart-bar"
-            className="!rounded-2xl !px-6 !py-3 !border-sky-700 !text-sky-400 hover:!bg-sky-900/30 transition-all font-bold shadow-sm"
-            outlined
-          />
-          <Button
-            label="Check System Health"
-            icon="pi pi-heart"
-            className="!rounded-2xl !px-6 !py-3 !border-rose-700 !text-rose-400 hover:!bg-rose-900/30 transition-all font-bold shadow-sm"
-            outlined
-          />
+          <Link href="/admin/users" className="inline-block">
+            <Button
+              label="View All Users"
+              icon="pi pi-users"
+              className="!rounded-2xl !px-6 !py-3 !border-slate-600 !text-slate-200 hover:!bg-slate-800 transition-all font-bold shadow-sm"
+              outlined
+            />
+          </Link>
+          <Link href="/admin/reports" className="inline-block">
+            <Button
+              label="Manage Reports"
+              icon="pi pi-flag"
+              className="!rounded-2xl !px-6 !py-3 !border-amber-700 !text-amber-400 hover:!bg-amber-900/30 transition-all font-bold shadow-sm"
+              outlined
+            />
+          </Link>
+          <Link href="/admin/analytics" className="inline-block">
+            <Button
+              label="View Analytics"
+              icon="pi pi-chart-bar"
+              className="!rounded-2xl !px-6 !py-3 !border-sky-700 !text-sky-400 hover:!bg-sky-900/30 transition-all font-bold shadow-sm"
+              outlined
+            />
+          </Link>
+          <Link href="/admin/health" className="inline-block">
+            <Button
+              label="Check System Health"
+              icon="pi pi-heart"
+              className="!rounded-2xl !px-6 !py-3 !border-rose-700 !text-rose-400 hover:!bg-rose-900/30 transition-all font-bold shadow-sm"
+              outlined
+            />
+          </Link>
         </div>
       </Card>
     </div>

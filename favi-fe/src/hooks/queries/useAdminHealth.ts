@@ -45,11 +45,15 @@ export function useHealthDetailed() {
 }
 
 export function useHealthStatus() {
-  const { data: health, isLoading: healthLoading } = useHealth();
-  const { data: metrics, isLoading: metricsLoading } = useHealthMetrics();
-  const { data: detailed, isLoading: detailedLoading } = useHealthDetailed();
+  const { data: health, isLoading: healthLoading, refetch: refetchHealth } = useHealth();
+  const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics } = useHealthMetrics();
+  const { data: detailed, isLoading: detailedLoading, refetch: refetchDetailed } = useHealthDetailed();
 
   const overallStatus = health?.status?.toLowerCase() || "unknown";
+
+  const refetch = async () => {
+    await Promise.all([refetchHealth(), refetchMetrics(), refetchDetailed()]);
+  };
 
   return {
     overallStatus: overallStatus as "healthy" | "degraded" | "unhealthy" | "unknown",
@@ -58,7 +62,9 @@ export function useHealthStatus() {
     health,
     metrics,
     detailed,
+    refetch,
   };
 }
 
-export { formatUptime, formatBytes, HealthCheckEntryDto };
+export { formatUptime, formatBytes };
+export type { HealthCheckEntryDto };
