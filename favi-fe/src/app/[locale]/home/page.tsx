@@ -195,6 +195,11 @@ function PostListItem({ post }: { post: PostResponse }) {
   const tReactions = useTranslations("Reactions");
   const { openAddToCollectionDialog } = useOverlay();
 
+  const handleTagClick = (tagName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    router.push(`/search?q=${encodeURIComponent(tagName)}&mode=tag`);
+  };
+
   const author = useProfile(post.authorProfileId);
   const avatar = author.profile?.avatarUrl || "/avatar-default.svg";
   const display =
@@ -245,7 +250,10 @@ function PostListItem({ post }: { post: PostResponse }) {
     hoverTimer.current = window.setTimeout(() => setPickerOpen(false), ms) as unknown as number;
   };
 
-  const totalReacts = Object.values(byType).reduce((a, b) => a + b, 0);
+  // Use post.reactions.total as authoritative source, fall back to summing byType
+  const [totalReacts, setTotalReacts] = useState<number>(
+    cached?.total ?? post.reactions?.total ?? Object.values(byType).reduce((a, b) => a + b, 0)
+  );
 
   const [shareOpen, setShareOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -315,6 +323,14 @@ function PostListItem({ post }: { post: PostResponse }) {
 
       setUserReaction(prev === type ? null : type);
 
+      // Update total reacts count
+      setTotalReacts((prevTotal) => {
+        let next = prevTotal;
+        if (prev) next = Math.max(0, next - 1);
+        if (prev !== type) next = next + 1;
+        return next;
+      });
+
       const res = await postAPI.toggleReaction(post.id, type);
       if (res && res.removed) setUserReaction(null);
 
@@ -325,6 +341,7 @@ function PostListItem({ post }: { post: PostResponse }) {
       writePostReaction(post.id, {
         byType: snapshot,
         currentUserReaction: prev === type ? null : type,
+        total: totalReacts,
       });
     } catch {
       // ignore
@@ -545,15 +562,16 @@ function PostListItem({ post }: { post: PostResponse }) {
               {tags.length > 0 && (
                 <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                   {tags.map((tag) => (
-                    <span
+                    <button
                       key={tag}
-                      className="px-3 py-1.5 text-xs font-medium rounded-full cursor-pointer transition
+                      onClick={(e) => handleTagClick(tag, e)}
+                      className="px-3 py-1.5 text-xs font-medium rounded-full transition
                         bg-black/10 dark:bg-white/5 hover:bg-black/20 dark:hover:bg-white/10
-                        border border-black/20 dark:border-white/10"
+                        border border-black/20 dark:border-white/10 hover:opacity-80"
                       style={{ color: "var(--text)" }}
                     >
                       #{tag}
-                    </span>
+                    </button>
                   ))}
                 </div>
               )}

@@ -15,6 +15,8 @@ import { useTranslations } from "next-intl";
 import ShareToChatDialog from "@/components/ShareToChatDialog";
 import ReportDialog from "@/components/ReportDialog";
 import PostMenuDialog from "@/components/PostMenuDialog";
+import PostReactorsDialog from "@/components/PostReactorsDialog";
+import CommentReactorsDialog from "@/components/CommentReactorsDialog";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -128,7 +130,10 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
   const [userReaction, setUserReaction] = useState<ReactionType | null>(
     (cached?.currentUserReaction ?? post.reactions?.currentUserReaction ?? null) as any
   );
-  const totalReacts = Object.values(byType).reduce((a, b) => a + b, 0);
+  // Use post.reactions.total as authoritative source, fall back to summing byType
+  const [totalReacts, setTotalReacts] = useState<number>(
+    cached?.total ?? post.reactions?.total ?? Object.values(byType).reduce((a, b) => a + b, 0)
+  );
   const initialCommentCount =
     post.commentsCount ??
     (post as any).commentCount ??
@@ -138,6 +143,7 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
   const [shareCount, setShareCount] = useState<number>((post as any).shareCount ?? (post as any).shares ?? 0);
   const [shareToChatOpen, setShareToChatOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reactorsDialogOpen, setReactorsDialogOpen] = useState(false);
   const tReport = useTranslations("ReportButton");
   // reaction picker like feed
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -167,12 +173,20 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
         return next;
       });
       setUserReaction(nextType);
+      // Update total reacts count
+      setTotalReacts((prevTotal) => {
+        let next = prevTotal;
+        if (prev) next = Math.max(0, next - 1);
+        if (nextType) next = next + 1;
+        return next;
+      });
       await postAPI.toggleReaction(post.id, type);
       // persist to cache for feed sync
       const snapshot = { ...byType } as Record<ReactionType, number>;
       if (prev && snapshot[prev] > 0) snapshot[prev] -= 1;
       if (nextType) snapshot[nextType] = (snapshot[nextType] || 0) + 1;
-      writePostReaction(post.id, { byType: snapshot, currentUserReaction: nextType });
+      const newTotal = (cached?.total ?? post.reactions?.total ?? Object.values(snapshot).reduce((a, b) => a + b, 0));
+      writePostReaction(post.id, { byType: snapshot, currentUserReaction: nextType, total: newTotal });
     } catch { }
   };
 
@@ -309,13 +323,17 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
               {(post.tags || []).length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {post.tags.map((t) => (
-                    <span
+                    <button
                       key={t.id}
-                      className="px-2 py-1 text-xs rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/search?q=${encodeURIComponent(t.name)}&mode=tag`);
+                      }}
+                      className="px-2 py-1 text-xs rounded-full cursor-pointer hover:opacity-80 transition-opacity"
                       style={{ backgroundColor: "var(--bg)", border: "1px solid var(--border)" }}
                     >
                       #{t.name}
-                    </span>
+                    </button>
                   ))}
                 </div>
               )}
@@ -379,7 +397,15 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
                       </div>
                     )}
                   </div>
-                  <span className="inline-flex items-center gap-1">{totalReacts}</span>
+                  <button
+                    type="button"
+                    onClick={() => totalReacts > 0 && setReactorsDialogOpen(true)}
+                    className="inline-flex items-center gap-1 hover:opacity-100 cursor-pointer"
+                    title={totalReacts > 0 ? "View reactions" : "No reactions yet"}
+                    disabled={totalReacts === 0}
+                  >
+                    {totalReacts}
+                  </button>
                   <span className="inline-flex items-center gap-1">
                     <i className="pi pi-comments" /> {commentCount}
                   </span>
@@ -494,6 +520,13 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
         reporterProfileId={user?.id || ""}
         targetName={username || display}
       />
+
+      {/* Post Reactors Dialog */}
+      <PostReactorsDialog
+        visible={reactorsDialogOpen}
+        onHide={() => setReactorsDialogOpen(false)}
+        postId={post.id}
+      />
     </div>
   );
 }
@@ -563,6 +596,7 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
   const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(highlightCommentId || null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
+  const [reactorsDialogOpen, setReactorsDialogOpen] = useState<string | null>(null);
   const commentsPanelRef = useRef<HTMLDivElement>(null);
   const syncedInitialCount = useRef(false);
 
@@ -828,6 +862,7 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
                   onDeleteComment={handleDeleteComment}
                   requireAuth={requireAuth}
                   onReport={(id, name) => { setReportTarget({ id, name }); setReportDialogOpen(true); }}
+                  onOpenReactorsDialog={(commentId) => { setReactorsDialogOpen(commentId); }}
                   onReactionUpdate={(commentId, reactions) => {
                     setItems(prev => prev.map(item => getId(item) === commentId ? { ...item, reactions } : item));
                   }}
@@ -854,6 +889,7 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
                           onDeleteComment={handleDeleteComment}
                           requireAuth={requireAuth}
                           onReport={(id, name) => { setReportTarget({ id, name }); setReportDialogOpen(true); }}
+                          onOpenReactorsDialog={(commentId) => { setReactorsDialogOpen(commentId); }}
                           onReactionUpdate={(commentId, reactions) => {
                             setItems(prev => prev.map(item => getId(item) === commentId ? { ...item, reactions } : item));
                           }}
@@ -965,6 +1001,15 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
           targetName={reportTarget.name}
         />
       )}
+
+      {/* Comment Reactors Dialog */}
+      {reactorsDialogOpen && (
+        <CommentReactorsDialog
+          visible={!!reactorsDialogOpen}
+          onHide={() => setReactorsDialogOpen(null)}
+          commentId={reactorsDialogOpen}
+        />
+      )}
     </div>
   );
 }
@@ -985,6 +1030,7 @@ function CommentRow({
   requireAuth,
   onReport,
   onReactionUpdate,
+  onOpenReactorsDialog,
 }: {
   c: CommentResponse;
   isHighlighted?: boolean;
@@ -1001,6 +1047,7 @@ function CommentRow({
   requireAuth: () => boolean;
   onReport?: (commentId: string, authorName: string) => void;
   onReactionUpdate?: (commentId: string, reactions: ReactionSummaryDto) => void;
+  onOpenReactorsDialog?: (commentId: string) => void;
 }) {
   const router = useRouter();
   const tReport = useTranslations("ReportButton");
@@ -1023,6 +1070,10 @@ function CommentRow({
   const [userReaction, setUserReaction] = useState<ReactionType | null>(
     ((c.reactions?.currentUserReaction ?? null) as ReactionType | null)
   );
+  // Use c.reactions.total as authoritative source, fall back to summing byType
+  const [totalReactions, setTotalReactions] = useState<number>(
+    c.reactions?.total ?? Object.values(buildCommentReactionCounts(c.reactions)).reduce((a, b) => a + b, 0)
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerHoverTimers = useRef<{ open: number | null; close: number | null }>({ open: null, close: null });
 
@@ -1030,6 +1081,7 @@ function CommentRow({
     setDraft(c.content ?? "");
     setReactionCounts(buildCommentReactionCounts(c.reactions));
     setUserReaction((c.reactions?.currentUserReaction ?? null) as ReactionType | null);
+    setTotalReactions(c.reactions?.total ?? Object.values(buildCommentReactionCounts(c.reactions)).reduce((a, b) => a + b, 0));
     setPickerOpen(false);
     if (pickerHoverTimers.current.open) {
       window.clearTimeout(pickerHoverTimers.current.open);
@@ -1095,15 +1147,21 @@ function CommentRow({
       nextCounts[type] = (nextCounts[type] || 0) + 1;
     }
     setReactionCounts(nextCounts);
+    setTotalReactions(prev => {
+      let next = prev;
+      if (previousReaction) next = Math.max(0, next - 1);
+      if (previousReaction !== type) next = next + 1;
+      return next;
+    });
     const nextUserReaction = previousReaction === type ? null : type;
     setUserReaction(nextUserReaction);
     try {
       const result = await commentAPI.toggleReaction(commentId, type);
       // Update the comment in the parent items array with the latest reaction data
       // This ensures that when the page reloads, the reaction data is preserved
-      const total = Object.values(nextCounts).reduce((a, b) => a + b, 0);
+      const newTotal = Object.values(nextCounts).reduce((a, b) => a + b, 0);
       const reactionSummary: ReactionSummaryDto = {
-        total,
+        total: newTotal,
         byType: nextCounts,
         currentUserReaction: nextUserReaction,
       };
@@ -1111,11 +1169,12 @@ function CommentRow({
     } catch (e: any) {
       setReactionCounts(previousCounts);
       setUserReaction(previousReaction);
+      // Restore totalReactions by calculating from previousCounts
+      setTotalReactions(Object.values(previousCounts).reduce((a, b) => a + b, 0));
       alert(e?.error || e?.message || "Failed to react to comment");
     }
   };
 
-  const totalReactions = Object.values(reactionCounts).reduce((a, b) => a + b, 0);
 
   const openPicker = (delay = 360) => {
     if (pickerHoverTimers.current.close) {
@@ -1244,7 +1303,13 @@ function CommentRow({
             onHoverEnd={closePickerWithDelay}
           />
           {totalReactions > 0 && (
-            <span className="text-xs opacity-70">{totalReactions}</span>
+            <button
+              type="button"
+              className="text-xs opacity-70 hover:opacity-100 cursor-pointer bg-transparent border-0 p-0"
+              onClick={() => onOpenReactorsDialog?.(commentId)}
+            >
+              {totalReactions}
+            </button>
           )}
           <button className="text-xs opacity-80 hover:opacity-100" onClick={onReply}>
             Trả lời

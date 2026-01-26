@@ -7,7 +7,6 @@ import { useRouter } from "@/i18n/routing";
 import { Card } from "primereact/card";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
-import { Divider } from "primereact/divider";
 import { Toast } from "primereact/toast";
 import { AuthBackground } from "@/components/AuthBackground";
 import { useTranslations } from "next-intl";

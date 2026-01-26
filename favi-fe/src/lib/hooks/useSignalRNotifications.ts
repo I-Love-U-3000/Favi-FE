@@ -85,7 +85,7 @@ export function useSignalRNotifications() {
 
     // Build connection
     const connection = new HubConnectionBuilder()
-      .withUrl(`${process.env.NEXT_PUBLIC_API_URL}/notificationHub`, {
+      .withUrl(`${process.env.NEXT_PUBLIC_HUB_URL}/notificationHub`, {
         accessTokenFactory: () => token || "",
       })
       .withAutomaticReconnect([0, 2000, 10000, 30000])

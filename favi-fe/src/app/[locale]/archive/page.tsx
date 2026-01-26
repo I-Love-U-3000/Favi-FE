@@ -8,6 +8,7 @@ import storyAPI from "@/lib/api/storyAPI";
 import type { PostResponse, PagedResult, StoryResponse } from "@/types";
 import { useTranslations } from "next-intl";
 import PostCard from "@/components/PostCard";
+import StoryViewerDialog from "@/components/StoryViewerDialog";
 
 export default function ArchivePage() {
   const { isAuthenticated } = useAuth();
@@ -21,6 +22,11 @@ export default function ArchivePage() {
   const [unarchiving, setUnarchiving] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<"posts" | "stories">("posts");
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>();
+  const [selectedStories, setSelectedStories] = useState<StoryResponse[]>([]);
+  const [viewerLoading, setViewerLoading] = useState(false);
+  const [nsfwConfirmedStories, setNsfwConfirmedStories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -45,6 +51,7 @@ export default function ArchivePage() {
 
         // Load archived stories
         const archivedStories = await storyAPI.getArchived();
+        console.log("Archive stories loaded:", archivedStories.length, "stories");
         setStories(archivedStories);
       } catch (e: any) {
         setError(e?.error || e?.message || t("LoadFailed"));
@@ -256,8 +263,20 @@ export default function ArchivePage() {
             {stories.map((story) => (
               <div
                 key={story.id}
-                className="relative aspect-[9/16] rounded-xl overflow-hidden ring-1 ring-black/5 group"
+                className="relative aspect-[9/16] rounded-xl overflow-hidden ring-1 ring-black/5 group cursor-pointer"
                 style={{ backgroundColor: 'var(--bg-secondary)' }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  // Find all stories for this profile
+                  const profileStories = stories.filter(s => s.profileId === story.profileId);
+                  console.log("Clicked on story:", story.id, "Profile stories:", profileStories.length);
+                  if (profileStories.length > 0) {
+                    setViewerLoading(true);
+                    setSelectedStories(profileStories);
+                    setSelectedProfileId(story.profileId);
+                    setViewerOpen(true);
+                  }
+                }}
               >
                 {/* Story media */}
                 {story.mediaUrl.endsWith('.mp4') || story.mediaUrl.endsWith('.mov') || story.mediaUrl.endsWith('.webm') ? (
@@ -275,10 +294,20 @@ export default function ArchivePage() {
                   />
                 )}
 
+                {/* Loading overlay when viewer is opening */}
+                {viewerLoading && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <i className="pi pi-spin pi-spinner text-white text-2xl" />
+                  </div>
+                )}
+
                 {/* Delete button overlay */}
                 <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={(e) => handleDeleteStory(story.id, e)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteStory(story.id, e);
+                    }}
                     disabled={deleting.has(story.id)}
                     className="px-2 py-1 rounded-lg text-xs font-medium shadow-lg disabled:opacity-50 flex items-center gap-1"
                     style={{
@@ -298,11 +327,32 @@ export default function ArchivePage() {
                 <div className="absolute bottom-2 left-2 right-2 text-white text-xs">
                   {new Date(story.createdAt).toLocaleDateString()}
                 </div>
+
+                {/* Hover overlay */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200" />
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Story Viewer Dialog */}
+      <StoryViewerDialog
+        visible={viewerOpen}
+        onHide={() => {
+          setViewerOpen(false);
+          setViewerLoading(false);
+        }}
+        initialProfileId={selectedProfileId}
+        archivedStories={selectedStories}
+        onViewerReady={() => {
+          setViewerLoading(false);
+        }}
+        onNSFWConfirm={(storyId) => {
+          setNsfwConfirmedStories(prev => new Set(prev).add(storyId));
+        }}
+        isNSFWConfirmed={(storyId) => nsfwConfirmedStories.has(storyId)}
+      />
     </div>
   );
 }
