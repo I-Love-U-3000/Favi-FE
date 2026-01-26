@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import storyAPI from "@/lib/api/storyAPI";
 import type { StoryResponse, StoryFeedResponse } from "@/types";
@@ -13,6 +13,10 @@ interface StoryViewerDialogProps {
   onHide: () => void;
   initialStoryFeed?: StoryFeedResponse;
   initialProfileId?: string;
+  archivedStories?: StoryResponse[];
+  onViewerReady?: () => void;
+  onNSFWConfirm?: (storyId: string) => void;
+  isNSFWConfirmed?: (storyId: string) => boolean;
 }
 
 export default function StoryViewerDialog({
@@ -20,10 +24,16 @@ export default function StoryViewerDialog({
   onHide,
   initialStoryFeed,
   initialProfileId,
+  archivedStories = [],
+  onViewerReady,
+  onNSFWConfirm,
+  isNSFWConfirmed = () => false,
 }: StoryViewerDialogProps) {
   const t = useTranslations("Stories");
   const router = useRouter();
   const { user } = useAuth();
+
+  // State management
   const [storyFeeds, setStoryFeeds] = useState<StoryFeedResponse[]>([]);
   const [currentFeedIndex, setCurrentFeedIndex] = useState(0);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
@@ -31,13 +41,37 @@ export default function StoryViewerDialog({
   const [loading, setLoading] = useState(false);
   const [viewersDialogVisible, setViewersDialogVisible] = useState(false);
   const [nsfwConfirmedStories, setNsfwConfirmedStories] = useState<Set<string>>(new Set());
+
+  const isStoryNSFWConfirmed = (storyId: string) => {
+    return isNSFWConfirmed(storyId) || nsfwConfirmedStories.has(storyId);
+  };
+
+  const confirmStoryNSFW = (storyId: string) => {
+    setNsfwConfirmedStories(prev => new Set(prev).add(storyId));
+    onNSFWConfirm?.(storyId);
+  };
   const [archiving, setArchiving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isViewingArchived, setIsViewingArchived] = useState(false);
+  const [autoPlayEnabled, setAutoPlayEnabled] = useState(true);
 
-  const isNSFWConfirmed = (storyId: string) => nsfwConfirmedStories.has(storyId);
-  const confirmNSFW = (storyId: string) => {
-    setNsfwConfirmedStories(prev => new Set(prev).add(storyId));
-  };
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
+  const storyStateRef = useRef({
+    currentFeedIndex: 0,
+    currentStoryIndex: 0,
+    storyFeeds: [] as StoryFeedResponse[],
+  });
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
 
   // Lock body scroll and prevent key events when dialog is open
   useEffect(() => {
@@ -53,64 +87,129 @@ export default function StoryViewerDialog({
         document.body.style.overflow = "";
         window.removeEventListener("keydown", handleKeyDown);
       };
-    } else {
-      document.body.style.overflow = "";
     }
   }, [visible, onHide]);
 
   // Load stories when dialog opens
   useEffect(() => {
     if (!visible) {
-      // Reset NSFW confirmations when dialog closes
-      setNsfwConfirmedStories(new Set());
+      setIsViewingArchived(false);
+      setAutoPlayEnabled(true);
+      // Cleanup timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
       return;
     }
 
+    // Don't reset state here, let it be reset by the loadStories function
+
     const loadStories = async () => {
+      if (!isMountedRef.current) return;
+
+      console.log("Loading stories...", { archivedStories: !!archivedStories, initialProfileId, initialStoryFeed });
+
+      // Reset state
+      setStoryFeeds([]);
+      setCurrentFeedIndex(0);
+      setCurrentStoryIndex(0);
+      setProgress(0);
+      setViewersDialogVisible(false);
+
+      // Update ref immediately
+      storyStateRef.current = {
+        currentFeedIndex: 0,
+        currentStoryIndex: 0,
+        storyFeeds: [],
+      };
+
       setLoading(true);
       try {
-        if (initialStoryFeed) {
-          // If initial feed is provided, find its index in the feed list
-          const feed = await storyAPI.getFeed();
-          setStoryFeeds(feed);
-          const idx = feed.findIndex((f) => f.profileId === initialStoryFeed.profileId);
-          setCurrentFeedIndex(idx >= 0 ? idx : 0);
-          setCurrentStoryIndex(0);
-        } else if (initialProfileId) {
-          const feed = await storyAPI.getFeed();
-          setStoryFeeds(feed);
-          const idx = feed.findIndex((f) => f.profileId === initialProfileId);
-          setCurrentFeedIndex(idx >= 0 ? idx : 0);
-          setCurrentStoryIndex(0);
+        if (archivedStories && archivedStories.length > 0) {
+          // Load archived stories
+          setIsViewingArchived(true);
+
+          // Convert archived stories to feed format
+          const profileIds = Array.from(new Set(archivedStories.map(s => s.profileId)));
+          const feeds: StoryFeedResponse[] = profileIds.map(profileId => {
+            const profileStories = archivedStories.filter(s => s.profileId === profileId);
+            const profile = profileStories[0]; // Get profile info from first story
+            return {
+              profileId,
+              profileUsername: profile.profileUsername,
+              profileAvatarUrl: profile.profileAvatarUrl,
+              stories: profileStories
+            };
+          });
+
+          if (isMountedRef.current) {
+            setStoryFeeds(feeds);
+            storyStateRef.current.storyFeeds = feeds;
+            console.log("Archived stories loaded:", feeds.length, "feeds");
+            onViewerReady?.();
+          }
         } else {
-          const feed = await storyAPI.getFeed();
-          setStoryFeeds(feed);
-          setCurrentFeedIndex(0);
-          setCurrentStoryIndex(0);
+          // Load active stories
+          let feed: StoryFeedResponse[];
+
+          if (initialStoryFeed) {
+            // If initial feed is provided, get the full feed
+            feed = await storyAPI.getFeed();
+            const idx = feed.findIndex((f) => f.profileId === initialStoryFeed.profileId);
+            setCurrentFeedIndex(idx >= 0 ? idx : 0);
+            setCurrentStoryIndex(0);
+          } else if (initialProfileId) {
+            feed = await storyAPI.getFeed();
+            const idx = feed.findIndex((f) => f.profileId === initialProfileId);
+            setCurrentFeedIndex(idx >= 0 ? idx : 0);
+            setCurrentStoryIndex(0);
+          } else {
+            feed = await storyAPI.getFeed();
+            setCurrentFeedIndex(0);
+            setCurrentStoryIndex(0);
+          }
+
+          if (isMountedRef.current) {
+            setStoryFeeds(feed);
+            storyStateRef.current.storyFeeds = feed;
+            console.log("Active stories loaded:", feed.length, "feeds");
+            setIsViewingArchived(false);
+            onViewerReady?.();
+          }
         }
       } catch (e) {
-        console.error("Failed to load stories:", e);
+        if (isMountedRef.current) {
+          console.error("Failed to load stories:", e);
+        }
       } finally {
-        setLoading(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+          console.log("Loading completed");
+        }
       }
     };
 
     loadStories();
-  }, [visible, initialStoryFeed, initialProfileId]);
+  }, [visible, initialStoryFeed, initialProfileId, archivedStories]);
 
   // Auto-progress through stories
   useEffect(() => {
-    // Pause timer when viewers dialog is open
-    if (!visible || loading || storyFeeds.length === 0 || viewersDialogVisible) return;
+    if (!visible || !autoPlayEnabled) return;
 
+    const { currentFeedIndex, currentStoryIndex, storyFeeds } = storyStateRef.current;
     const currentFeed = storyFeeds[currentFeedIndex];
-    if (!currentFeed || currentFeed.stories.length === 0) return;
+    if (!currentFeed || currentFeed.stories.length === 0 || loading || viewersDialogVisible) return;
 
     const duration = 5000; // 5 seconds per story
     const interval = 50; // Update every 50ms
     const increment = (interval / duration) * 100;
 
-    const timer = setInterval(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    timerRef.current = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
           // Move to next story
@@ -121,17 +220,25 @@ export default function StoryViewerDialog({
       });
     }, interval);
 
-    return () => clearInterval(timer);
-  }, [visible, loading, storyFeeds, currentFeedIndex, currentStoryIndex, viewersDialogVisible]);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [visible, autoPlayEnabled, loading, viewersDialogVisible]);
 
   // Reset progress when story changes
   useEffect(() => {
     setProgress(0);
-  }, [currentFeedIndex, currentStoryIndex]);
+  }, []);
 
   // Record view when story is shown
   useEffect(() => {
-    if (!visible || loading || storyFeeds.length === 0) return;
+    if (!visible || loading || isViewingArchived) return;
+
+    const { currentFeedIndex, currentStoryIndex, storyFeeds } = storyStateRef.current;
+    if (storyFeeds.length === 0) return;
 
     const currentFeed = storyFeeds[currentFeedIndex];
     if (!currentFeed || currentFeed.stories.length === 0) return;
@@ -140,9 +247,10 @@ export default function StoryViewerDialog({
     if (story && !story.hasViewed) {
       storyAPI.recordView(story.id).catch(console.error);
     }
-  }, [visible, loading, storyFeeds, currentFeedIndex, currentStoryIndex]);
+  }, [visible, loading, isViewingArchived]);
 
   const nextStory = () => {
+    const { currentFeedIndex, currentStoryIndex, storyFeeds } = storyStateRef.current;
     const currentFeed = storyFeeds[currentFeedIndex];
     if (!currentFeed) return;
 
@@ -158,6 +266,7 @@ export default function StoryViewerDialog({
   };
 
   const prevStory = () => {
+    const { currentFeedIndex, currentStoryIndex, storyFeeds } = storyStateRef.current;
     if (currentStoryIndex > 0) {
       setCurrentStoryIndex((prev) => prev - 1);
     } else if (currentFeedIndex > 0) {
@@ -232,9 +341,21 @@ export default function StoryViewerDialog({
   const currentFeed = storyFeeds[currentFeedIndex];
   const currentStory = currentFeed?.stories[currentStoryIndex];
 
+  console.log("StoryViewerDialog render:", {
+    visible,
+    loading,
+    storyFeedsLength: storyFeeds.length,
+    currentFeedIndex,
+    currentStoryIndex,
+    currentStory: currentStory?.id,
+    isViewingArchived,
+    autoPlayEnabled,
+  });
+
   if (!visible) return null;
 
-  if (loading || !currentStory) {
+  if (loading || storyFeeds.length === 0 || !currentStory) {
+    console.log("Still loading or no stories", { loading, storyFeedsLength: storyFeeds.length, currentStory: !!currentStory });
     return (
       <div
         className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
@@ -275,47 +396,67 @@ export default function StoryViewerDialog({
 
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 pt-6 bg-gradient-to-b from-black/60 to-transparent">
-          <button
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-            onClick={() => {
-              onHide();
-              router.push(`/profile/${currentFeed.profileId}`);
-            }}
-          >
+          <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={currentFeed.profileAvatarUrl || "/avatar-default.svg"}
               alt={currentFeed.profileUsername}
-              className="w-10 h-10 rounded-full border-2 border-white cursor-pointer"
+              className="w-10 h-10 rounded-full border-2 border-white"
             />
             <div className="text-white text-left">
-              <div className="text-sm font-semibold">{currentFeed.profileUsername}</div>
+              <div className="text-sm font-semibold flex items-center gap-2">
+                {currentFeed.profileUsername}
+                {isViewingArchived && (
+                  <span className="text-xs bg-gray-700/80 px-2 py-0.5 rounded-full">Archived</span>
+                )}
+              </div>
               <div className="text-xs opacity-80">
-                {new Date(currentStory.createdAt).toLocaleTimeString()}
+                {new Date(currentStory.createdAt).toLocaleDateString()}
               </div>
             </div>
-          </button>
+          </div>
+
           <div className="flex items-center gap-2">
             {/* Action buttons for story owner */}
             {user?.id === currentStory.profileId && (
               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                <button
-                  onClick={handleArchive}
-                  disabled={archiving}
-                  className="px-3 py-1.5 bg-blue-500/80 hover:bg-blue-500 text-white text-xs rounded-full flex items-center gap-1 transition-colors disabled:opacity-50"
-                  title="Archive story"
-                >
-                  {archiving ? (
-                    <>
-                      <i className="pi pi-spin pi-spinner" />
-                    </>
-                  ) : (
-                    <>
-                      <i className="pi pi-box" />
-                      Archive
-                    </>
-                  )}
-                </button>
+                {!isViewingArchived ? (
+                  <>
+                    <button
+                      onClick={handleArchive}
+                      disabled={archiving}
+                      className="px-3 py-1.5 bg-blue-500/80 hover:bg-blue-500 text-white text-xs rounded-full flex items-center gap-1 transition-colors disabled:opacity-50"
+                      title="Archive story"
+                    >
+                      {archiving ? (
+                        <>
+                          <i className="pi pi-spin pi-spinner" />
+                        </>
+                      ) : (
+                        <>
+                          <i className="pi pi-box" />
+                          Archive
+                        </>
+                      )}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        // Placeholder for unarchive - backend needed
+                        alert("Unarchive feature coming soon!");
+                      }}
+                      className="px-3 py-1.5 bg-green-500/80 hover:bg-green-500 text-white text-xs rounded-full flex items-center gap-1 transition-colors"
+                      title="Unarchive story"
+                    >
+                      <>
+                        <i className="pi pi-undo" />
+                        Unarchive
+                      </>
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
@@ -335,6 +476,23 @@ export default function StoryViewerDialog({
                 </button>
               </div>
             )}
+
+            {/* Auto-play toggle */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setAutoPlayEnabled(!autoPlayEnabled);
+              }}
+              className="w-8 h-8 flex items-center justify-center text-white hover:bg-white/10 rounded-full text-xs"
+              title={autoPlayEnabled ? "Pause auto-play" : "Play auto-play"}
+            >
+              {autoPlayEnabled ? (
+                <i className="pi pi-pause" />
+              ) : (
+                <i className="pi pi-play" />
+              )}
+            </button>
+
             <button
               onClick={onHide}
               className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-full"
@@ -370,12 +528,12 @@ export default function StoryViewerDialog({
             )}
 
             {/* NSFW overlay */}
-            {currentStory.isNSFW && !isNSFWConfirmed(currentStory.id) && (
+            {currentStory.isNSFW && !isStoryNSFWConfirmed(currentStory.id) && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    confirmNSFW(currentStory.id);
+                    confirmStoryNSFW(currentStory.id);
                   }}
                   className="px-6 py-3 bg-black/70 hover:bg-black/80 text-white rounded-lg backdrop-blur-sm transition-colors flex items-center gap-2"
                 >
@@ -385,21 +543,32 @@ export default function StoryViewerDialog({
               </div>
             )}
 
-            {/* Tap zones */}
-            <div
-              className="absolute left-0 top-0 bottom-0 w-1/3 cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                prevStory();
-              }}
-            />
-            <div
-              className="absolute right-0 top-0 bottom-0 w-1/3 cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                nextStory();
-              }}
-            />
+            {/* Navigation buttons */}
+            <div className="absolute left-0 top-0 bottom-0 w-1/3 flex items-center justify-start pl-4">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  prevStory();
+                }}
+                disabled={currentFeedIndex === 0 && currentStoryIndex === 0}
+                className={`p-2 rounded-full ${currentFeedIndex === 0 && currentStoryIndex === 0 ? 'text-white/30' : 'text-white hover:bg-white/10'}`}
+              >
+                <i className="pi pi-chevron-left text-xl" />
+              </button>
+            </div>
+
+            <div className="absolute right-0 top-0 bottom-0 w-1/3 flex items-center justify-end pr-4">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  nextStory();
+                }}
+                disabled={currentFeedIndex === storyFeeds.length - 1 && currentStoryIndex === currentFeed.stories.length - 1}
+                className={`p-2 rounded-full ${currentFeedIndex === storyFeeds.length - 1 && currentStoryIndex === currentFeed.stories.length - 1 ? 'text-white/30' : 'text-white hover:bg-white/10'}`}
+              >
+                <i className="pi pi-chevron-right text-xl" />
+              </button>
+            </div>
 
             {/* View count - only show to story owner */}
             {currentStory.viewCount > 0 && user?.id === currentStory.profileId && (
@@ -427,3 +596,4 @@ export default function StoryViewerDialog({
     </div>
   );
 }
+
