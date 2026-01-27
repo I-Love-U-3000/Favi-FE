@@ -27,6 +27,9 @@ import { useAuth } from "@/components/AuthProvider";
 import { useOverlay } from "@/components/RootProvider";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import SharedPostCard from "@/components/SharedPostCard";
+import StoryViewerDialog from "@/components/StoryViewerDialog";
+import AvatarOrStoryDialog from "@/components/AvatarOrStoryDialog";
+import storyAPI from "@/lib/api/storyAPI";
 
 /* ========== Helpers ========== */
 function asArray<T>(x: T | T[] | undefined | null): T[] {
@@ -228,7 +231,7 @@ function PhotoGrid({ items }: { items: PhotoPost[] }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
       {items.map(p => {
-        const isNSFW = p.isNSFW === true;
+        const isNSFW = false; // PhotoPost doesn't have isNSFW property
         return (
           <Link key={p.id} href={`/posts/${p.id}`} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -320,12 +323,52 @@ function CollectionsGrid({ items, onCountClick }: { items: CollectionResponse[];
   );
 }
 
-function FollowUserRow({ profile }: { profile: ProfileResponse }) {
+function StoryIndicator({ hasStories }: { hasStories: boolean }) {
+  if (!hasStories) return null;
+
+  return (
+    <div className="absolute inset-0 rounded-full">
+      {/* Animated gradient border */}
+      <div className="absolute inset-0 rounded-full animate-pulse">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full opacity-50"></div>
+      </div>
+      {/* Inner white border */}
+      <div className="absolute inset-0.5 rounded-full border-4 border-white"></div>
+      {/* Blue dot */}
+      <div className="absolute top-0 right-0 w-4 h-4">
+        <div className="relative">
+          <div className="absolute inset-0 bg-blue-500 rounded-full"></div>
+          <div className="absolute inset-0.5 bg-blue-500 rounded-full flex items-center justify-center">
+            <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FollowUserRow({ profile, onAvatarClick, onStoriesClick }: {
+  profile: ProfileResponse;
+  onAvatarClick?: () => void;
+  onStoriesClick?: () => void;
+}) {
   const display = profile.displayName || profile.username;
   const avatarSrc =
     profile.avatarUrl && profile.avatarUrl.trim().length > 0
       ? profile.avatarUrl
       : "/avatar-default.svg";
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // If it's the current profile page, show the dialog
+    if (onAvatarClick && onStoriesClick) {
+      // This will be handled by the parent component
+    } else {
+      // Otherwise navigate to profile
+      window.location.href = `/profile/${profile.id}`;
+    }
+  };
 
   return (
     <Link href={`/profile/${profile.id}`} className="flex items-center gap-3">
@@ -341,11 +384,15 @@ function FollowUserRow({ profile }: { profile: ProfileResponse }) {
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={avatarSrc}
-          alt={display || profile.username}
-          className="w-10 h-10 rounded-full cursor-pointer border"
-        />
+        <div className="relative">
+          <img
+            src={avatarSrc}
+            alt={display || profile.username}
+            className="w-10 h-10 rounded-full cursor-pointer border"
+            onClick={handleClick}
+          />
+          <StoryIndicator hasStories={false} />
+        </div>
       </ProfileHoverCard>
       <div>
         <div className="text-sm font-medium">{display}</div>
@@ -459,6 +506,8 @@ export default function ProfilePage() {
   const [posts, setPosts] = useState<PhotoPost[]>([]);
   const [collections, setCollections] = useState<CollectionResponse[]>([]);
   const [reposts, setReposts] = useState<RepostResponse[]>([]);
+  const [hasActiveStories, setHasActiveStories] = useState(false);
+  const [showStoryViewer, setShowStoryViewer] = useState(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -477,6 +526,7 @@ export default function ProfilePage() {
   const [isUserFollowing, setIsUserFollowing] = useState(false);
   const [reactorsDialogOpen, setReactorsDialogOpen] = useState(false);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [showAvatarPreview, setShowAvatarPreview] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -512,6 +562,67 @@ export default function ProfilePage() {
               },
             };
           });
+        }
+
+        // Check if user has active stories
+        let hasStories = false;
+        let storyCountRes: any = null;
+        let storiesRes: any = null;
+        let userStoriesInFeed: any[] = [];
+
+        try {
+          // Method 1: Use count API
+          try {
+            storyCountRes = await storyAPI.getProfileStoryCount(id);
+            const count = typeof storyCountRes === 'number' ? storyCountRes : storyCountRes?.count || 0;
+            hasStories = count > 0;
+          } catch (err) {
+            console.log("Count API failed, trying stories list API");
+          }
+
+          // Method 2: Fetch actual stories and check
+          if (!hasStories) {
+            try {
+              storiesRes = await storyAPI.getByProfile(id);
+              console.log("Stories response:", storiesRes);
+              const stories = Array.isArray(storiesRes) ? storiesRes : storiesRes || [];
+
+              // Check if we got any stories at all
+              if (stories.length > 0) {
+                // Filter out expired stories (stories last 24 hours)
+                const now = new Date();
+                const activeStories = stories.filter((story: any) => {
+                  const expiresAt = new Date(story.expiresAt || story.ExpiresAt || 0);
+                  return expiresAt > now;
+                });
+                hasStories = activeStories.length > 0;
+              }
+            } catch (err) {
+              console.log("Get stories API failed:", err);
+            }
+          }
+
+          // Method 3: Check feed (this user might be in the feed)
+          if (!hasStories && user) {
+            try {
+              const feed = await storyAPI.getFeed();
+              console.log("Feed response:", feed);
+              userStoriesInFeed = Array.isArray(feed) ?
+                feed.filter((story: any) => story.profileId === id || story.Profile?.Id === id) :
+                [];
+              console.log("User stories in feed:", userStoriesInFeed.length);
+              hasStories = userStoriesInFeed.length > 0;
+            } catch (err) {
+              console.log("Feed check failed:", err);
+            }
+          }
+
+          if (!cancelled) {
+            setHasActiveStories(hasStories);
+          }
+        } catch (err) {
+          console.error("Failed to load stories:", err);
+          if (!cancelled) setHasActiveStories(false);
         }
 
         // Check if current user is following this profile by fetching followers
@@ -886,6 +997,9 @@ export default function ProfilePage() {
   const followDialogProfiles = followDialogType === "following" ? followingList : followersList;
   const followDialogTypeSafe = followDialogType ?? "followers";
 
+  // Temporary debug display
+  const showDebug = false; // Debug disabled
+
   return (
     <div className="min-h-screen">
       {/* COVER */}
@@ -920,12 +1034,29 @@ export default function ProfilePage() {
                   style={{ background: 'transparent' }}
                   aria-label="Xem avatar"
                   onClick={() => {
-                    if (avatarUrl != "/avatar-default.svg") {
-                      setPreviewImage({ url: avatarUrl, alt: `${primaryName} cover` })
+                    if (hasActiveStories && !isOwner) {
+                      // Show dialog to choose between avatar and stories
+                      setShowAvatarPreview(true);
+                    } else {
+                      // Only show avatar preview
+                      setPreviewImage({ url: avatarUrl, alt: `${primaryName} avatar` });
                     }
                   }}
                 >
-                  <img src={avatarUrl} alt={`${primaryName} avatar`} className="h-full w-full object-cover" />
+                  <div className="relative h-full w-full">
+                    <img src={avatarUrl} alt={`${primaryName} avatar`} className="h-full w-full object-cover" />
+                    {hasActiveStories && (
+                      <div className="absolute top-2 right-2">
+                        <StoryIndicator hasStories={true} />
+                      </div>
+                    )}
+                    {/* Debug indicator - always show during development */}
+                    {showDebug && (
+                      <div className="absolute top-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
+                        Stories: {hasActiveStories ? 'YES' : 'NO'}
+                      </div>
+                    )}
+                  </div>
                 </button>
               ) : (
                 <div className="h-full w-full grid place-items-center text-sm opacity-60">No avatar</div>
@@ -1135,6 +1266,27 @@ export default function ProfilePage() {
           collectionId={selectedCollectionId}
         />
       )}
+
+      <AvatarOrStoryDialog
+        visible={showAvatarPreview}
+        onHide={() => setShowAvatarPreview(false)}
+        onAvatarClick={() => {
+          setPreviewImage({ url: avatarUrl, alt: `${primaryName} avatar` });
+          setShowAvatarPreview(false);
+        }}
+        onStoriesClick={() => {
+          setShowStoryViewer(true);
+          setShowAvatarPreview(false);
+        }}
+        profileName={primaryName}
+        hasStories={hasActiveStories}
+      />
+
+      <StoryViewerDialog
+        visible={showStoryViewer}
+        onHide={() => setShowStoryViewer(false)}
+        initialProfileId={profile?.id}
+      />
     </div>
   );
 }

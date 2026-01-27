@@ -223,3 +223,17 @@ body {
 .admin-layout .p-datatable .p-datatable-tbody > tr > td {
   color: #ffffff !important;
 }
+
+/* Story progress animation */
+@keyframes progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.animate-progress {
+  animation: progress 5s linear;
+}

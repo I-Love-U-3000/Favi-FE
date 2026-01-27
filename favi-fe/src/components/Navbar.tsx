@@ -59,7 +59,6 @@ export default function Navbar() {
     { label: "New Post", icon: "pi pi-image", command: () => openPostComposer() },
     { label: "New Collection", icon: "pi pi-folder", command: () => openCollectionComposer() },
     { label: "New Story", icon: "pi pi-circle-on", command: () => openStoryComposer() },
-    { label: "View Archive", icon: "pi pi-archive", command: () => window.location.href = "/archive" },
   ];
 
   const handleCreateClick = (event: React.MouseEvent) => {
