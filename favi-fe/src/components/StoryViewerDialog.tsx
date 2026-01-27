@@ -41,6 +41,7 @@ export default function StoryViewerDialog({
   const [loading, setLoading] = useState(false);
   const [viewersDialogVisible, setViewersDialogVisible] = useState(false);
   const [nsfwConfirmedStories, setNsfwConfirmedStories] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
 
   const isStoryNSFWConfirmed = (storyId: string) => {
     return isNSFWConfirmed(storyId) || nsfwConfirmedStories.has(storyId);
@@ -62,11 +63,13 @@ export default function StoryViewerDialog({
     currentStoryIndex: 0,
     storyFeeds: [] as StoryFeedResponse[],
   });
+  const loadingRef = useRef(false); // Prevent multiple simultaneous loads
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+      loadingRef.current = false;
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
@@ -92,6 +95,9 @@ export default function StoryViewerDialog({
 
   // Load stories when dialog opens
   useEffect(() => {
+    console.log("=== useEffect hook running ===");
+    console.log("useEffect triggered with:", { visible, initialStoryFeed: !!initialStoryFeed, initialProfileId, archivedStories: !!archivedStories });
+
     if (!visible) {
       setIsViewingArchived(false);
       setAutoPlayEnabled(true);
@@ -106,23 +112,21 @@ export default function StoryViewerDialog({
     // Don't reset state here, let it be reset by the loadStories function
 
     const loadStories = async () => {
-      if (!isMountedRef.current) return;
+      console.log("loadStories() - starting execution");
 
-      console.log("Loading stories...", { archivedStories: !!archivedStories, initialProfileId, initialStoryFeed });
+      // Prevent multiple simultaneous loads
+      if (loadingRef.current) {
+        console.log("loadStories() - already loading, skipping");
+        return;
+      }
+      loadingRef.current = true;
 
-      // Reset state
-      setStoryFeeds([]);
-      setCurrentFeedIndex(0);
-      setCurrentStoryIndex(0);
-      setProgress(0);
-      setViewersDialogVisible(false);
-
-      // Update ref immediately
-      storyStateRef.current = {
-        currentFeedIndex: 0,
-        currentStoryIndex: 0,
-        storyFeeds: [],
-      };
+      console.log("loadStories() - proceeding with loading", {
+        archivedStories: !!archivedStories,
+        initialProfileId,
+        initialStoryFeed: !!initialStoryFeed,
+        initialStoryFeedStories: initialStoryFeed?.stories.length || 0
+      });
 
       setLoading(true);
       try {
@@ -143,9 +147,23 @@ export default function StoryViewerDialog({
             };
           });
 
+          console.log("Converting archived stories to feed format:", {
+            totalArchivedStories: archivedStories.length,
+            profiles: profileIds,
+            feeds: feeds.map(f => ({ profileId: f.profileId, storiesCount: f.stories.length }))
+          });
+
           if (isMountedRef.current) {
+            // Reset state first
+            setCurrentFeedIndex(0);
+            setCurrentStoryIndex(0);
+            setProgress(0);
+            setViewersDialogVisible(false);
+
+            // Then set the new feeds
             setStoryFeeds(feeds);
             storyStateRef.current.storyFeeds = feeds;
+
             console.log("Archived stories loaded:", feeds.length, "feeds");
             onViewerReady?.();
           }
@@ -154,44 +172,105 @@ export default function StoryViewerDialog({
           let feed: StoryFeedResponse[];
 
           if (initialStoryFeed) {
-            // If initial feed is provided, get the full feed
-            feed = await storyAPI.getFeed();
-            const idx = feed.findIndex((f) => f.profileId === initialStoryFeed.profileId);
-            setCurrentFeedIndex(idx >= 0 ? idx : 0);
-            setCurrentStoryIndex(0);
+            // If initial feed is provided, use it directly
+            console.log("Validating initialStoryFeed:", initialStoryFeed);
+
+            // Validate the structure
+            if (!initialStoryFeed.profileId || !initialStoryFeed.profileUsername || !Array.isArray(initialStoryFeed.stories)) {
+              console.error("Invalid initialStoryFeed structure:", initialStoryFeed);
+              throw new Error("Invalid story feed data");
+            }
+
+            feed = [initialStoryFeed];
+            console.log("Using initialStoryFeed:", {
+              profileId: initialStoryFeed.profileId,
+              username: initialStoryFeed.profileUsername,
+              storiesCount: initialStoryFeed.stories.length,
+              stories: initialStoryFeed.stories.map(s => ({ id: s.id, createdAt: s.createdAt }))
+            });
           } else if (initialProfileId) {
             feed = await storyAPI.getFeed();
             const idx = feed.findIndex((f) => f.profileId === initialProfileId);
-            setCurrentFeedIndex(idx >= 0 ? idx : 0);
-            setCurrentStoryIndex(0);
+            console.log("Loaded feed for profileId:", initialProfileId, {
+              totalFeeds: feed.length,
+              selectedFeedIndex: idx,
+              selectedFeedStories: feed[idx]?.stories.length || 0
+            });
+            feed = [feed[idx]]; // Only keep the selected feed
           } else {
             feed = await storyAPI.getFeed();
-            setCurrentFeedIndex(0);
-            setCurrentStoryIndex(0);
+            console.log("Loaded all feeds:", feed.length, "feeds");
           }
 
+          // Update state after we have the data
           if (isMountedRef.current) {
+            console.log("About to setStoryFeeds with:", {
+              totalFeeds: feed.length,
+              firstFeedStories: feed[0]?.stories.length || 0,
+              stories: feed[0]?.stories.map(s => s.id) || []
+            });
+
+            // Reset state first
+            setCurrentFeedIndex(0);
+            setCurrentStoryIndex(0);
+            setProgress(0);
+            setViewersDialogVisible(false);
+
+            // Then set the new feed
             setStoryFeeds(feed);
             storyStateRef.current.storyFeeds = feed;
-            console.log("Active stories loaded:", feed.length, "feeds");
+
+            console.log("Setting storyFeeds state:", {
+              totalFeeds: feed.length,
+              firstFeedStories: feed[0]?.stories.length || 0,
+              stories: feed[0]?.stories.map(s => s.id) || []
+            });
             setIsViewingArchived(false);
             onViewerReady?.();
+          } else {
+            console.log("Component is unmounted, skipping state updates");
           }
         }
       } catch (e) {
         if (isMountedRef.current) {
           console.error("Failed to load stories:", e);
+          setError(e?.error || e?.message || "Failed to load stories");
         }
       } finally {
         if (isMountedRef.current) {
           setLoading(false);
+          loadingRef.current = false; // Reset the loading ref
           console.log("Loading completed");
         }
       }
     };
 
-    loadStories();
+    console.log("About to call loadStories()...");
+    try {
+      loadStories();
+      console.log("loadStories() called successfully");
+    } catch (error) {
+      console.error("Error calling loadStories():", error);
+    }
   }, [visible, initialStoryFeed, initialProfileId, archivedStories]);
+
+  // Track when initialStoryFeed changes (only in development)
+  if (process.env.NODE_ENV === 'development') {
+    useEffect(() => {
+      console.log("initialStoryFeed changed:", initialStoryFeed);
+    }, [initialStoryFeed]);
+  }
+
+  // Track storyFeeds changes
+  useEffect(() => {
+    console.log("storyFeeds updated to:", {
+      length: storyFeeds.length,
+      firstFeed: storyFeeds[0] ? {
+        profileId: storyFeeds[0].profileId,
+        storiesCount: storyFeeds[0].stories.length
+      } : null
+    });
+  }, [storyFeeds]);
 
   // Auto-progress through stories
   useEffect(() => {
@@ -347,15 +426,128 @@ export default function StoryViewerDialog({
     storyFeedsLength: storyFeeds.length,
     currentFeedIndex,
     currentStoryIndex,
+    currentFeedStories: currentFeed?.stories.length || 0,
     currentStory: currentStory?.id,
     isViewingArchived,
     autoPlayEnabled,
+    storyFeeds: storyFeeds.map(f => ({
+      profileId: f.profileId,
+      stories: f.stories.length
+    }))
   });
 
   if (!visible) return null;
 
   if (loading || storyFeeds.length === 0 || !currentStory) {
-    console.log("Still loading or no stories", { loading, storyFeedsLength: storyFeeds.length, currentStory: !!currentStory });
+    console.log("Still loading or no stories", {
+      loading,
+      storyFeedsLength: storyFeeds.length,
+      currentFeedIndex,
+      currentStoryIndex,
+      currentFeedStories: storyFeeds[currentFeedIndex]?.stories.length || 0,
+      currentStory: !!currentStory,
+      error
+    });
+
+    // Check if we have feeds but stories are empty
+    if (!loading && storyFeeds.length > 0) {
+      const firstFeed = storyFeeds[0];
+      console.log("Debug - First feed details:", {
+        profileId: firstFeed.profileId,
+        username: firstFeed.profileUsername,
+        storiesCount: firstFeed.stories.length,
+        stories: firstFeed.stories
+      });
+
+      // If we have feeds but no stories, show empty state for that specific case
+      if (firstFeed.stories.length === 0) {
+        return (
+          <div
+            className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center"
+            onClick={onHide}
+          >
+            <div className="text-white text-center">
+              <i className="pi pi-image text-4xl mb-4 opacity-50" />
+              <div className="text-xl mb-2">No stories available</div>
+              <div className="text-sm opacity-70">This profile has no stories to view.</div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onHide();
+                }}
+                className="mt-4 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        );
+      }
+    }
+
+    if (error) {
+      return (
+        <div
+          className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center"
+          onClick={onHide}
+        >
+          <div className="text-white text-center mb-4">
+            <i className="pi pi-exclamation-triangle text-4xl mb-2" />
+            <div className="text-xl font-semibold mb-2">Failed to load stories</div>
+            <div className="text-sm opacity-80">{error}</div>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setError(null);
+              // Force reload by setting loading true and triggering useEffect
+              setLoading(true);
+              const loadStories = async () => {
+                try {
+                  const feed = await storyAPI.getFeed();
+                  if (isMountedRef.current) {
+                    setStoryFeeds(feed);
+                    storyStateRef.current.storyFeeds = feed;
+                    console.log("Stories reloaded:", feed.length, "feeds");
+                    setError(null);
+                  }
+                } catch (e) {
+                  if (isMountedRef.current) {
+                    console.error("Failed to reload stories:", e);
+                    setError(e?.error || e?.message || "Failed to reload stories");
+                  }
+                } finally {
+                  if (isMountedRef.current) {
+                    setLoading(false);
+                  }
+                }
+              };
+              loadStories();
+            }}
+            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+
+    // Handle case when no stories are available
+    if (!loading && storyFeeds.length === 0) {
+      return (
+        <div
+          className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center"
+          onClick={onHide}
+        >
+          <div className="text-white text-center">
+            <i className="pi pi-image text-4xl mb-4 opacity-50" />
+            <div className="text-xl mb-2">No stories available</div>
+            <div className="text-sm opacity-70">There are no stories to view at the moment.</div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div
         className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
