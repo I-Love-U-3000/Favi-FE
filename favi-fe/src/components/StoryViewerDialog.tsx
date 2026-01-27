@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import storyAPI from "@/lib/api/storyAPI";
 import type { StoryResponse, StoryFeedResponse } from "@/types";
@@ -41,6 +41,7 @@ export default function StoryViewerDialog({
   const [loading, setLoading] = useState(false);
   const [viewersDialogVisible, setViewersDialogVisible] = useState(false);
   const [nsfwConfirmedStories, setNsfwConfirmedStories] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
 
   const isStoryNSFWConfirmed = (storyId: string) => {
     return isNSFWConfirmed(storyId) || nsfwConfirmedStories.has(storyId);
@@ -57,16 +58,70 @@ export default function StoryViewerDialog({
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
+  const progressRef = useRef(0);
   const storyStateRef = useRef({
     currentFeedIndex: 0,
     currentStoryIndex: 0,
     storyFeeds: [] as StoryFeedResponse[],
   });
+  const updateQueuedRef = useRef(false);
 
-  // Cleanup on unmount
+  // Prevent infinite re-renders with useMemo
+  const storyState = useMemo(() => ({
+    currentFeedIndex,
+    currentStoryIndex,
+    storyFeeds,
+  }), [currentFeedIndex, currentStoryIndex, storyFeeds]);
+
+  const loadingRef = useRef(false); // Prevent multiple simultaneous loads
+
+  // Navigation functions
+  const nextStory = useCallback(() => {
+    const { currentFeedIndex, currentStoryIndex, storyFeeds } = storyStateRef.current;
+    const currentFeed = storyFeeds[currentFeedIndex];
+    if (!currentFeed || storyFeeds.length === 0) return;
+
+    if (currentStoryIndex < currentFeed.stories.length - 1) {
+      setCurrentStoryIndex(currentStoryIndex + 1);
+      storyStateRef.current.currentStoryIndex = currentStoryIndex + 1;
+      progressRef.current = 0;
+    } else if (currentFeedIndex < storyFeeds.length - 1) {
+      setCurrentFeedIndex(currentFeedIndex + 1);
+      setCurrentStoryIndex(0);
+      storyStateRef.current.currentFeedIndex = currentFeedIndex + 1;
+      storyStateRef.current.currentStoryIndex = 0;
+      progressRef.current = 0;
+    } else {
+      // End of stories
+      onHide();
+    }
+  }, [onHide]);
+
+  const prevStory = useCallback(() => {
+    const { currentFeedIndex, currentStoryIndex, storyFeeds } = storyStateRef.current;
+    if (storyFeeds.length === 0) return;
+
+    if (currentStoryIndex > 0) {
+      setCurrentStoryIndex(currentStoryIndex - 1);
+      storyStateRef.current.currentStoryIndex = currentStoryIndex - 1;
+      progressRef.current = 0;
+    } else if (currentFeedIndex > 0) {
+      setCurrentFeedIndex(currentFeedIndex - 1);
+      const prevFeed = storyFeeds[currentFeedIndex - 1];
+      if (prevFeed) {
+        setCurrentStoryIndex(prevFeed.stories.length - 1);
+        storyStateRef.current.currentFeedIndex = currentFeedIndex - 1;
+        storyStateRef.current.currentStoryIndex = prevFeed.stories.length - 1;
+        progressRef.current = 0;
+      }
+    }
+  }, []);
+
+  // Component mount check
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
-      isMountedRef.current = false;
+      loadingRef.current = false;
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
@@ -90,12 +145,11 @@ export default function StoryViewerDialog({
     }
   }, [visible, onHide]);
 
-  // Load stories when dialog opens
+  // Load stories when dialog opens - simplified approach
   useEffect(() => {
     if (!visible) {
       setIsViewingArchived(false);
       setAutoPlayEnabled(true);
-      // Cleanup timer
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -103,137 +157,117 @@ export default function StoryViewerDialog({
       return;
     }
 
-    // Don't reset state here, let it be reset by the loadStories function
-
+    // Simple load function without complex state management
     const loadStories = async () => {
-      if (!isMountedRef.current) return;
-
-      console.log("Loading stories...", { archivedStories: !!archivedStories, initialProfileId, initialStoryFeed });
-
-      // Reset state
-      setStoryFeeds([]);
-      setCurrentFeedIndex(0);
-      setCurrentStoryIndex(0);
-      setProgress(0);
-      setViewersDialogVisible(false);
-
-      // Update ref immediately
-      storyStateRef.current = {
-        currentFeedIndex: 0,
-        currentStoryIndex: 0,
-        storyFeeds: [],
-      };
-
+      if (loadingRef.current) return;
+      loadingRef.current = true;
       setLoading(true);
-      try {
-        if (archivedStories && archivedStories.length > 0) {
-          // Load archived stories
-          setIsViewingArchived(true);
 
-          // Convert archived stories to feed format
-          const profileIds = Array.from(new Set(archivedStories.map(s => s.profileId)));
-          const feeds: StoryFeedResponse[] = profileIds.map(profileId => {
-            const profileStories = archivedStories.filter(s => s.profileId === profileId);
-            const profile = profileStories[0]; // Get profile info from first story
+      try {
+        let feed: StoryFeedResponse[] = [];
+
+        if (archivedStories && archivedStories.length > 0) {
+          setIsViewingArchived(true);
+          const profileIds = Array.from(new Set(archivedStories.map((s: StoryResponse) => s.profileId)));
+          feed = profileIds.map(profileId => {
+            const profileStories = archivedStories.filter((s: StoryResponse) => s.profileId === profileId);
+            const profile = profileStories[0];
             return {
               profileId,
               profileUsername: profile.profileUsername,
-              profileAvatarUrl: profile.profileAvatarUrl,
+              profileAvatarUrl: profile.profileAvatarUrl || null,
               stories: profileStories
             };
           });
-
-          if (isMountedRef.current) {
-            setStoryFeeds(feeds);
-            storyStateRef.current.storyFeeds = feeds;
-            console.log("Archived stories loaded:", feeds.length, "feeds");
-            onViewerReady?.();
-          }
         } else {
-          // Load active stories
-          let feed: StoryFeedResponse[];
-
           if (initialStoryFeed) {
-            // If initial feed is provided, get the full feed
-            feed = await storyAPI.getFeed();
-            const idx = feed.findIndex((f) => f.profileId === initialStoryFeed.profileId);
-            setCurrentFeedIndex(idx >= 0 ? idx : 0);
-            setCurrentStoryIndex(0);
+            if (!initialStoryFeed.profileId || !initialStoryFeed.profileUsername || !initialStoryFeed.stories) {
+              throw new Error("Invalid story feed data");
+            }
+            feed = [initialStoryFeed];
           } else if (initialProfileId) {
-            feed = await storyAPI.getFeed();
-            const idx = feed.findIndex((f) => f.profileId === initialProfileId);
-            setCurrentFeedIndex(idx >= 0 ? idx : 0);
-            setCurrentStoryIndex(0);
+            const allFeeds = await storyAPI.getFeed();
+            const idx = allFeeds.findIndex((f) => f.profileId === initialProfileId);
+            feed = [allFeeds[idx]];
           } else {
             feed = await storyAPI.getFeed();
-            setCurrentFeedIndex(0);
-            setCurrentStoryIndex(0);
           }
+        }
 
-          if (isMountedRef.current) {
-            setStoryFeeds(feed);
-            storyStateRef.current.storyFeeds = feed;
-            console.log("Active stories loaded:", feed.length, "feeds");
-            setIsViewingArchived(false);
-            onViewerReady?.();
-          }
+        if (!feed || feed.length === 0) {
+          throw new Error("No stories found");
         }
-      } catch (e) {
-        if (isMountedRef.current) {
-          console.error("Failed to load stories:", e);
-        }
+
+        // Single state update to avoid multiple renders
+        setStoryFeeds(feed);
+        storyStateRef.current = {
+          currentFeedIndex: 0,
+          currentStoryIndex: 0,
+          storyFeeds: feed
+        };
+        setProgress(0);
+        progressRef.current = 0;
+        setViewersDialogVisible(false);
+        setNsfwConfirmedStories(new Set());
+        onViewerReady?.();
+      } catch (e: any) {
+        console.error("Failed to load stories:", e);
+        setError(e?.error || e?.message || "Failed to load stories");
       } finally {
-        if (isMountedRef.current) {
-          setLoading(false);
-          console.log("Loading completed");
-        }
+        setLoading(false);
+        loadingRef.current = false;
       }
     };
 
     loadStories();
-  }, [visible, initialStoryFeed, initialProfileId, archivedStories]);
+  }, [visible, initialStoryFeed, initialProfileId, archivedStories, onViewerReady]);
 
-  // Auto-progress through stories
+  // Track when initialStoryFeed changes (only in development)
+  if (process.env.NODE_ENV === 'development') {
+    useEffect(() => {
+      console.log("initialStoryFeed changed:", initialStoryFeed);
+    }, [initialStoryFeed, onViewerReady]);
+  }
+
+  // Track storyFeeds changes (disabled in production)
   useEffect(() => {
-    if (!visible || !autoPlayEnabled) return;
-
-    const { currentFeedIndex, currentStoryIndex, storyFeeds } = storyStateRef.current;
-    const currentFeed = storyFeeds[currentFeedIndex];
-    if (!currentFeed || currentFeed.stories.length === 0 || loading || viewersDialogVisible) return;
-
-    const duration = 5000; // 5 seconds per story
-    const interval = 50; // Update every 50ms
-    const increment = (interval / duration) * 100;
-
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-
-    timerRef.current = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          // Move to next story
-          nextStory();
-          return 0;
-        }
-        return prev + increment;
+    if (process.env.NODE_ENV === 'development') {
+      console.log("storyFeeds updated:", {
+        length: storyFeeds.length,
+        firstFeed: storyFeeds[0]?.profileUsername
       });
-    }, interval);
+    }
+  }, [storyFeeds]);
 
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [visible, autoPlayEnabled, loading, viewersDialogVisible]);
-
-  // Reset progress when story changes
+  
+  // Auto-progress through stories - CSS animation approach
   useEffect(() => {
-    setProgress(0);
-  }, []);
+    if (!visible || loading || viewersDialogVisible || !autoPlayEnabled) return;
 
-  // Record view when story is shown
+    const timer = setTimeout(() => {
+      // Time to move to next story
+      const { storyFeeds, currentFeedIndex, currentStoryIndex } = storyStateRef.current;
+      if (storyFeeds.length > 0) {
+        const currentFeed = storyFeeds[currentFeedIndex];
+        if (currentFeed && currentStoryIndex < currentFeed.stories.length - 1) {
+          setCurrentStoryIndex(currentStoryIndex + 1);
+          storyStateRef.current.currentStoryIndex = currentStoryIndex + 1;
+        } else if (currentFeedIndex < storyFeeds.length - 1) {
+          setCurrentFeedIndex(currentFeedIndex + 1);
+          setCurrentStoryIndex(0);
+          storyStateRef.current.currentFeedIndex = currentFeedIndex + 1;
+          storyStateRef.current.currentStoryIndex = 0;
+        } else {
+          // End of stories
+          onHide();
+        }
+      }
+    }, 5000); // 5 seconds per story
+
+    return () => clearTimeout(timer);
+  }, [visible, loading, viewersDialogVisible, autoPlayEnabled, currentFeedIndex, currentStoryIndex, storyFeeds.length, onHide]);
+
+  // Record view when story is shown - simplified
   useEffect(() => {
     if (!visible || loading || isViewingArchived) return;
 
@@ -241,42 +275,13 @@ export default function StoryViewerDialog({
     if (storyFeeds.length === 0) return;
 
     const currentFeed = storyFeeds[currentFeedIndex];
-    if (!currentFeed || currentFeed.stories.length === 0) return;
+    if (!currentFeed || currentStoryIndex >= currentFeed.stories.length) return;
 
     const story = currentFeed.stories[currentStoryIndex];
     if (story && !story.hasViewed) {
       storyAPI.recordView(story.id).catch(console.error);
     }
   }, [visible, loading, isViewingArchived]);
-
-  const nextStory = () => {
-    const { currentFeedIndex, currentStoryIndex, storyFeeds } = storyStateRef.current;
-    const currentFeed = storyFeeds[currentFeedIndex];
-    if (!currentFeed) return;
-
-    if (currentStoryIndex < currentFeed.stories.length - 1) {
-      setCurrentStoryIndex((prev) => prev + 1);
-    } else if (currentFeedIndex < storyFeeds.length - 1) {
-      setCurrentFeedIndex((prev) => prev + 1);
-      setCurrentStoryIndex(0);
-    } else {
-      // End of stories
-      onHide();
-    }
-  };
-
-  const prevStory = () => {
-    const { currentFeedIndex, currentStoryIndex, storyFeeds } = storyStateRef.current;
-    if (currentStoryIndex > 0) {
-      setCurrentStoryIndex((prev) => prev - 1);
-    } else if (currentFeedIndex > 0) {
-      setCurrentFeedIndex((prev) => prev - 1);
-      const prevFeed = storyFeeds[currentFeedIndex - 1];
-      if (prevFeed) {
-        setCurrentStoryIndex(prevFeed.stories.length - 1);
-      }
-    }
-  };
 
   const handleArchive = async () => {
     if (!currentStory) return;
@@ -347,15 +352,122 @@ export default function StoryViewerDialog({
     storyFeedsLength: storyFeeds.length,
     currentFeedIndex,
     currentStoryIndex,
+    currentFeedStories: currentFeed?.stories.length || 0,
     currentStory: currentStory?.id,
     isViewingArchived,
     autoPlayEnabled,
+    storyFeeds: storyFeeds.map(f => ({
+      profileId: f.profileId,
+      stories: f.stories.length
+    }))
   });
 
   if (!visible) return null;
 
   if (loading || storyFeeds.length === 0 || !currentStory) {
-    console.log("Still loading or no stories", { loading, storyFeedsLength: storyFeeds.length, currentStory: !!currentStory });
+    console.log("Still loading or no stories", {
+      loading,
+      storyFeedsLength: storyFeeds.length,
+      currentFeedIndex,
+      currentStoryIndex,
+      currentFeedStories: storyFeeds[currentFeedIndex]?.stories.length || 0,
+      currentStory: !!currentStory,
+      error
+    });
+
+    // Check if we have feeds but stories are empty
+    if (!loading && storyFeeds.length > 0) {
+      const firstFeed = storyFeeds[0];
+      console.log("Debug - First feed details:", {
+        profileId: firstFeed.profileId,
+        username: firstFeed.profileUsername,
+        storiesCount: firstFeed.stories.length,
+        stories: firstFeed.stories
+      });
+
+      // If we have feeds but no stories, show empty state for that specific case
+      if (firstFeed.stories.length === 0) {
+        return (
+          <div
+            className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center"
+            onClick={onHide}
+          >
+            <div className="text-white text-center">
+              <i className="pi pi-image text-4xl mb-4 opacity-50" />
+              <div className="text-xl mb-2">No stories available</div>
+              <div className="text-sm opacity-70">This profile has no stories to view.</div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onHide();
+                }}
+                className="mt-4 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        );
+      }
+    }
+
+    if (error) {
+      return (
+        <div
+          className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center"
+          onClick={onHide}
+        >
+          <div className="text-white text-center mb-4">
+            <i className="pi pi-exclamation-triangle text-4xl mb-2" />
+            <div className="text-xl font-semibold mb-2">Failed to load stories</div>
+            <div className="text-sm opacity-80">{error}</div>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setError(null);
+              // Force reload by setting loading true and triggering useEffect
+              setLoading(true);
+              const loadStories = async () => {
+                try {
+                  const feed = await storyAPI.getFeed();
+                  setStoryFeeds(feed);
+                    storyStateRef.current.storyFeeds = feed;
+                    console.log("Stories reloaded:", feed.length, "feeds");
+                    setError(null);
+                } catch (e: any) {
+                  console.error("Failed to reload stories:", e);
+                  setError(e?.error || e?.message || "Failed to reload stories");
+                } finally {
+                  setLoading(false);
+                }
+              };
+              loadStories();
+            }}
+            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+
+    // Handle case when no stories are available
+    if (!loading && storyFeeds.length === 0) {
+      return (
+        <div
+          className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center"
+          onClick={onHide}
+        >
+          <div className="text-white text-center">
+            <i className="pi pi-image text-4xl mb-4 opacity-50" />
+            <div className="text-xl mb-2">No stories available</div>
+            <div className="text-sm opacity-70">There are no stories to view at the moment.</div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div
         className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
@@ -380,13 +492,13 @@ export default function StoryViewerDialog({
               className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden"
             >
               <div
-                className="h-full bg-white transition-all duration-100 ease-linear"
+                className={`h-full bg-white ${idx === currentStoryIndex && autoPlayEnabled ? 'animate-progress' : ''}`}
                 style={{
                   width:
                     idx < currentStoryIndex
                       ? "100%"
                       : idx === currentStoryIndex
-                        ? `${progress}%`
+                        ? "0%" // Animation will handle the progress
                         : "0%",
                 }}
               />
