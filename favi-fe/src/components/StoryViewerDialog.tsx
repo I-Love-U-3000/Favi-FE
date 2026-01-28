@@ -14,7 +14,6 @@ interface StoryViewerDialogProps {
   initialStoryFeed?: StoryFeedResponse;
   initialProfileId?: string;
   archivedStories?: StoryResponse[];
-  onViewerReady?: () => void;
   onNSFWConfirm?: (storyId: string) => void;
   isNSFWConfirmed?: (storyId: string) => boolean;
 }
@@ -25,7 +24,6 @@ export default function StoryViewerDialog({
   initialStoryFeed,
   initialProfileId,
   archivedStories = [],
-  onViewerReady,
   onNSFWConfirm,
   isNSFWConfirmed = () => false,
 }: StoryViewerDialogProps) {
@@ -64,14 +62,16 @@ export default function StoryViewerDialog({
     currentStoryIndex: 0,
     storyFeeds: [] as StoryFeedResponse[],
   });
-  const updateQueuedRef = useRef(false);
-
   // Prevent infinite re-renders with useMemo
   const storyState = useMemo(() => ({
     currentFeedIndex,
     currentStoryIndex,
     storyFeeds,
   }), [currentFeedIndex, currentStoryIndex, storyFeeds]);
+
+  // Memoize props to prevent unnecessary re-renders
+  const memoInitialStoryFeed = useMemo(() => initialStoryFeed, [initialStoryFeed?.profileId]);
+  const memoInitialProfileId = useMemo(() => initialProfileId, [initialProfileId]);
 
   const loadingRef = useRef(false); // Prevent multiple simultaneous loads
 
@@ -101,6 +101,7 @@ export default function StoryViewerDialog({
     const { currentFeedIndex, currentStoryIndex, storyFeeds } = storyStateRef.current;
     if (storyFeeds.length === 0) return;
 
+    
     if (currentStoryIndex > 0) {
       setCurrentStoryIndex(currentStoryIndex - 1);
       storyStateRef.current.currentStoryIndex = currentStoryIndex - 1;
@@ -115,7 +116,7 @@ export default function StoryViewerDialog({
         progressRef.current = 0;
       }
     }
-  }, []);
+  }, [onHide]);
 
   // Component mount check
   useEffect(() => {
@@ -148,7 +149,6 @@ export default function StoryViewerDialog({
   // Load stories when dialog opens - simplified approach
   useEffect(() => {
     if (!visible) {
-      setIsViewingArchived(false);
       setAutoPlayEnabled(true);
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -159,15 +159,20 @@ export default function StoryViewerDialog({
 
     // Simple load function without complex state management
     const loadStories = async () => {
-      if (loadingRef.current) return;
+      if (loadingRef.current) {
+        console.log("Already loading, skipping...");
+        return;
+      }
+
+      console.log("Starting to load stories...");
       loadingRef.current = true;
+
       setLoading(true);
 
+      
       try {
         let feed: StoryFeedResponse[] = [];
-
         if (archivedStories && archivedStories.length > 0) {
-          setIsViewingArchived(true);
           const profileIds = Array.from(new Set(archivedStories.map((s: StoryResponse) => s.profileId)));
           feed = profileIds.map(profileId => {
             const profileStories = archivedStories.filter((s: StoryResponse) => s.profileId === profileId);
@@ -200,6 +205,9 @@ export default function StoryViewerDialog({
 
         // Single state update to avoid multiple renders
         setStoryFeeds(feed);
+        // Use setState updater function to ensure we get the latest state
+        setCurrentFeedIndex(0);
+        setCurrentStoryIndex(0);
         storyStateRef.current = {
           currentFeedIndex: 0,
           currentStoryIndex: 0,
@@ -209,7 +217,6 @@ export default function StoryViewerDialog({
         progressRef.current = 0;
         setViewersDialogVisible(false);
         setNsfwConfirmedStories(new Set());
-        onViewerReady?.();
       } catch (e: any) {
         console.error("Failed to load stories:", e);
         setError(e?.error || e?.message || "Failed to load stories");
@@ -220,25 +227,15 @@ export default function StoryViewerDialog({
     };
 
     loadStories();
-  }, [visible, initialStoryFeed, initialProfileId, archivedStories, onViewerReady]);
 
-  // Track when initialStoryFeed changes (only in development)
-  if (process.env.NODE_ENV === 'development') {
-    useEffect(() => {
-      console.log("initialStoryFeed changed:", initialStoryFeed);
-    }, [initialStoryFeed, onViewerReady]);
-  }
+    return () => {
+      // Clean up any ongoing operations
+      loadingRef.current = false;
+    };
+  }, [visible]); // Simplified to only depend on visible
 
-  // Track storyFeeds changes (disabled in production)
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log("storyFeeds updated:", {
-        length: storyFeeds.length,
-        firstFeed: storyFeeds[0]?.profileUsername
-      });
-    }
-  }, [storyFeeds]);
-
+  
+  
   
   // Auto-progress through stories - CSS animation approach
   useEffect(() => {
@@ -248,15 +245,13 @@ export default function StoryViewerDialog({
       // Time to move to next story
       const { storyFeeds, currentFeedIndex, currentStoryIndex } = storyStateRef.current;
       if (storyFeeds.length > 0) {
+        
         const currentFeed = storyFeeds[currentFeedIndex];
         if (currentFeed && currentStoryIndex < currentFeed.stories.length - 1) {
-          setCurrentStoryIndex(currentStoryIndex + 1);
-          storyStateRef.current.currentStoryIndex = currentStoryIndex + 1;
+          setCurrentStoryIndex(prev => prev + 1);
         } else if (currentFeedIndex < storyFeeds.length - 1) {
-          setCurrentFeedIndex(currentFeedIndex + 1);
+          setCurrentFeedIndex(prev => prev + 1);
           setCurrentStoryIndex(0);
-          storyStateRef.current.currentFeedIndex = currentFeedIndex + 1;
-          storyStateRef.current.currentStoryIndex = 0;
         } else {
           // End of stories
           onHide();
@@ -265,7 +260,7 @@ export default function StoryViewerDialog({
     }, 5000); // 5 seconds per story
 
     return () => clearTimeout(timer);
-  }, [visible, loading, viewersDialogVisible, autoPlayEnabled, currentFeedIndex, currentStoryIndex, storyFeeds.length, onHide]);
+  }, [visible, loading, viewersDialogVisible, autoPlayEnabled, onHide]);
 
   // Record view when story is shown - simplified
   useEffect(() => {
@@ -346,44 +341,13 @@ export default function StoryViewerDialog({
   const currentFeed = storyFeeds[currentFeedIndex];
   const currentStory = currentFeed?.stories[currentStoryIndex];
 
-  console.log("StoryViewerDialog render:", {
-    visible,
-    loading,
-    storyFeedsLength: storyFeeds.length,
-    currentFeedIndex,
-    currentStoryIndex,
-    currentFeedStories: currentFeed?.stories.length || 0,
-    currentStory: currentStory?.id,
-    isViewingArchived,
-    autoPlayEnabled,
-    storyFeeds: storyFeeds.map(f => ({
-      profileId: f.profileId,
-      stories: f.stories.length
-    }))
-  });
-
   if (!visible) return null;
 
   if (loading || storyFeeds.length === 0 || !currentStory) {
-    console.log("Still loading or no stories", {
-      loading,
-      storyFeedsLength: storyFeeds.length,
-      currentFeedIndex,
-      currentStoryIndex,
-      currentFeedStories: storyFeeds[currentFeedIndex]?.stories.length || 0,
-      currentStory: !!currentStory,
-      error
-    });
 
     // Check if we have feeds but stories are empty
     if (!loading && storyFeeds.length > 0) {
       const firstFeed = storyFeeds[0];
-      console.log("Debug - First feed details:", {
-        profileId: firstFeed.profileId,
-        username: firstFeed.profileUsername,
-        storiesCount: firstFeed.stories.length,
-        stories: firstFeed.stories
-      });
 
       // If we have feeds but no stories, show empty state for that specific case
       if (firstFeed.stories.length === 0) {
@@ -433,8 +397,7 @@ export default function StoryViewerDialog({
                   const feed = await storyAPI.getFeed();
                   setStoryFeeds(feed);
                     storyStateRef.current.storyFeeds = feed;
-                    console.log("Stories reloaded:", feed.length, "feeds");
-                    setError(null);
+                                        setError(null);
                 } catch (e: any) {
                   console.error("Failed to reload stories:", e);
                   setError(e?.error || e?.message || "Failed to reload stories");
