@@ -298,9 +298,10 @@ export default function ReportsTable({
           header={header}
           emptyMessage={emptyMessage}
           selection={selection}
-          onSelectionChange={(e) => onSelectionChange(e.value)}
+          onSelectionChange={(e) => onSelectionChange(e.value as ReportDto[])}
           selectionMode="multiple"
           dataKey="id"
+          lazy
           paginator
           rows={20}
           first={first}

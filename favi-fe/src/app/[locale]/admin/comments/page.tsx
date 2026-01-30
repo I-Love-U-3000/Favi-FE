@@ -75,15 +75,55 @@ export default function CommentsPage() {
       icon: "pi pi-code",
       command: () => handleExport("json"),
     },
+    {
+      label: "Export as Excel",
+      icon: "pi pi-file-excel",
+      command: () => handleExport("excel"),
+    },
   ];
 
-  const handleExport = async (format: string) => {
-    showToast({
-      severity: "info",
-      summary: "Export Started",
-      detail: `Exporting comments as ${format.toUpperCase()}...`,
-    });
-    // Export logic would go here
+  const handleExport = (format: string) => {
+    try {
+      if (!commentsData?.items || commentsData.items.length === 0) {
+        showToast({
+          severity: "warn",
+          summary: "No Data",
+          detail: "No comments to export",
+        });
+        return;
+      }
+
+      const { exportToCSV, exportToJSON, exportToExcel, prepareCommentsForExport } = require("@/lib/utils/exportUtils");
+      const preparedData = prepareCommentsForExport(commentsData.items);
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `comments_export_${timestamp}`;
+
+      switch (format.toLowerCase()) {
+        case "csv":
+          exportToCSV(preparedData, filename);
+          break;
+        case "json":
+          exportToJSON(preparedData, filename);
+          break;
+        case "excel":
+          exportToExcel(preparedData, filename);
+          break;
+        default:
+          throw new Error(`Unsupported format: ${format}`);
+      }
+
+      showToast({
+        severity: "success",
+        summary: "Export Successful",
+        detail: `Comments exported as ${format.toUpperCase()}`,
+      });
+    } catch (error: any) {
+      showToast({
+        severity: "error",
+        summary: "Export Failed",
+        detail: error.message || "Failed to export comments",
+      });
+    }
   };
 
   const handlePageChange = useCallback((first: number, rows: number) => {

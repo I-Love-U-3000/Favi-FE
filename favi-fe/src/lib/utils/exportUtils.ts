@@ -5,33 +5,33 @@ import { UserDto, PostDto, ReportDto } from "@/lib/api/admin";
 // ============================================================================
 
 export function exportToCSV(data: any[], filename: string) {
-    if (!data || data.length === 0) {
-        throw new Error("No data to export");
-    }
+  if (!data || data.length === 0) {
+    throw new Error("No data to export");
+  }
 
-    // Get headers from first object
-    const headers = Object.keys(data[0]);
+  // Get headers from first object
+  const headers = Object.keys(data[0]);
 
-    // Create CSV content
-    const csvContent = [
-        headers.join(","), // Header row
-        ...data.map(row =>
-            headers.map(header => {
-                const value = row[header];
-                // Handle values that might contain commas or quotes
-                if (value === null || value === undefined) return "";
-                const stringValue = String(value);
-                if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
-                    return `"${stringValue.replace(/"/g, '""')}"`;
-                }
-                return stringValue;
-            }).join(",")
-        )
-    ].join("\n");
+  // Create CSV content
+  const csvContent = [
+    headers.join(","), // Header row
+    ...data.map(row =>
+      headers.map(header => {
+        const value = row[header];
+        // Handle values that might contain commas or quotes
+        if (value === null || value === undefined) return "";
+        const stringValue = String(value);
+        if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
+          return `"${stringValue.replace(/"/g, '""')}"`;
+        }
+        return stringValue;
+      }).join(",")
+    )
+  ].join("\n");
 
-    // Create and download file
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    downloadBlob(blob, `${filename}.csv`);
+  // Create and download file
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  downloadBlob(blob, `${filename}.csv`);
 }
 
 // ============================================================================
@@ -39,13 +39,13 @@ export function exportToCSV(data: any[], filename: string) {
 // ============================================================================
 
 export function exportToJSON(data: any[], filename: string) {
-    if (!data || data.length === 0) {
-        throw new Error("No data to export");
-    }
+  if (!data || data.length === 0) {
+    throw new Error("No data to export");
+  }
 
-    const jsonContent = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonContent], { type: "application/json;charset=utf-8;" });
-    downloadBlob(blob, `${filename}.json`);
+  const jsonContent = JSON.stringify(data, null, 2);
+  const blob = new Blob([jsonContent], { type: "application/json;charset=utf-8;" });
+  downloadBlob(blob, `${filename}.json`);
 }
 
 // ============================================================================
@@ -53,14 +53,14 @@ export function exportToJSON(data: any[], filename: string) {
 // ============================================================================
 
 export function exportToExcel(data: any[], filename: string) {
-    if (!data || data.length === 0) {
-        throw new Error("No data to export");
-    }
+  if (!data || data.length === 0) {
+    throw new Error("No data to export");
+  }
 
-    const headers = Object.keys(data[0]);
+  const headers = Object.keys(data[0]);
 
-    // Create HTML table
-    const htmlTable = `
+  // Create HTML table
+  const htmlTable = `
     <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
     <head>
       <meta charset="utf-8">
@@ -103,8 +103,8 @@ export function exportToExcel(data: any[], filename: string) {
     </html>
   `;
 
-    const blob = new Blob([htmlTable], { type: "application/vnd.ms-excel" });
-    downloadBlob(blob, `${filename}.xls`);
+  const blob = new Blob([htmlTable], { type: "application/vnd.ms-excel" });
+  downloadBlob(blob, `${filename}.xls`);
 }
 
 // ============================================================================
@@ -112,14 +112,14 @@ export function exportToExcel(data: any[], filename: string) {
 // ============================================================================
 
 function downloadBlob(blob: Blob, filename: string) {
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 }
 
 // ============================================================================
@@ -127,42 +127,56 @@ function downloadBlob(blob: Blob, filename: string) {
 // ============================================================================
 
 export function prepareUsersForExport(users: UserDto[]) {
-    return users.map(user => ({
-        ID: user.id,
-        Username: user.username,
-        "Display Name": user.displayName || "",
-        Email: user.email || "",
-        Role: user.role,
-        Status: user.isBanned ? "Banned" : "Active",
-        "Posts Count": user.postsCount,
-        "Followers Count": user.followersCount,
-        "Created At": new Date(user.createdAt).toLocaleString(),
-        "Last Active": new Date(user.lastActiveAt).toLocaleString(),
-    }));
+  return users.map(user => ({
+    ID: user.id,
+    Username: user.username,
+    "Display Name": user.displayName || "",
+    Email: user.email || "",
+    Role: user.role,
+    Status: user.isBanned ? "Banned" : "Active",
+    "Posts Count": user.postsCount,
+    "Followers Count": user.followersCount,
+    "Created At": new Date(user.createdAt).toLocaleString(),
+    "Last Active": new Date(user.lastActiveAt).toLocaleString(),
+  }));
 }
 
 export function preparePostsForExport(posts: PostDto[]) {
-    return posts.map(post => ({
-        ID: post.id,
-        Caption: post.caption || "",
-        Author: post.authorUsername || post.author?.username || "",
-        Privacy: post.privacy || "",
-        "Reactions Count": post.reactionsCount || post.likeCount || 0,
-        "Comments Count": post.commentsCount || post.commentCount || 0,
-        "Created At": new Date(post.createdAt).toLocaleString(),
-        Deleted: post.isDeleted ? "Yes" : "No",
-    }));
+  return posts.map(post => ({
+    ID: post.id,
+    Caption: post.caption || "",
+    Author: post.authorUsername || post.author?.username || "",
+    Privacy: post.privacy || "",
+    "Reactions Count": post.reactionsCount || post.likeCount || 0,
+    "Comments Count": post.commentsCount || post.commentCount || 0,
+    "Created At": new Date(post.createdAt).toLocaleString(),
+    Deleted: post.isDeleted ? "Yes" : "No",
+  }));
 }
 
 export function prepareReportsForExport(reports: ReportDto[]) {
-    return reports.map(report => ({
-        ID: report.id,
-        "Target Type": report.targetType,
-        "Target ID": report.targetId,
-        Reporter: report.reporter?.username || report.reporterProfileId.substring(0, 8),
-        Reason: report.reason,
-        Status: report.status,
-        "Created At": new Date(report.createdAt).toLocaleString(),
-        "Resolved At": report.resolvedAt ? new Date(report.resolvedAt).toLocaleString() : "",
-    }));
+  return reports.map(report => ({
+    ID: report.id,
+    "Target Type": report.targetType,
+    "Target ID": report.targetId,
+    Reporter: report.reporter?.username || report.reporterProfileId.substring(0, 8),
+    Reason: report.reason,
+    Status: report.status,
+    "Created At": new Date(report.createdAt).toLocaleString(),
+    "Resolved At": report.resolvedAt ? new Date(report.resolvedAt).toLocaleString() : "",
+  }));
+}
+
+export function prepareCommentsForExport(comments: any[]) {
+  return comments.map(comment => ({
+    ID: comment.id,
+    Content: comment.content,
+    Author: comment.author?.username || comment.authorProfileId.substring(0, 8),
+    Post: comment.post?.caption || comment.postId.substring(0, 8),
+    Likes: comment.reactionsCount || comment.likeCount || 0,
+    Replies: comment.repliesCount || 0,
+    Status: comment.status || "Active",
+    "Created At": new Date(comment.createdAt).toLocaleString(),
+    Deleted: comment.isDeleted ? "Yes" : "No",
+  }));
 }

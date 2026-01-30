@@ -9,7 +9,8 @@ import { Tag } from "primereact/tag";
 import { Avatar } from "primereact/avatar";
 import { Menu } from "primereact/menu";
 import { Skeleton } from "primereact/skeleton";
-import { CommentDto, useDeleteComment } from "@/hooks/queries/useAdminComments";
+import { useDeleteComment } from "@/hooks/queries/useAdminComments";
+import { CommentDto } from "@/lib/api/admin";
 import DeleteContentDialog from "@/components/admin/modals/DeleteContentDialog";
 
 interface CommentsTableProps {
@@ -184,7 +185,7 @@ export default function CommentsTable({
           image={comment.author.avatar}
           icon={!comment.author.avatar ? "pi pi-user" : undefined}
           shape="circle"
-          size="small"
+          size="normal"
         />
         <span className="text-sm text-gray-900 dark:text-white">
           @{comment.author.username}
@@ -270,8 +271,10 @@ export default function CommentsTable({
           header={header}
           emptyMessage={emptyMessage}
           selection={selection}
-          onSelectionChange={(e) => onSelectionChange(e.value)}
+          onSelectionChange={(e) => onSelectionChange(e.value as CommentDto[])}
+          selectionMode="multiple"
           dataKey="id"
+          lazy
           paginator
           rows={20}
           first={first}
@@ -331,11 +334,11 @@ export default function CommentsTable({
           setSelectedComment(null);
         }}
         contentId={selectedComment?.id || ""}
-        contentType="Comment"
-        onConfirm={(reason) => {
+        contentType="comment"
+        onDelete={(id, reason) => {
           if (selectedComment) {
             deleteComment.mutate({
-              commentId: selectedComment.id,
+              commentId: id,
               reason,
             });
           }

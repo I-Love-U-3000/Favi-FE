@@ -119,9 +119,13 @@ export default function UsersTable({
           aria-label="Actions"
         />
         <Menu
-          model={items.map((item) => ({
+          model={items.map((item: any) => ({
             ...item,
-            command: () => handleMenuAction({ item }, user),
+            command: (e: any) => {
+              if (item.action) {
+                handleMenuAction({ item }, user);
+              }
+            }
           }))}
           popup
           ref={(el) => {
@@ -240,8 +244,10 @@ export default function UsersTable({
           header={header}
           emptyMessage={emptyMessage}
           selection={selection}
-          onSelectionChange={(e) => onSelectionChange(e.value)}
+          onSelectionChange={(e) => onSelectionChange(e.value as UserDto[])}
+          selectionMode="multiple"
           dataKey="id"
+          lazy
           paginator
           rows={20}
           first={first}
@@ -293,8 +299,10 @@ export default function UsersTable({
         }}
         userId={selectedUser?.id || ""}
         userName={selectedUser?.username || ""}
-        onBan={(userId, reason) => {
-          banUser.mutate({ userId, reason });
+        onBan={(reason: string | undefined) => {
+          if (selectedUser) {
+            banUser.mutate({ userId: selectedUser.id, reason });
+          }
           setShowBanDialog(false);
           setSelectedUser(null);
         }}
@@ -310,8 +318,10 @@ export default function UsersTable({
         }}
         userId={selectedUser?.id || ""}
         userName={selectedUser?.username || ""}
-        onWarn={(userId, reason) => {
-          warnUser.mutate({ userId, reason });
+        onWarn={(reason: string | undefined) => {
+          if (selectedUser) {
+            warnUser.mutate({ userId: selectedUser.id, reason });
+          }
           setShowWarnDialog(false);
           setSelectedUser(null);
         }}

@@ -20,8 +20,16 @@ export function useAdminPosts(filters: PostsFilter = {}) {
   if (filters.privacy) queryParams.append("privacy", filters.privacy);
   if (filters.status) queryParams.append("status", filters.status);
   if (filters.authorId) queryParams.append("authorId", filters.authorId);
-  if (filters.skip) queryParams.append("skip", filters.skip.toString());
-  if (filters.take) queryParams.append("take", filters.take.toString());
+
+  // Convert skip/take to page/pageSize for backend compatibility
+  if (filters.skip !== undefined && filters.take) {
+    const page = Math.floor(filters.skip / filters.take) + 1;
+    queryParams.append("page", page.toString());
+    queryParams.append("pageSize", filters.take.toString());
+  } else if (filters.take) {
+    queryParams.append("page", "1");
+    queryParams.append("pageSize", filters.take.toString());
+  }
 
   return useQuery({
     queryKey: ["admin", "posts", filters],

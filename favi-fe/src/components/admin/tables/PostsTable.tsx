@@ -271,9 +271,10 @@ export default function PostsTable({
           header={header}
           emptyMessage={emptyMessage}
           selection={selection}
-          onSelectionChange={(e) => onSelectionChange(e.value)}
+          onSelectionChange={(e) => onSelectionChange(e.value as PostDto[])}
           selectionMode="multiple"
           dataKey="id"
+          lazy
           paginator
           rows={20}
           first={first}

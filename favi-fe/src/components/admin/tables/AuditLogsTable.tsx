@@ -8,7 +8,7 @@ import { Button } from "primereact/button";
 import { Tag } from "primereact/tag";
 import { Avatar } from "primereact/avatar";
 import { Skeleton } from "primereact/skeleton";
-import { AuditLogDto } from "@/hooks/queries/useAdminAudit";
+import { AuditLogDto } from "@/lib/api/admin";
 
 interface AuditLogsTableProps {
   auditLogs?: AuditLogDto[];
@@ -99,7 +99,7 @@ export default function AuditLogsTable({
           image={log.admin.avatar}
           icon={!log.admin.avatar ? "pi pi-user" : undefined}
           shape="circle"
-          size="small"
+          size="normal"
         />
         <div>
           <p className="text-sm text-gray-900 dark:text-white">@{log.admin.username}</p>
@@ -218,6 +218,7 @@ export default function AuditLogsTable({
         header={header}
         emptyMessage={emptyMessage}
         dataKey="id"
+        lazy
         paginator
         rows={20}
         first={first}
