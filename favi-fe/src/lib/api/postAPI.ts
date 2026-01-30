@@ -127,6 +127,11 @@ export const postAPI = {
       await fetchWrapper.get<any>(`/Posts/tag/${tagId}?page=${page}&pageSize=${pageSize}`)
     ),
 
+  getRelated: async (postId: string, page = 1, pageSize = 20) =>
+    camelize<PagedResult<PostResponse>>(
+      await fetchWrapper.get<any>(`/Posts/${postId}/related?page=${page}&pageSize=${pageSize}`)
+    ),
+
   // Mutations
   create: (formData: FormData) =>
   fetchWrapper.post<PostResponse>("/posts", formData, true),

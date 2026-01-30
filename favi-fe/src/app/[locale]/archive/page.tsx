@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "@/i18n/routing";
 import postAPI from "@/lib/api/postAPI";
@@ -27,6 +27,15 @@ export default function ArchivePage() {
   const [selectedStories, setSelectedStories] = useState<StoryResponse[]>([]);
   const [viewerLoading, setViewerLoading] = useState(false);
   const [nsfwConfirmedStories, setNsfwConfirmedStories] = useState<Set<string>>(new Set());
+
+  // Memoize callbacks to prevent unnecessary re-renders
+  const onViewerReady = useCallback(() => {
+    setViewerLoading(false);
+  }, []);
+
+  const onNSFWConfirm = useCallback((storyId: string) => {
+    setNsfwConfirmedStories(prev => new Set(prev).add(storyId));
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -345,12 +354,8 @@ export default function ArchivePage() {
         }}
         initialProfileId={selectedProfileId}
         archivedStories={selectedStories}
-        onViewerReady={() => {
-          setViewerLoading(false);
-        }}
-        onNSFWConfirm={(storyId) => {
-          setNsfwConfirmedStories(prev => new Set(prev).add(storyId));
-        }}
+        onViewerReady={onViewerReady}
+        onNSFWConfirm={onNSFWConfirm}
         isNSFWConfirmed={(storyId) => nsfwConfirmedStories.has(storyId)}
       />
     </div>

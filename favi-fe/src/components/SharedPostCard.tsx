@@ -1,4 +1,5 @@
 import { useRouter } from "@/i18n/routing";
+import { useState } from "react";
 import type { RepostResponse } from "@/types";
 
 interface SharedPostCardProps {
@@ -9,6 +10,13 @@ interface SharedPostCardProps {
 
 export default function SharedPostCard({ repost, onNavigateToOriginal, onProfileClick }: SharedPostCardProps) {
   const router = useRouter();
+  const [showNSFW, setShowNSFW] = useState(false);
+  const isNSFW = repost.isNSFW === true;
+
+  const handleShowNSFW = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowNSFW(true);
+  };
 
   return (
     <div className="space-y-0 mb-0 max-w-3xl">
@@ -87,14 +95,27 @@ export default function SharedPostCard({ repost, onNavigateToOriginal, onProfile
         {/* Original Post Media */}
         {repost.originalPostMedias && repost.originalPostMedias.length > 0 && (
           <div className={`grid gap-1 ${repost.originalPostMedias.length === 1 ? 'grid-cols-1' : repost.originalPostMedias.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`} style={{ maxHeight: '400px', overflow: 'hidden' }}>
-            {repost.originalPostMedias.map((media) => (
+            {repost.originalPostMedias.map((media, index) => (
               <div key={media.id} className="relative" style={{ height: '300px' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={media.url}
                   alt="Post media"
-                  className="w-full h-full object-cover"
+                  className={`w-full h-full object-cover cursor-zoom-in ${isNSFW && !showNSFW ? 'blur-3xl scale-110' : ''}`}
+                  loading="lazy"
                 />
+                {/* NSFW overlay */}
+                {isNSFW && !showNSFW && index === 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                    <button
+                      onClick={handleShowNSFW}
+                      className="px-4 py-2 bg-black/70 hover:bg-black/80 text-white text-sm rounded-lg backdrop-blur-sm transition-colors"
+                    >
+                      <i className="pi pi-eye mr-2" />
+                      Show NSFW content
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

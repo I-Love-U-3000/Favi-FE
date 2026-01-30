@@ -17,6 +17,7 @@ import ReportDialog from "@/components/ReportDialog";
 import PostMenuDialog from "@/components/PostMenuDialog";
 import PostReactorsDialog from "@/components/PostReactorsDialog";
 import CommentReactorsDialog from "@/components/CommentReactorsDialog";
+import RelatedPosts from "@/components/RelatedPosts";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -440,6 +441,11 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
             <CommentsPanel postId={post.id} onCountChange={setCommentCount} highlightCommentId={highlightCommentId} height={postDetailHeight} />
           </aside>
         </div>
+
+        {/* Related Posts Section */}
+        <section className="lg:col-span-2 mt-8">
+          <RelatedPosts postId={post.id} />
+        </section>
       </main>
 
       {/* Image Viewer Overlay */}

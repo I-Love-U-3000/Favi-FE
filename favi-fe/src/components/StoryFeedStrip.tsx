@@ -25,6 +25,7 @@ export default function StoryFeedStrip() {
   const [error, setError] = useState<string | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>();
+  const [selectedStoryFeed, setSelectedStoryFeed] = useState<StoryFeedResponse | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -142,8 +143,22 @@ export default function StoryFeedStrip() {
               key={story.profileId}
               story={story}
               onClick={() => {
-                setSelectedProfileId(story.profileId);
-                setViewerOpen(true);
+                // Find the story feed for this profile
+                const feed = storyFeeds.find(f => f.profileId === story.profileId);
+                console.log("Story clicked:", {
+                  profileId: story.profileId,
+                  username: story.username,
+                  storiesCount: story.stories.length,
+                  foundFeed: !!feed,
+                  feedStoriesCount: feed?.stories.length || 0
+                });
+                if (feed && feed.stories.length > 0) {
+                  setSelectedProfileId(story.profileId);
+                  setSelectedStoryFeed(feed);
+                  setViewerOpen(true);
+                } else {
+                  console.error("No feed found for profile:", story.profileId);
+                }
               }}
             />
           ))}
@@ -152,8 +167,13 @@ export default function StoryFeedStrip() {
 
       <StoryViewerDialog
         visible={viewerOpen}
-        onHide={() => setViewerOpen(false)}
+        onHide={() => {
+          setViewerOpen(false);
+          // Don't reset the selected values immediately to prevent re-renders
+          // They will be reset when the dialog opens again
+        }}
         initialProfileId={selectedProfileId}
+        initialStoryFeed={selectedStoryFeed}
       />
     </>
   );
