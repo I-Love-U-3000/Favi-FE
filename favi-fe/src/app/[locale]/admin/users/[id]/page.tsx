@@ -89,8 +89,8 @@ export default function UserDetailPage({
     });
   };
 
-  const handleBan = (reason?: string) => {
-    banUser.mutate({ userId, reason });
+  const handleBan = (reason?: string, durationDays?: number | null) => {
+    banUser.mutate({ userId, reason, durationDays: durationDays ?? undefined });
     setShowBanDialog(false);
   };
 

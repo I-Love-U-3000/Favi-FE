@@ -8,24 +8,10 @@ import useProfile from "@/lib/hooks/useProfile";
 import { useOverlay } from "@/components/RootProvider";
 import { useSignalRContext } from "@/lib/contexts/SignalRContext";
 import { Menu } from "primereact/menu";
-
-type Item = { label: string; href: string; icon: string };
-
-const NAV: Item[] = [
-  { label: "Home", href: "/home", icon: "pi pi-home" },
-  { label: "Explore", href: "/search", icon: "pi pi-search" },
-  { label: "Chat", href: "/chat", icon: "pi pi-comments" },
-  { label: "Notifications", href: "/notifications", icon: "pi pi-bell" },
-  { label: "Profile", href: "/profile/u_001", icon: "pi pi-user" },
-  { label: "Friends", href: "/friends", icon: "pi pi-users" },
-  { label: "Settings", href: "/settings", icon: "pi pi-cog" },
-];
-
-const ADMIN_NAV: Item[] = [
-  { label: "Admin Panel", href: "/admin/dashboard", icon: "pi pi-shield" },
-];
+import { useTranslations } from "next-intl";
 
 export default function Navbar() {
+  const t = useTranslations("Navbar");
   const pathname = usePathname();
   const { isAuthenticated, isAdmin, user, logout } = useAuth();
   const me = useProfile(user?.id);
@@ -43,23 +29,37 @@ export default function Navbar() {
   const menuRef = useRef<Menu>(null);
 
   const navItems = useMemo(() => {
+    const NAV = [
+      { label: t("Home"), href: "/home", icon: "pi pi-home" },
+      { label: t("Search"), href: "/search", icon: "pi pi-search" },
+      { label: t("Messages"), href: "/chat", icon: "pi pi-comments" },
+      { label: t("Notifications"), href: "/notifications", icon: "pi pi-bell" },
+      { label: t("Profile"), href: "/profile/u_001", icon: "pi pi-user" },
+      { label: "Friends", href: "/friends", icon: "pi pi-users" },
+      { label: t("Settings"), href: "/settings", icon: "pi pi-cog" },
+    ];
+
+    const ADMIN_NAV = [
+      { label: "Admin Panel", href: "/admin", icon: "pi pi-shield" },
+    ];
+
     if (isAuthenticated) {
       if (isAdmin) return [...ADMIN_NAV, ...NAV];
       return NAV;
     }
     return [
-      { label: "Home", href: "/home", icon: "pi pi-home" },
-      { label: "Explore", href: "/search", icon: "pi pi-search" },
-      { label: "Đăng nhập", href: "/login", icon: "pi pi-sign-in" },
-      { label: "Đăng ký", href: "/register", icon: "pi pi-user-plus" },
+      { label: t("Home"), href: "/home", icon: "pi pi-home" },
+      { label: t("Search"), href: "/search", icon: "pi pi-search" },
+      { label: t("Login"), href: "/login", icon: "pi pi-sign-in" },
+      { label: t("Register"), href: "/register", icon: "pi pi-user-plus" },
     ];
-  }, [isAuthenticated, isAdmin]);
+  }, [isAuthenticated, isAdmin, t]);
 
-  const createMenuItems = [
+  const createMenuItems = useMemo(() => [
     { label: "New Post", icon: "pi pi-image", command: () => openPostComposer() },
     { label: "New Collection", icon: "pi pi-folder", command: () => openCollectionComposer() },
     { label: "New Story", icon: "pi pi-circle-on", command: () => openStoryComposer() },
-  ];
+  ], [openPostComposer, openCollectionComposer, openStoryComposer]);
 
   const handleCreateClick = (event: React.MouseEvent) => {
     menuRef.current?.toggle(event);
@@ -145,11 +145,11 @@ export default function Navbar() {
               const active = pathname?.startsWith(item.href);
 
               const href =
-                item.label === "Profile" && isAuthenticated && (user as any)?.id
+                item.label === t("Profile") && isAuthenticated && (user as any)?.id
                   ? `/profile/${(user as any).id}`
                   : item.href;
 
-              if (item.label === "Notifications" && isAuthenticated) {
+              if (item.label === t("Notifications") && isAuthenticated) {
                 return (
                   <button
                     key={href}
@@ -190,7 +190,7 @@ export default function Navbar() {
                 style={{ color: "var(--text)" }}
               >
                 <i className="pi pi-plus-circle text-lg opacity-90" />
-                <span className="text-sm font-semibold">Create</span>
+                <span className="text-sm font-semibold">{t("Create")}</span>
               </button>
             )}
           </nav>
@@ -224,7 +224,7 @@ export default function Navbar() {
                   style={{ color: "var(--text)" }}
                   onClick={logout}
                 >
-                  Logout
+                  {t("Logout")}
                 </button>
               </div>
             ) : (

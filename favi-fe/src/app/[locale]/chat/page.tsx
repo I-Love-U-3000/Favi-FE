@@ -350,7 +350,7 @@ export default function ChatPage() {
 
     // Custom logger to filter out cleanup errors
     const customLogger = signalR.LogLevel.Information;
-    
+
     // Build connection
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(`${process.env.NEXT_PUBLIC_HUB_URL}/chatHub`, {
@@ -365,9 +365,9 @@ export default function ChatPage() {
       .configureLogging({
         log: (logLevel, message) => {
           // Filter out expected cleanup errors to reduce console noise
-          if (message.includes('stopped during negotiation') || 
-              message.includes('Failed to start the connection') ||
-              message.includes('connection was stopped')) {
+          if (message.includes('stopped during negotiation') ||
+            message.includes('Failed to start the connection') ||
+            message.includes('connection was stopped')) {
             return; // Don't log these expected errors
           }
           console.log(`[SignalR ${signalR.LogLevel[logLevel]}]`, message);
@@ -642,7 +642,7 @@ export default function ChatPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <span className="text-sm opacity-70">
-          Bạn cần đăng nhập để dùng chat.
+          {t("LoginRequired")}
         </span>
       </div>
     );
@@ -676,7 +676,7 @@ export default function ChatPage() {
                 </div>
                 <input
                   type="text"
-                  placeholder="Search conversations..."
+                  placeholder={t("SearchConversations")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm transition-all duration-200"
@@ -711,16 +711,16 @@ export default function ChatPage() {
             </div>
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               <ChatList
-              userId={currentUserId}
-              onClose={() => {}}
-              onSelect={(conversationKey: string) => {
-                const conv = conversations.find((c) => c.key === conversationKey);
-                if (conv) {
-                  handleConversationSelect(conv.id);
-                }
-              }}
-              conversations={uiConversations}
-            />
+                userId={currentUserId}
+                onClose={() => { }}
+                onSelect={(conversationKey: string) => {
+                  const conv = conversations.find((c) => c.key === conversationKey);
+                  if (conv) {
+                    handleConversationSelect(conv.id);
+                  }
+                }}
+                conversations={uiConversations}
+              />
             </div>
           </aside>
 
@@ -730,7 +730,7 @@ export default function ChatPage() {
               <>
                 <ChatHeader
                   recipient={selectedConversation.recipient}
-                  onBack={() => {}}
+                  onBack={() => { }}
                   onInfoClick={() => setMediaGalleryOpen(true)}
                   onVoiceCall={() => handleStartCall("audio")}
                   onVideoCall={() => handleStartCall("video")}
@@ -748,7 +748,7 @@ export default function ChatPage() {
                 </div>
                 <MessageInput
                   onSend={handleSendMessage}
-                  onSendImage={() => {}}
+                  onSendImage={() => { }}
                   onSendSticker={handleSendSticker}
                 />
               </>

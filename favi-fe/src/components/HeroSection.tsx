@@ -5,10 +5,13 @@ import { Hepta_Slab } from "next/font/google";
 import { Button } from "primereact/button";
 import { useEffect } from "react";
 import { gsap } from "gsap";
+import { useTranslations } from "next-intl";
 
 const heptaSlab = Hepta_Slab({ weight: "400", subsets: ["latin"] });
 
 export default function HeroSection() {
+  const t = useTranslations("LandingPage");
+
   useEffect(() => {
     gsap.from(".hero-bg", { opacity: 0, scale: 0.8, duration: 1.5, ease: "power2.out" });
     gsap.from(".hero-img", { opacity: 0, y: 100, duration: 1.2, delay: 0.5, ease: "power2.out" });
@@ -49,7 +52,7 @@ export default function HeroSection() {
         className={`text-center w-200 h-12 self-center border-4 border-black bg-[#F24E1E] hover:bg-[#d13f0f] z-20 ${heptaSlab.className} text-white text-[30px] hero-btn`}
         onClick={handleCtaClick}
       >
-        Which is your mood today? Explore now!
+        {t("HeroSubtitle")} - {t("GetStarted")}!
       </button>
     </section>
   );

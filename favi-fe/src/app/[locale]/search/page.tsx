@@ -16,7 +16,7 @@ import { useAuth } from "@/components/AuthProvider";
 /* ==================== Types & Utils ==================== */
 type Mode = "keyword" | "semantic" | "tag";
 
-function ResultCard({ post }: { post: PostResponse }) {
+function ResultCard({ post, t }: { post: PostResponse; t: (key: string) => string }) {
   const medias = post.medias || [];
 
   return (
@@ -36,18 +36,18 @@ function ResultCard({ post }: { post: PostResponse }) {
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 dark:text-neutral-600">
             <i className="pi pi-image text-4xl mb-2" />
-            <span className="text-xs">No image</span>
+            <span className="text-xs">{t("NoImage")}</span>
           </div>
         )}
       </div>
       <div className="absolute inset-x-0 bottom-0 p-3 text-xs bg-gradient-to-t from-black/60 to-transparent text-white">
-        <p className="line-clamp-2 text-sm">{post.caption || "No caption"}</p>
+        <p className="line-clamp-2 text-sm">{post.caption || t("NoCaption")}</p>
       </div>
     </a>
   );
 }
 
-function ResultGrid({ items, loading, hasSearched }: { items: PostResponse[]; loading?: boolean; hasSearched?: boolean }) {
+function ResultGrid({ items, loading, hasSearched, t }: { items: PostResponse[]; loading?: boolean; hasSearched?: boolean; t: (key: string) => string }) {
   if (loading) {
     return (
       <div className="flex justify-center py-20">
@@ -61,7 +61,7 @@ function ResultGrid({ items, loading, hasSearched }: { items: PostResponse[]; lo
       <div className="grid place-items-center h-60 text-sm opacity-70">
         <div className="text-center">
           <i className="pi pi-search text-4xl mb-3 opacity-50" />
-          <p>Enter a search term and press Search or Enter</p>
+          <p>{t("EnterSearchTerm")}</p>
         </div>
       </div>
     );
@@ -72,7 +72,7 @@ function ResultGrid({ items, loading, hasSearched }: { items: PostResponse[]; lo
       <div className="grid place-items-center h-60 text-sm opacity-70">
         <div className="text-center">
           <i className="pi pi-inbox text-4xl mb-3 opacity-50" />
-          <p>No results found. Try a different search term.</p>
+          <p>{t("NoResults")}</p>
         </div>
       </div>
     );
@@ -81,7 +81,7 @@ function ResultGrid({ items, loading, hasSearched }: { items: PostResponse[]; lo
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-5">
       {items.map((post) => (
-        <ResultCard key={post.id} post={post} />
+        <ResultCard key={post.id} post={post} t={t} />
       ))}
     </div>
   );
@@ -423,7 +423,7 @@ export default function SearchPage() {
         <div className="mx-auto max-w-6xl px-6 py-4">
           <div className="flex items-center justify-between gap-3">
             <div className="text-xl font-semibold flex items-center gap-2">
-              <i className="pi pi-search" /> Search
+              <i className="pi pi-search" /> {t("Title")}
             </div>
           </div>
 
@@ -439,7 +439,7 @@ export default function SearchPage() {
               }}
             >
               <TabPanel
-                header={<span className="inline-flex items-center gap-2"><i className="pi pi-align-left" />Keyword</span>}
+                header={<span className="inline-flex items-center gap-2"><i className="pi pi-align-left" />{t("Keyword")}</span>}
               >
                 <div className="flex w-full items-center gap-2">
                   <span className="p-input-icon-left flex-1">
@@ -449,11 +449,11 @@ export default function SearchPage() {
                       onKeyPress={(e) => {
                         if (e.key === "Enter") handleSearch();
                       }}
-                      placeholder="Enter keywords..."
+                      placeholder={t("EnterKeywords")}
                       className="w-full"
                     />
                   </span>
-                  <Button label="Search" onClick={handleSearch} />
+                  <Button label={t("Search")} onClick={handleSearch} />
                 </div>
                 {/* Related tags */}
                 {mode === "keyword" && keywordTags.length > 0 && !keywordLoading && (
@@ -462,7 +462,7 @@ export default function SearchPage() {
               </TabPanel>
 
               <TabPanel
-                header={<span className="inline-flex items-center gap-2"><i className="pi pi-hashtag" />Tags</span>}
+                header={<span className="inline-flex items-center gap-2"><i className="pi pi-hashtag" />{t("Tags")}</span>}
               >
                 <div className="flex w-full items-center gap-2">
                   <span className="p-input-icon-left flex-1">
@@ -472,19 +472,19 @@ export default function SearchPage() {
                       onKeyPress={(e) => {
                         if (e.key === "Enter") handleSearch();
                       }}
-                      placeholder="Enter tag names..."
+                      placeholder={t("EnterTagNames")}
                       className="w-full"
                     />
                   </span>
-                  <Button label="Search" onClick={handleSearch} icon="pi pi-search" />
+                  <Button label={t("Search")} onClick={handleSearch} icon="pi pi-search" />
                 </div>
                 <p className="mt-2 text-xs opacity-60">
-                  Search posts by their tags. Enter tag names separated by spaces or commas.
+                  {t("TagSearchHint")}
                 </p>
               </TabPanel>
 
               <TabPanel
-                header={<span className="inline-flex items-center gap-2"><i className="pi pi-sparkles" />AI Search</span>}
+                header={<span className="inline-flex items-center gap-2"><i className="pi pi-sparkles" />{t("AISearch")}</span>}
               >
                 <div className="flex w-full items-center gap-2">
                   <span className="p-input-icon-left flex-1">
@@ -494,19 +494,19 @@ export default function SearchPage() {
                       onKeyPress={(e) => {
                         if (e.key === "Enter") handleSearch();
                       }}
-                      placeholder="Describe what you're looking for..."
+                      placeholder={t("DescribeSearch")}
                       className="w-full"
                     />
                   </span>
-                  <Button label="Search" onClick={handleSearch} icon="pi pi-magic" />
+                  <Button label={t("Search")} onClick={handleSearch} icon="pi pi-magic" />
                 </div>
                 <p className="mt-2 text-xs opacity-60">
-                  AI-powered semantic search using embeddings. Describe what you're looking for in natural language.
+                  {t("AISearchHint")}
                 </p>
                 {!isAuthenticated && (
                   <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
                     <i className="pi pi-lock mr-1" />
-                    Please sign in to use AI search
+                    {t("SignInForAI")}
                   </p>
                 )}
               </TabPanel>
@@ -528,13 +528,13 @@ export default function SearchPage() {
         )}
 
         {/* Results grid */}
-        <ResultGrid items={currentResults} loading={currentLoading && currentPage === 1} hasSearched={currentSearched} />
+        <ResultGrid items={currentResults} loading={currentLoading && currentPage === 1} hasSearched={currentSearched} t={t} />
 
         {/* Load more button */}
         {!currentLoading && currentHasMore && currentResults.length > 0 && (
           <div className="flex justify-center mt-8">
             <Button
-              label="Load More"
+              label={t("LoadMore")}
               icon="pi pi-chevron-down"
               onClick={loadMore}
               className="p-button-outlined"
@@ -551,7 +551,7 @@ export default function SearchPage() {
 
         {/* No more results message */}
         {!currentHasMore && currentResults.length > 0 && (
-          <div className="text-center mt-8 text-sm opacity-50">No more results</div>
+          <div className="text-center mt-8 text-sm opacity-50">{t("NoMoreResults")}</div>
         )}
       </div>
     </div>

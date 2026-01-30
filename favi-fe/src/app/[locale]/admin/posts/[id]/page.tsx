@@ -3,6 +3,7 @@
 import { use, useState } from "react";
 import { Link } from "@/i18n/routing";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { Avatar } from "primereact/avatar";
 import { Button } from "primereact/button";
 import { Tag } from "primereact/tag";
@@ -15,6 +16,7 @@ import { confirmDialog, ConfirmDialog } from "primereact/confirmdialog";
 import { useOverlay } from "@/components/RootProvider";
 import { usePost, useDeletePost } from "@/hooks/queries/useAdminPosts";
 import { PostDto } from "@/lib/api/admin";
+import { profileAPI } from "@/lib/api/profileAPI";
 import DeleteContentDialog from "@/components/admin/modals/DeleteContentDialog";
 
 const PRIVACY_COLORS: Record<string, "success" | "info" | "warning" | undefined> = {
@@ -37,6 +39,13 @@ export default function PostDetailPage({
 
   const { data: post, isLoading: postLoading } = usePost(postId);
   const deletePost = useDeletePost();
+
+  // Fetch author profile to get username
+  const { data: authorProfile } = useQuery({
+    queryKey: ["profile", post?.authorProfileId],
+    queryFn: () => profileAPI.getById(post!.authorProfileId),
+    enabled: !!post?.authorProfileId,
+  });
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -153,20 +162,29 @@ export default function PostDetailPage({
         <div className="lg:col-span-2">
           <Card className="shadow-sm border border-gray-100 dark:border-gray-800" title="Media">
             <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden">
-              {!post.mediaUrl ? (
-                <div className="text-center text-gray-400">
-                  <i className="pi pi-image text-6xl mb-2" />
-                  <p>No media available</p>
-                </div>
-              ) : (() => {
-                // Determine if media is video based on mediaType or file extension
+              {(() => {
+                // Check for media in medias array first, then fallback to mediaUrl
+                const firstMedia = post.medias?.[0];
+                const mediaUrl = firstMedia?.url || post.mediaUrl;
+
+                if (!mediaUrl) {
+                  return (
+                    <div className="text-center text-gray-400">
+                      <i className="pi pi-image text-6xl mb-2" />
+                      <p>No media available</p>
+                    </div>
+                  );
+                }
+
+                // Determine if media is video based on mediaType, format, or file extension
                 const isVideo = post.mediaType === "video" ||
-                  post.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i);
+                  firstMedia?.format?.startsWith('video') ||
+                  mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i);
 
                 if (isVideo) {
                   return (
                     <video
-                      src={post.mediaUrl}
+                      src={mediaUrl}
                       controls
                       className="max-w-full max-h-full"
                     />
@@ -176,11 +194,11 @@ export default function PostDetailPage({
                 // Default to image
                 return (
                   <img
-                    src={post.mediaUrl}
+                    src={mediaUrl}
                     alt="Post media"
                     className="max-w-full max-h-full object-contain"
                     onError={(e) => {
-                      console.error('Failed to load image:', post.mediaUrl);
+                      console.error('Failed to load image:', mediaUrl);
                       e.currentTarget.style.display = 'none';
                     }}
                   />
@@ -206,14 +224,14 @@ export default function PostDetailPage({
               onClick={() => router.push(`/admin/users/${post.authorProfileId || post.author?.id}`)}
             >
               <Avatar
-                image={post.authorAvatar || post.author?.avatar}
-                icon={!(post.authorAvatar || post.author?.avatar) ? "pi pi-user" : undefined}
+                image={authorProfile?.avatarUrl || post.authorAvatarUrl || post.authorAvatar || post.author?.avatar}
+                icon={!(authorProfile?.avatarUrl || post.authorAvatarUrl || post.authorAvatar || post.author?.avatar) ? "pi pi-user" : undefined}
                 shape="circle"
                 size="large"
               />
               <div>
                 <p className="font-medium text-gray-900 dark:text-white">
-                  @{post.authorUsername || post.author?.username}
+                  @{authorProfile?.username || post.authorUsername || post.author?.username}
                 </p>
                 <p className="text-sm text-gray-500">View profile</p>
               </div>

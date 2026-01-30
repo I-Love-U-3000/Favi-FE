@@ -1,6 +1,7 @@
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { useState, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 interface MessageInputProps {
   onSend: (text: string, mediaUrl?: string) => void;
@@ -19,6 +20,8 @@ const EMOJI_STICKERS = [
 ];
 
 export default function MessageInput({ onSend, onSendImage, onSendSticker }: MessageInputProps) {
+  const t = useTranslations("MessageInput");
+  const tStickers = useTranslations("Stickers");
   const [message, setMessage] = useState<string>("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -240,7 +243,7 @@ export default function MessageInput({ onSend, onSendImage, onSendSticker }: Mes
               >
                 <div className="mb-3 pb-2" style={{ borderBottom: "1px solid var(--border)" }}>
                   <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-                    Stickers
+                    {tStickers("Title")}
                   </p>
                 </div>
                 <div className="grid grid-cols-8 gap-2">
@@ -265,7 +268,7 @@ export default function MessageInput({ onSend, onSendImage, onSendSticker }: Mes
           <InputText
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type a message..."
+            placeholder={t("Placeholder")}
             className="w-full py-3 px-4 rounded-xl"
             style={{
               backgroundColor: "var(--bg-primary)",

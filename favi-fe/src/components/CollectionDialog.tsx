@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Dialog } from "primereact/dialog";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
 import { RadioButton } from "primereact/radiobutton";
+import { useTranslations } from "next-intl";
 
 import collectionAPI from "@/lib/api/collectionAPI";
 import { useAuth } from "@/components/AuthProvider";
@@ -77,9 +78,9 @@ interface CollectionDialogProps {
 }
 
 const PRIVACY_OPTIONS = [
-  { value: PrivacyLevel.Public, label: "Public", description: "Anyone can view" },
-  { value: PrivacyLevel.Followers, label: "Followers", description: "Only followers can view" },
-  { value: PrivacyLevel.Private, label: "Private", description: "Only you can view" },
+  { value: PrivacyLevel.Public, labelKey: "Public", descriptionKey: "PublicDescription" },
+  { value: PrivacyLevel.Followers, labelKey: "Followers", descriptionKey: "FollowersDescription" },
+  { value: PrivacyLevel.Private, labelKey: "Private", descriptionKey: "PrivateDescription" },
 ];
 
 const DEFAULT_COVER_IMAGE = "https://via.placeholder.com/800x400/6366f1/ffffff?text=Collection+Cover";
@@ -91,6 +92,7 @@ export default function CollectionDialog({
   onSuccess,
 }: CollectionDialogProps) {
   const { user } = useAuth();
+  const t = useTranslations("CollectionDialog");
   const isEditMode = !!collection;
 
   const [title, setTitle] = useState("");
@@ -214,22 +216,22 @@ export default function CollectionDialog({
 
   return (
     <Dialog
-      header={isEditMode ? "Edit Collection" : "Create New Collection"}
+      header={isEditMode ? t("EditTitle") : t("CreateTitle")}
       visible={visible}
       onHide={handleHide}
       style={{ width: 640, maxWidth: "95vw" }}
       className="rounded-xl"
       footer={
         <div className="flex justify-end gap-2">
-          <Button label="Cancel" className="p-button-text" onClick={handleHide} disabled={loading} />
-          <Button label={loading ? "Saving..." : isEditMode ? "Update" : "Create"} onClick={save} disabled={loading || !title.trim()} />
+          <Button label={t("Cancel")} className="p-button-text" onClick={handleHide} disabled={loading} />
+          <Button label={loading ? t("Saving") : isEditMode ? t("Update") : t("Create")} onClick={save} disabled={loading || !title.trim()} />
         </div>
       }
     >
       <div className="space-y-4">
         {/* Cover Image Preview */}
         <div>
-          <div className="text-sm mb-2 font-semibold">Cover Image</div>
+          <div className="text-sm mb-2 font-semibold">{t("CoverImage")}</div>
           <div className="relative">
             <div
               className="w-full h-32 rounded-lg bg-cover bg-center flex items-center justify-center"
@@ -239,7 +241,7 @@ export default function CollectionDialog({
               }}
             >
               {coverImageUrl === DEFAULT_COVER_IMAGE && (
-                <span className="text-sm" style={{ color: "var(--text-secondary)" }}>No cover image</span>
+                <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("NoCoverImage")}</span>
               )}
             </div>
             {coverImageFile && (
@@ -257,9 +259,9 @@ export default function CollectionDialog({
 
         {/* File Upload */}
         <div>
-          <div className="text-sm mb-2 font-semibold">Upload Cover Image</div>
+          <div className="text-sm mb-2 font-semibold">{t("UploadCoverImage")}</div>
           <div className="flex gap-2">
-            <Button label="Choose File" icon="pi pi-image" onClick={pickFile} outlined />
+            <Button label={t("ChooseFile")} icon="pi pi-image" onClick={pickFile} outlined />
             {coverImageFile && (
               <span className="text-sm flex items-center" style={{ color: "var(--text-secondary)" }}>
                 {coverImageFile.name}
@@ -272,7 +274,7 @@ export default function CollectionDialog({
         {/* Title */}
         <div>
           <div className="text-sm mb-2 font-semibold">
-            Title <span className="text-red-500">*</span>
+            {t("Title")} <span className="text-red-500">*</span>
           </div>
           <InputText
             value={title}
@@ -288,7 +290,7 @@ export default function CollectionDialog({
 
         {/* Description */}
         <div>
-          <div className="text-sm mb-2 font-semibold">Description</div>
+          <div className="text-sm mb-2 font-semibold">{t("Description")}</div>
           <InputTextarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -304,7 +306,7 @@ export default function CollectionDialog({
 
         {/* Privacy Level */}
         <div>
-          <div className="text-sm mb-2 font-semibold">Privacy</div>
+          <div className="text-sm mb-2 font-semibold">{t("Privacy")}</div>
           <div className="grid grid-cols-1 gap-2">
             {PRIVACY_OPTIONS.map((opt) => (
               <button
@@ -328,9 +330,9 @@ export default function CollectionDialog({
                     onChange={() => setPrivacyLevel(opt.value)}
                   />
                   <div>
-                    <div className="font-semibold">{opt.label}</div>
+                    <div className="font-semibold">{t(opt.labelKey)}</div>
                     <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                      {opt.description}
+                      {t(opt.descriptionKey)}
                     </div>
                   </div>
                 </div>

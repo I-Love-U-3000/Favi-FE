@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "@/i18n/routing";
 import { Button } from "primereact/button";
 import { useSignalRContext } from "@/lib/contexts/SignalRContext";
 import { NotificationType } from "@/types";
+import { useTranslations } from "next-intl";
 
 type FilterType = NotificationType | "all";
 
 export default function NotificationsPage() {
+  const t = useTranslations("NotificationsPage");
   const router = useRouter();
   const { notifications, fetchNotifications, markAsRead, markAllAsRead } = useSignalRContext();
   const [filter, setFilter] = useState<FilterType>("all");
@@ -17,6 +19,7 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     loadMoreNotifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadMoreNotifications = async () => {
@@ -29,6 +32,13 @@ export default function NotificationsPage() {
   const filtered = notifications.filter((n) =>
     filter === "all" ? true : n.type === filter
   );
+
+  const filterLabels: Record<FilterType, string> = useMemo(() => ({
+    all: t("All"),
+    [NotificationType.Like]: t("Likes"),
+    [NotificationType.Comment]: t("Comments"),
+    [NotificationType.Follow]: t("Follows"),
+  }), [t]);
 
   function open(notification: any) {
     markAsRead(notification.id);
@@ -46,26 +56,26 @@ export default function NotificationsPage() {
   return (
     <div className="max-w-3xl mx-auto p-6" style={{ color: "var(--text)" }}>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold">Notifications</h1>
-        <Button label="Mark all read" className="p-button-text" onClick={markAllAsRead} />
+        <h1 className="text-2xl font-semibold">{t("Title")}</h1>
+        <Button label={t("MarkAllRead")} className="p-button-text" onClick={markAllAsRead} />
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
-        {(["all", NotificationType.Like, NotificationType.Comment, NotificationType.Follow] as FilterType[]).map((t) => (
+        {(["all", NotificationType.Like, NotificationType.Comment, NotificationType.Follow] as FilterType[]).map((filterType) => (
           <button
-            key={t}
-            onClick={() => setFilter(t)}
-            className={`px-3 py-1.5 text-xs rounded-full ${filter === t ? "bg-black/10" : "bg-black/5"}`}
+            key={filterType}
+            onClick={() => setFilter(filterType)}
+            className={`px-3 py-1.5 text-xs rounded-full ${filter === filterType ? "bg-black/10" : "bg-black/5"}`}
             style={{ border: "1px solid var(--border)" }}
           >
-            {t}
+            {filterLabels[filterType]}
           </button>
         ))}
       </div>
 
       <div className="space-y-2">
         {filtered.length === 0 ? (
-          <div className="text-center py-8 opacity-70">No notifications</div>
+          <div className="text-center py-8 opacity-70">{t("NoNotifications")}</div>
         ) : (
           filtered.map((n) => (
             <button
@@ -109,7 +119,7 @@ export default function NotificationsPage() {
             }}
             className="w-full py-3 text-center text-sm text-blue-500 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl"
           >
-            Load more
+            {t("LoadMore")}
           </button>
         )}
       </div>

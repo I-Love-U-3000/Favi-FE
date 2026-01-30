@@ -125,10 +125,12 @@ export interface PostDto {
   mediaUrl?: string; // legacy field
   mediaType?: "image" | "video";
   medias?: MediaDto[]; // backend trả về array
+  thumbnailUrl?: string; // từ backend mới
   authorProfileId: string;
   authorUsername: string;
   authorDisplayName?: string;
   authorAvatar?: string;
+  authorAvatarUrl?: string; // từ backend mới
   // author is kept for compatibility if needed, but analytics returns top level fields
   author?: {
     id: string;

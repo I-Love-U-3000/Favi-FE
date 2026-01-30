@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import ProfileHoverCard from "./ProfileHoverCard";
 import profileAPI from "@/lib/api/profileAPI";
 import type { ProfileResponse } from "@/types";
@@ -9,6 +10,7 @@ import type { ProfileResponse } from "@/types";
 const DEFAULT_AVATAR = "/avatar-default.svg";
 
 export default function OnlineFriends() {
+  const t = useTranslations("OnlineFriends");
   const [friends, setFriends] = useState<ProfileResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +78,7 @@ export default function OnlineFriends() {
           }}
         />
         <div className="relative text-sm font-semibold pb-3 mb-3 border-b border-white/10 dark:border-white/5" style={{ color: "var(--text)" }}>
-          Online Friends
+          {t("Title")}
         </div>
         <div className="relative space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -108,7 +110,7 @@ export default function OnlineFriends() {
       />
       <div className="relative flex items-center justify-between py-3 border-b border-white/10 dark:border-white/5">
         <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-          Online Friends
+          {t("Title")}
         </div>
         <div className="flex items-center gap-1.5">
           <span className="relative flex h-2.5 w-2.5">
@@ -126,7 +128,7 @@ export default function OnlineFriends() {
           <div className="text-center py-8">
             <i className="pi pi-user-minus text-3xl mb-3" style={{ color: "var(--text-secondary)" }} />
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              No friends online
+              {t("NoFriendsOnline")}
             </p>
           </div>
         ) : (

@@ -25,7 +25,7 @@ export default function StoryFeedStrip() {
   const [error, setError] = useState<string | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>();
-  const [selectedStoryFeed, setSelectedStoryFeed] = useState<StoryFeedResponse | null>(null);
+  const [selectedStoryFeed, setSelectedStoryFeed] = useState<StoryFeedResponse | undefined>(undefined);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -174,6 +174,20 @@ export default function StoryFeedStrip() {
         }}
         initialProfileId={selectedProfileId}
         initialStoryFeed={selectedStoryFeed}
+        onStoriesViewed={() => {
+          // Refresh stories to update hasViewed state
+          storyAPI.getFeed().then((feed) => {
+            const storyItems: StoryItem[] = feed.map((item) => ({
+              profileId: item.profileId,
+              username: item.profileUsername,
+              avatarUrl: item.profileAvatarUrl,
+              stories: item.stories,
+              hasViewed: item.stories.every((s) => s.hasViewed),
+            }));
+            setStories(storyItems);
+            setStoryFeeds(feed);
+          }).catch(console.error);
+        }}
       />
     </>
   );
@@ -196,11 +210,10 @@ function StoryItem({
       title={`${displayName} (${story.stories.length} ${story.stories.length === 1 ? "story" : "stories"})`}
     >
       <div
-        className={`relative p-[2px] rounded-full ${
-          story.hasViewed
-            ? "bg-gray-300 dark:bg-neutral-600"
-            : "bg-gradient-to-tr from-sky-400 via-violet-400 to-amber-400"
-        }`}
+        className={`relative p-[2px] rounded-full ${story.hasViewed
+          ? "bg-gray-300 dark:bg-neutral-600"
+          : "bg-gradient-to-tr from-sky-400 via-violet-400 to-amber-400"
+          }`}
       >
         <div className="bg-white dark:bg-gray-900 rounded-full p-[2px]">
           {/* eslint-disable-next-line @next/next/no-img-element */}

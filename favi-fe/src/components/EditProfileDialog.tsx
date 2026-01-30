@@ -5,6 +5,7 @@ import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
 import { Button } from "primereact/button";
+import { useTranslations } from "next-intl";
 import AvatarCircle from "./AvatarCircle";
 
 export type EditableSocialLink = {
@@ -37,6 +38,7 @@ export default function EditProfileDialog({
   onSave: (p: EditableProfile, files: { avatar?: File | null; cover?: File | null }) => void;
   saving?: boolean;
 }) {
+  const t = useTranslations("EditProfileDialog");
   const [draft, setDraft] = useState<EditableProfile>(profile);
   const avatarInput = useRef<HTMLInputElement>(null);
   const coverInput = useRef<HTMLInputElement>(null);
@@ -103,16 +105,16 @@ export default function EditProfileDialog({
 
   return (
     <Dialog
-      header="Edit profile"
+      header={t("Title")}
       visible={open}
       onHide={onClose}
       style={{ width: 720, maxWidth: '95vw' }}
       className="rounded-xl"
       footer={
         <div className="flex justify-end gap-2">
-          <Button label="Cancel" className="p-button-text" onClick={onClose} />
+          <Button label={t("Cancel")} className="p-button-text" onClick={onClose} />
           <Button
-            label={saving ? "Saving..." : "Save"}
+            label={saving ? t("Saving") : t("Save")}
             disabled={saving}
             onClick={() => onSave(draft, { avatar: avatarFile, cover: coverFile })}
           />
@@ -156,19 +158,19 @@ export default function EditProfileDialog({
           </div>
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <div className="text-sm mb-1">Display name</div>
+              <div className="text-sm mb-1">{t("DisplayName")}</div>
               <InputText value={draft.displayName} onChange={(e) => setDraft({ ...draft, displayName: e.target.value })} className="w-full" />
             </div>
             <div>
-              <div className="text-sm mb-1">Username</div>
+              <div className="text-sm mb-1">{t("Username")}</div>
               <InputText value={draft.username} disabled className="w-full opacity-70" />
             </div>
             <div className="md:col-span-2">
-              <div className="text-sm mb-1">Bio</div>
+              <div className="text-sm mb-1">{t("Bio")}</div>
               <InputTextarea rows={3} value={draft.bio ?? ''} onChange={(e) => setDraft({ ...draft, bio: e.target.value })} className="w-full" />
             </div>
             <div>
-              <div className="text-sm mb-1">Website</div>
+              <div className="text-sm mb-1">{t("Website")}</div>
               <InputText value={draft.website ?? ''} onChange={(e) => setDraft({ ...draft, website: e.target.value })} className="w-full" />
             </div>
             <div>
@@ -227,4 +229,3 @@ export default function EditProfileDialog({
     </Dialog>
   );
 }
-

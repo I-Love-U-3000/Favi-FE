@@ -5,11 +5,9 @@
     "UpdateProfileSuccessTitle": "Cập nhật hồ sơ",
     "UpdateProfileSuccessMessage": "Hồ sơ của bạn đã được cập nhật thành công."
   },
-
   "LoginPage": {
     "Slogan": "Bắt lấy cảm xúc"
   },
-
   "RegisterPage": {
     "Slogan": "Bắt lấy cảm xúc",
     "Welcome": "Chào mừng",
@@ -40,7 +38,6 @@
     "UsernameInvalidChars": "Username chỉ được chứa chữ, số, dấu gạch dưới hoặc dấu chấm.",
     "UsernameNoVietnamese": "Username không được chứa dấu tiếng Việt."
   },
-
   "HomePage": {
     "LoginRequired": "Vui lòng đăng nhập để xem bảng feed của bạn.",
     "LoadFeedFailed": "Không thể tải bảng feed.",
@@ -69,7 +66,6 @@
     "ReactIconAlt": "biểu tượng cảm xúc",
     "ViewReactors": "Xem cảm xúc"
   },
-
   "Reactions": {
     "Like": "Thích",
     "Love": "Yêu thích",
@@ -80,14 +76,12 @@
     "NoReactionsYet": "Chưa có cảm xúc nào",
     "Reactions": "Cảm xúc"
   },
-
   "Common": {
     "ChangeTheme": "Đổi giao diện",
     "ChooseTheme": "Chọn giao diện",
     "ChangeLanguage": "Đổi ngôn ngữ",
     "ChooseLanguage": "Chọn ngôn ngữ"
   },
-
   "FriendsPage": {
     "Title": "Đề xuất cho bạn",
     "SuggestionsTitle": "Đề xuất cho bạn",
@@ -98,14 +92,20 @@
     "EmptySuggestions": "Không có đề xuất",
     "LoginRequired": "Vui lòng đăng nhập"
   },
-  
   "ChatPage": {
+    "PickAChat": "Chọn một đoạn chat để bắt đầu nhắn tin.",
     "Chats": "Đoạn Chat",
     "NoConversation": "Không có đoạn chat",
-    "PickAChat": "Chọn một đoạn chat",
-    "TalkingTo": "Đang trò chuyện với"
+    "TalkingTo": "Đang trò chuyện với",
+    "TypeMessage": "Nhập tin nhắn...",
+    "Send": "Gửi",
+    "Online": "Trực tuyến",
+    "Offline": "Ngoại tuyến",
+    "LastSeen": "Lần cuối hoạt động",
+    "StartChat": "Bắt đầu trò chuyện",
+    "SearchConversations": "Tìm đoạn chat...",
+    "LoginRequired": "Vui lòng đăng nhập để sử dụng chat."
   },
-
   "RecycleBinPage": {
     "Title": "Thùng rác",
     "Loading": "Đang tải bài viết đã xoá...",
@@ -119,7 +119,6 @@
     "CancelAction": "Hủy",
     "DeletedAt": "Đã xoá vào"
   },
-
   "ArchivePage": {
     "Title": "Bài viết đã lưu trữ",
     "Loading": "Đang tải bài viết lưu trữ...",
@@ -133,7 +132,6 @@
     "CancelAction": "Hủy",
     "ArchivedAt": "Đã lưu trữ vào"
   },
-
   "PostActions": {
     "Archive": "Lưu trữ",
     "Unarchive": "Bỏ lưu trữ",
@@ -142,7 +140,6 @@
     "UnarchiveSuccess": "Đã bỏ lưu trữ bài viết.",
     "UnarchiveFailed": "Không thể bỏ lưu trữ bài viết."
   },
-
   "ReportDialog": {
     "title": "Báo cáo",
     "targetPost": "bài viết",
@@ -168,27 +165,23 @@
     "reasonImpersonation": "Mạo danh",
     "reasonOther": "Khác"
   },
-
   "ReportButton": {
     "report": "Báo cáo",
     "reportPost": "Báo cáo bài viết",
     "reportComment": "Báo cáo bình luận",
     "reportUser": "Báo cáo người dùng"
   },
-
   "Stories": {
     "Loading": "Đang tải...",
     "Views": "Lượt xem tin",
     "NoViewsYet": "Chưa có lượt xem nào"
   },
-
   "PostMenu": {
     "edit": "Chỉnh sửa bài viết",
     "delete": "Xóa bài viết",
     "deleting": "Đang xóa...",
     "deleteConfirm": "Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác."
   },
-
   "AdminPanel": {
     "Title": "Quản trị viên",
     "Dashboard": "Tổng quan",
@@ -291,7 +284,6 @@
     "DeleteReason": "Lý do xóa",
     "DeleteSuccess": "Đã xóa bài viết thành công.",
     "DeleteFailed": "Không thể xóa bài viết.",
-
     "AuditLogs": "Nhật ký hoạt động",
     "SystemHealth": "Tình trạng hệ thống",
     "CommentsManagement": "Quản lý bình luận",
@@ -344,5 +336,253 @@
     "CustomRange": "Tùy chọn phạm vi",
     "Refresh": "Làm mới",
     "CheckingPermissions": "Đang kiểm tra quyền..."
+  },
+  "SearchPage": {
+    "Title": "Tìm kiếm",
+    "Keyword": "Từ khóa",
+    "Tags": "Thẻ",
+    "AISearch": "Tìm kiếm AI",
+    "EnterKeywords": "Nhập từ khóa...",
+    "EnterTagNames": "Nhập tên thẻ...",
+    "DescribeSearch": "Mô tả những gì bạn đang tìm kiếm...",
+    "Search": "Tìm kiếm",
+    "LoadMore": "Tải thêm",
+    "NoResults": "Không tìm thấy kết quả. Hãy thử từ khóa khác.",
+    "NoMoreResults": "Không còn kết quả",
+    "EnterSearchTerm": "Nhập từ khóa và nhấn Tìm kiếm hoặc Enter",
+    "TagSearchHint": "Tìm kiếm bài viết theo thẻ. Nhập tên thẻ cách nhau bằng khoảng trắng hoặc dấu phẩy.",
+    "AISearchHint": "Tìm kiếm thông minh sử dụng AI. Mô tả những gì bạn đang tìm kiếm bằng ngôn ngữ tự nhiên.",
+    "SignInForAI": "Vui lòng đăng nhập để sử dụng tìm kiếm AI",
+    "NoImage": "Không có ảnh",
+    "NoCaption": "Không có chú thích"
+  },
+  "SettingsPage": {
+    "Title": "Cài đặt",
+    "Appearance": "Giao diện",
+    "Theme": "Chủ đề",
+    "ThemeDescription": "Chọn giao diện ưa thích của bạn",
+    "Language": "Ngôn ngữ",
+    "AppLanguage": "Ngôn ngữ ứng dụng",
+    "LanguageDescription": "Chuyển đổi giữa Tiếng Anh và Tiếng Việt",
+    "Privacy": "Quyền riêng tư",
+    "PrivacyDescription": "Quản lý ai có thể xem hồ sơ và người bạn theo dõi",
+    "ProfilePrivacy": "Ai có thể xem hồ sơ của bạn",
+    "FollowersPrivacy": "Ai có thể xem người theo dõi bạn",
+    "FolloweesPrivacy": "Ai có thể xem người bạn theo dõi",
+    "Public": "Công khai",
+    "PublicDescription": "Mọi người đều có thể xem",
+    "Followers": "Người theo dõi",
+    "FollowersDescription": "Chỉ người theo dõi bạn có thể xem",
+    "Followees": "Đang theo dõi",
+    "FolloweesDescription": "Chỉ người bạn theo dõi có thể xem",
+    "Private": "Riêng tư",
+    "PrivateDescription": "Chỉ bạn có thể xem",
+    "SelectPrivacy": "Chọn quyền riêng tư"
+  },
+  "NotificationsPage": {
+    "Title": "Thông báo",
+    "MarkAllRead": "Đánh dấu đã đọc tất cả",
+    "NoNotifications": "Không có thông báo",
+    "LoadMore": "Tải thêm",
+    "All": "Tất cả",
+    "Likes": "Lượt thích",
+    "Comments": "Bình luận",
+    "Follows": "Theo dõi",
+    "JustNow": "Vừa xong",
+    "MinutesAgo": "{count} phút trước",
+    "HoursAgo": "{count} giờ trước",
+    "DaysAgo": "{count} ngày trước"
+  },
+  "OnboardingPage": {
+    "Title": "Hoàn thiện hồ sơ",
+    "Subtitle": "Hãy thiết lập hồ sơ để mọi người có thể tìm thấy bạn",
+    "DisplayName": "Tên hiển thị",
+    "DisplayNamePlaceholder": "Nhập tên hiển thị",
+    "Bio": "Tiểu sử",
+    "BioPlaceholder": "Giới thiệu về bản thân...",
+    "Website": "Trang web",
+    "WebsitePlaceholder": "https://trangweb.com",
+    "Avatar": "Ảnh đại diện",
+    "Cover": "Ảnh bìa",
+    "ChangeAvatar": "Đổi ảnh đại diện",
+    "ChangeCover": "Đổi ảnh bìa",
+    "RemoveAvatar": "Xóa ảnh đại diện",
+    "RemoveCover": "Xóa ảnh bìa",
+    "Submit": "Hoàn thành hồ sơ",
+    "Submitting": "Đang lưu...",
+    "Skip": "Bỏ qua",
+    "Success": "Đã hoàn thiện hồ sơ!",
+    "Error": "Không thể lưu hồ sơ"
+  },
+  "CreatePage": {
+    "Title": "Tạo bài viết",
+    "OpenComposer": "Mở trình soạn thảo"
+  },
+  "LandingPage": {
+    "HeroTitle": "Chia sẻ khoảnh khắc",
+    "HeroSubtitle": "Kết nối với bạn bè và thế giới qua những bức ảnh đẹp",
+    "GetStarted": "Bắt đầu",
+    "LearnMore": "Tìm hiểu thêm",
+    "Feature1Title": "Chia sẻ ảnh",
+    "Feature1Description": "Tải lên và chia sẻ những bức ảnh yêu thích với bạn bè",
+    "Feature2Title": "Kết nối",
+    "Feature2Description": "Theo dõi bạn bè và khám phá những người mới có cùng sở thích",
+    "Feature3Title": "Khám phá",
+    "Feature3Description": "Khám phá nội dung thịnh hành và cộng đồng mới",
+    "Feature4Title": "Tương tác",
+    "Feature4Description": "Thích, bình luận và tương tác với bài viết từ khắp nơi"
+  },
+  "Navbar": {
+    "Home": "Trang chủ",
+    "Search": "Tìm kiếm",
+    "Create": "Tạo mới",
+    "Notifications": "Thông báo",
+    "Messages": "Tin nhắn",
+    "Profile": "Hồ sơ",
+    "Settings": "Cài đặt",
+    "Logout": "Đăng xuất",
+    "Login": "Đăng nhập",
+    "Register": "Đăng ký"
+  },
+  "PostDialog": {
+    "Title": "Tạo bài viết mới",
+    "EditTitle": "Chỉnh sửa bài viết",
+    "Caption": "Viết chú thích...",
+    "AddLocation": "Thêm vị trí",
+    "AddTags": "Thêm thẻ",
+    "Privacy": "Quyền riêng tư",
+    "Public": "Công khai",
+    "Private": "Riêng tư",
+    "Followers": "Chỉ người theo dõi",
+    "Share": "Đăng",
+    "Sharing": "Đang đăng...",
+    "Update": "Cập nhật",
+    "Updating": "Đang cập nhật...",
+    "Cancel": "Hủy",
+    "UploadPhotos": "Tải ảnh lên",
+    "DragDrop": "Kéo thả ảnh vào đây hoặc nhấn để chọn",
+    "MaxPhotos": "Tối đa {count} ảnh",
+    "RemovePhoto": "Xóa ảnh",
+    "Success": "Đã đăng bài viết!",
+    "UpdateSuccess": "Đã cập nhật bài viết!",
+    "Error": "Không thể đăng bài viết"
+  },
+  "EditProfileDialog": {
+    "Title": "Chỉnh sửa hồ sơ",
+    "DisplayName": "Tên hiển thị",
+    "Username": "Tên tài khoản",
+    "Bio": "Tiểu sử",
+    "Website": "Trang web",
+    "Save": "Lưu",
+    "Saving": "Đang lưu...",
+    "Cancel": "Hủy",
+    "Success": "Đã cập nhật hồ sơ!",
+    "Error": "Không thể cập nhật hồ sơ"
+  },
+  "CollectionDialog": {
+    "Title": "Bộ sưu tập",
+    "CreateTitle": "Tạo bộ sưu tập mới",
+    "EditTitle": "Chỉnh sửa bộ sưu tập",
+    "CreateNew": "Tạo bộ sưu tập mới",
+    "NewCollection": "Bộ sưu tập mới",
+    "CollectionName": "Tên bộ sưu tập",
+    "CollectionNamePlaceholder": "Nhập tên bộ sưu tập",
+    "Description": "Mô tả",
+    "DescriptionPlaceholder": "Nhập mô tả (tùy chọn)",
+    "Privacy": "Quyền riêng tư",
+    "Public": "Công khai",
+    "PublicDescription": "Mọi người đều có thể xem",
+    "Followers": "Người theo dõi",
+    "FollowersDescription": "Chỉ người theo dõi có thể xem",
+    "Private": "Riêng tư",
+    "PrivateDescription": "Chỉ bạn có thể xem",
+    "Create": "Tạo",
+    "Creating": "Đang tạo...",
+    "Update": "Cập nhật",
+    "Saving": "Đang lưu...",
+    "Save": "Lưu",
+    "Cancel": "Hủy",
+    "Delete": "Xóa bộ sưu tập",
+    "DeleteConfirm": "Bạn có chắc muốn xóa bộ sưu tập này?",
+    "Empty": "Chưa có bộ sưu tập",
+    "AddToCollection": "Thêm vào bộ sưu tập",
+    "RemoveFromCollection": "Xóa khỏi bộ sưu tập",
+    "PostAdded": "Đã thêm bài viết vào bộ sưu tập",
+    "PostRemoved": "Đã xóa bài viết khỏi bộ sưu tập",
+    "CoverImage": "Ảnh bìa",
+    "NoCoverImage": "Chưa có ảnh bìa",
+    "UploadCoverImage": "Tải ảnh bìa",
+    "ChooseFile": "Chọn tệp"
+  },
+  "ShareToChatDialog": {
+    "Title": "Chia sẻ qua tin nhắn",
+    "SearchUsers": "Tìm người dùng...",
+    "NoUsers": "Không tìm thấy người dùng",
+    "Send": "Gửi",
+    "Sending": "Đang gửi...",
+    "Cancel": "Hủy",
+    "Success": "Đã chia sẻ thành công!",
+    "Error": "Không thể chia sẻ",
+    "SelectRecipient": "Chọn người nhận"
+  },
+  "NotificationItem": {
+    "LikedPost": "đã thích bài viết của bạn",
+    "CommentedPost": "đã bình luận bài viết của bạn",
+    "FollowedYou": "đã bắt đầu theo dõi bạn",
+    "MentionedYou": "đã đề cập bạn trong bình luận",
+    "SharedPost": "đã chia sẻ bài viết của bạn",
+    "LikedComment": "đã thích bình luận của bạn",
+    "RepliedComment": "đã trả lời bình luận của bạn"
+  },
+  "MessageInput": {
+    "Placeholder": "Nhập tin nhắn...",
+    "Send": "Gửi",
+    "AttachImage": "Đính kèm ảnh",
+    "AttachFile": "Đính kèm file",
+    "EmojiPicker": "Thêm emoji"
+  },
+  "ProfilePage": {
+    "Posts": "Bài viết",
+    "Followers": "Người theo dõi",
+    "Following": "Đang theo dõi",
+    "Follow": "Theo dõi",
+    "Unfollow": "Bỏ theo dõi",
+    "EditProfile": "Chỉnh sửa hồ sơ",
+    "Message": "Nhắn tin",
+    "NoPosts": "Chưa có bài viết",
+    "FollowBack": "Theo dõi lại",
+    "Requested": "Đã yêu cầu",
+    "Block": "Chặn",
+    "Report": "Báo cáo",
+    "Reposts": "Đăng lại",
+    "Collections": "Bộ sưu tập",
+    "Links": "Liên kết"
+  },
+  "OnlineFriends": {
+    "Title": "Bạn bè trực tuyến",
+    "NoFriendsOnline": "Không có bạn bè trực tuyến",
+    "Loading": "Đang tải..."
+  },
+  "TrendingCollections": {
+    "Title": "Bộ sưu tập thịnh hành",
+    "Post": "bài viết",
+    "Posts": "bài viết",
+    "Loading": "Đang tải..."
+  },
+  "CreateMenu": {
+    "CreatePost": "Tạo bài viết",
+    "CreateCollection": "Tạo bộ sưu tập",
+    "CreateStory": "Tạo tin"
+  },
+  "NotificationDialog": {
+    "Title": "Thông báo",
+    "SharedYourPost": "đã chia sẻ bài viết của bạn",
+    "CommentedOnYourPost": "đã bình luận bài viết của bạn",
+    "LikedYourPost": "đã thích bài viết của bạn",
+    "FollowedYou": "bắt đầu theo dõi bạn",
+    "NoNotifications": "Không có thông báo"
+  },
+  "Stickers": {
+    "Title": "Nhãn dán"
   }
 }

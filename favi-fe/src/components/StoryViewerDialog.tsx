@@ -16,6 +16,7 @@ interface StoryViewerDialogProps {
   archivedStories?: StoryResponse[];
   onNSFWConfirm?: (storyId: string) => void;
   isNSFWConfirmed?: (storyId: string) => boolean;
+  onStoriesViewed?: () => void;
 }
 
 export default function StoryViewerDialog({
@@ -26,6 +27,7 @@ export default function StoryViewerDialog({
   archivedStories = [],
   onNSFWConfirm,
   isNSFWConfirmed = () => false,
+  onStoriesViewed,
 }: StoryViewerDialogProps) {
   const t = useTranslations("Stories");
   const router = useRouter();
@@ -101,7 +103,7 @@ export default function StoryViewerDialog({
     const { currentFeedIndex, currentStoryIndex, storyFeeds } = storyStateRef.current;
     if (storyFeeds.length === 0) return;
 
-    
+
     if (currentStoryIndex > 0) {
       setCurrentStoryIndex(currentStoryIndex - 1);
       storyStateRef.current.currentStoryIndex = currentStoryIndex - 1;
@@ -154,6 +156,8 @@ export default function StoryViewerDialog({
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
+      // Call onStoriesViewed when dialog closes to refresh the feed
+      onStoriesViewed?.();
       return;
     }
 
@@ -169,7 +173,7 @@ export default function StoryViewerDialog({
 
       setLoading(true);
 
-      
+
       try {
         let feed: StoryFeedResponse[] = [];
         if (archivedStories && archivedStories.length > 0) {
@@ -234,9 +238,9 @@ export default function StoryViewerDialog({
     };
   }, [visible]); // Simplified to only depend on visible
 
-  
-  
-  
+
+
+
   // Auto-progress through stories - CSS animation approach
   useEffect(() => {
     if (!visible || loading || viewersDialogVisible || !autoPlayEnabled) return;
@@ -245,7 +249,7 @@ export default function StoryViewerDialog({
       // Time to move to next story
       const { storyFeeds, currentFeedIndex, currentStoryIndex } = storyStateRef.current;
       if (storyFeeds.length > 0) {
-        
+
         const currentFeed = storyFeeds[currentFeedIndex];
         if (currentFeed && currentStoryIndex < currentFeed.stories.length - 1) {
           setCurrentStoryIndex(prev => prev + 1);
@@ -262,7 +266,7 @@ export default function StoryViewerDialog({
     return () => clearTimeout(timer);
   }, [visible, loading, viewersDialogVisible, autoPlayEnabled, onHide]);
 
-  // Record view when story is shown - simplified
+  // Record view when story is shown - triggers on story change
   useEffect(() => {
     if (!visible || loading || isViewingArchived) return;
 
@@ -275,8 +279,10 @@ export default function StoryViewerDialog({
     const story = currentFeed.stories[currentStoryIndex];
     if (story && !story.hasViewed) {
       storyAPI.recordView(story.id).catch(console.error);
+      // Mark as viewed locally to prevent duplicate calls
+      story.hasViewed = true;
     }
-  }, [visible, loading, isViewingArchived]);
+  }, [visible, loading, isViewingArchived, currentFeedIndex, currentStoryIndex]);
 
   const handleArchive = async () => {
     if (!currentStory) return;
@@ -396,8 +402,8 @@ export default function StoryViewerDialog({
                 try {
                   const feed = await storyAPI.getFeed();
                   setStoryFeeds(feed);
-                    storyStateRef.current.storyFeeds = feed;
-                                        setError(null);
+                  storyStateRef.current.storyFeeds = feed;
+                  setError(null);
                 } catch (e: any) {
                   console.error("Failed to reload stories:", e);
                   setError(e?.error || e?.message || "Failed to reload stories");
@@ -582,8 +588,8 @@ export default function StoryViewerDialog({
         <div className="relative w-full h-full max-h-screen flex items-center justify-center">
           <div className="relative w-full h-full max-w-md mx-auto">
             {currentStory.mediaUrl.endsWith(".mp4") ||
-            currentStory.mediaUrl.endsWith(".mov") ||
-            currentStory.mediaUrl.endsWith(".webm") ? (
+              currentStory.mediaUrl.endsWith(".mov") ||
+              currentStory.mediaUrl.endsWith(".webm") ? (
               <video
                 src={currentStory.mediaUrl}
                 className={`w-full h-full object-cover ${currentStory.isNSFW && !isNSFWConfirmed(currentStory.id) ? 'blur-3xl' : ''}`}

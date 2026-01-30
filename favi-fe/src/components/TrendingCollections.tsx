@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import collectionAPI from "@/lib/api/collectionAPI";
 import type { CollectionResponse } from "@/types";
@@ -11,6 +12,7 @@ import CollectionReactorsDialog from "./CollectionReactorsDialog";
 const FALLBACK_COVER = "https://via.placeholder.com/400x200/6366f1/ffffff?text=Collection";
 
 export default function TrendingCollections() {
+  const t = useTranslations("TrendingCollections");
   const [collections, setCollections] = useState<CollectionResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +88,7 @@ export default function TrendingCollections() {
           }}
         />
         <div className="relative text-sm font-semibold pb-3 mb-3 border-b border-white/10 dark:border-white/5" style={{ color: "var(--text)" }}>
-          Trending Collections
+          {t("Title")}
         </div>
         <div className="relative space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -116,7 +118,7 @@ export default function TrendingCollections() {
         />
         <div className="relative flex items-center justify-between py-3 border-b border-white/10 dark:border-white/5">
           <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-            Trending Collections
+            {t("Title")}
           </div>
           <i className="pi pi-fire" style={{ color: "#f97316" }} />
         </div>
@@ -138,7 +140,7 @@ export default function TrendingCollections() {
                     {collection.title}
                   </div>
                   <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                    {collection.postCount} {collection.postCount === 1 ? "post" : "posts"}
+                    {collection.postCount} {collection.postCount === 1 ? t("Post") : t("Posts")}
                   </div>
                 </div>
               </Link>

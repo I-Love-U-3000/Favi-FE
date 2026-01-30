@@ -77,8 +77,8 @@ export function useBanUser() {
   const { showToast } = useOverlay();
 
   return useMutation({
-    mutationFn: ({ userId, reason }: { userId: string; reason?: string }) =>
-      fetchWrapper.post(`/admin/users/${userId}/ban`, { reason }),
+    mutationFn: ({ userId, reason, durationDays }: { userId: string; reason?: string; durationDays?: number }) =>
+      fetchWrapper.post(`/admin/users/${userId}/ban`, { reason, durationDays }),
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "users", userId] });
@@ -158,8 +158,8 @@ export function useBulkBan() {
   const { showToast } = useOverlay();
 
   return useMutation({
-    mutationFn: ({ profileIds, reason }: { profileIds: string[]; reason?: string }) =>
-      fetchWrapper.post(`/admin/users/bulk/ban`, { profileIds, reason }),
+    mutationFn: ({ profileIds, reason, durationDays }: { profileIds: string[]; reason?: string; durationDays?: number }) =>
+      fetchWrapper.post(`/admin/users/bulk/ban`, { profileIds, reason, durationDays }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       showToast({

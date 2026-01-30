@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "@/i18n/routing";
 import { useAuth } from "@/components/AuthProvider";
 import AdminSidebar from "@/components/admin/layout/AdminSidebar";
-import AdminHeader from "@/components/admin/layout/AdminHeader";
+
 import { useTranslations } from "next-intl";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -41,9 +41,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="admin-layout min-h-screen bg-gray-50 dark:bg-gray-900">
       <AdminSidebar />
-      <AdminHeader />
 
-      <main className="pt-16 min-h-screen">
+
+      <main className="min-h-screen">
         <div className="pl-20">
           <div className="p-6 min-h-screen">
             {children}
