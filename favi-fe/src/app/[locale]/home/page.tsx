@@ -338,10 +338,12 @@ function PostListItem({ post }: { post: PostResponse }) {
       if (prev && snapshot[prev] > 0) snapshot[prev] -= 1;
       if (prev !== type) snapshot[type] = (snapshot[type] || 0) + 1;
 
+      const nextTotal = totalReacts + (prev === type ? -1 : (prev ? 0 : 1));
+
       writePostReaction(post.id, {
         byType: snapshot,
         currentUserReaction: prev === type ? null : type,
-        total: totalReacts,
+        total: nextTotal,
       });
     } catch {
       // ignore

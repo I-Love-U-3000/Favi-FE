@@ -93,7 +93,12 @@ export function CallProvider({ children }: CallProviderProps) {
       error: callHub.error
     });
 
-    if (!callHub.isConnected || !callHub.connection) return;
+    if (!callHub.isConnected || !callHub.connection) {
+      console.log('[CallProvider] SignalR not connected, skipping setup');
+      return;
+    }
+
+    console.log('[CallProvider] Setting up SignalR event handlers...');
 
     console.log('[CallProvider] CallHub connected, initializing WebRTC');
 
@@ -118,6 +123,9 @@ export function CallProvider({ children }: CallProviderProps) {
     // Setup SignalR event listeners for incoming calls
     callHub.connection.on('IncomingCall', (callRequest: IncomingCallRequestDto) => {
       console.log('[Call] Incoming call received:', callRequest);
+
+      // Prepare WebRTC state for incoming call BEFORE the offer arrives
+      webrtcManager.handleIncomingCall(callRequest.conversationId, callRequest.callType);
 
       // Play ringtone sound (optional)
       playRingtone();
@@ -177,14 +185,20 @@ export function CallProvider({ children }: CallProviderProps) {
     });
 
     return () => {
-      // Cleanup
-      webrtcManager.destroy();
+      // Cleanup SignalR event listeners only (don't destroy webrtcManager here)
       callHub.connection?.off('IncomingCall');
       callHub.connection?.off('CallAccepted');
       callHub.connection?.off('CallRejected');
       callHub.connection?.off('JoinCallRoom');
     };
   }, [callHub.isConnected, callHub.connection]);
+
+  // Cleanup webrtcManager on unmount
+  useEffect(() => {
+    return () => {
+      webrtcManager.destroy();
+    };
+  }, []);
 
   // Play ringtone sound
   const playRingtone = () => {

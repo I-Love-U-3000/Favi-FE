@@ -44,7 +44,7 @@ export class WebRTCManager {
   private onPeerConnectionStateChangeCallback?: (state: PeerConnectionState) => void;
   private onErrorCallback?: (error: string) => void;
 
-  constructor() {}
+  constructor() { }
 
   /**
    * Join a call room (SignalR group)
@@ -250,20 +250,28 @@ export class WebRTCManager {
 
   /**
    * Handle incoming offer
+   * For the receiver (callee), this creates peer connection and answers the call
    */
   private async handleOffer(signal: CallSignalDto): Promise<void> {
+    // For receiver: create peer connection if it doesn't exist
     if (!this.peerConnection) {
-      console.warn('[WebRTC] Received offer but no peer connection exists');
-      return;
+      console.log('[WebRTC] No peer connection exists, creating one for incoming call');
+      await this.getUserMedia(this.currentCallType || 'video');
+      this.createPeerConnection();
+      if (this.localStream) {
+        this.localStream.getTracks().forEach((track) => {
+          this.peerConnection?.addTrack(track, this.localStream!);
+        });
+      }
     }
 
     try {
       const offer = JSON.parse(signal.data) as RTCSessionDescriptionInit;
-      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+      await this.peerConnection!.setRemoteDescription(new RTCSessionDescription(offer));
 
       // Create answer
-      const answer = await this.peerConnection.createAnswer();
-      await this.peerConnection.setLocalDescription(answer);
+      const answer = await this.peerConnection!.createAnswer();
+      await this.peerConnection!.setLocalDescription(answer);
 
       // Wait for ICE gathering
       await new Promise<void>((resolve) => {
@@ -285,7 +293,7 @@ export class WebRTCManager {
         'SendAnswer',
         this.currentConversationId,
         signal.fromUserId,
-        JSON.stringify(this.peerConnection.localDescription)
+        JSON.stringify(this.peerConnection!.localDescription)
       );
 
       console.log('[WebRTC] Offer handled and answer sent');
@@ -385,18 +393,24 @@ export class WebRTCManager {
 
     // Connection state changes
     this.peerConnection.addEventListener('connectionstatechange', () => {
+      // Guard against null peerConnection (can happen if closed during event)
+      if (!this.peerConnection) {
+        console.warn('[WebRTC] Peer connection state change fired but connection is null');
+        return;
+      }
+
       const state: PeerConnectionState = {
-        connectionState: this.peerConnection!.connectionState,
-        iceConnectionState: this.peerConnection!.iceConnectionState,
-        iceGatheringState: this.peerConnection!.iceGatheringState,
-        signalingState: this.peerConnection!.signalingState,
+        connectionState: this.peerConnection.connectionState,
+        iceConnectionState: this.peerConnection.iceConnectionState,
+        iceGatheringState: this.peerConnection.iceGatheringState,
+        signalingState: this.peerConnection.signalingState,
       };
       this.onPeerConnectionStateChangeCallback?.(state);
 
       // Handle failed/disconnected states
-      if (this.peerConnection!.connectionState === 'failed') {
+      if (this.peerConnection.connectionState === 'failed') {
         this.onErrorCallback?.('Connection failed');
-      } else if (this.peerConnection!.connectionState === 'disconnected') {
+      } else if (this.peerConnection.connectionState === 'disconnected') {
         // Don't immediately end call - it might reconnect
         console.warn('[WebRTC] Peer connection disconnected');
       }
@@ -540,6 +554,17 @@ export class WebRTCManager {
       console.error('[WebRTC] Error accepting call:', error);
       throw error;
     }
+  }
+
+  /**
+   * Handle incoming call notification - prepare state for incoming call
+   * Called when IncomingCall event is received from SignalR
+   */
+  public handleIncomingCall(conversationId: string, callType: CallType): void {
+    console.log('[WebRTC] Preparing for incoming call:', { conversationId, callType });
+    this.currentConversationId = conversationId;
+    this.currentCallType = callType;
+    this.isCallInitiator = false;
   }
 
   /**

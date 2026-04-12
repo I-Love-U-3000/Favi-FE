@@ -13,6 +13,9 @@ import { CallProvider } from "@/components/CallProvider";
 import { SignalRProvider } from "@/lib/contexts/SignalRContext";
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
+import GlobalOutgoingCallDialog from "@/components/GlobalOutgoingCallDialog";
+import GlobalIncomingCallDialog from "@/components/GlobalIncomingCallDialog";
+import GlobalActiveCallInterface from "@/components/GlobalActiveCallInterface";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -52,6 +55,10 @@ export default async function RootLayout({
                 <HeartbeatProvider />
                 <SignalRProvider>
                   <CallProvider>
+                    {/* Global Call UI Components */}
+                    <GlobalOutgoingCallDialog />
+                    <GlobalIncomingCallDialog />
+                    <GlobalActiveCallInterface />
                     <RootProvider>
                       <div className="min-h-screen flex">
                         <NavGate />

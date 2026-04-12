@@ -1110,7 +1110,21 @@ export default function ProfilePage() {
               onEdit={() => setEditOpen(true)}
               isOwner={isOwner}
               isUserFollowing={isUserFollowing}
-              onFollowChange={(isFollowing) => setIsUserFollowing(isFollowing)}
+              onFollowChange={(isFollowing) => {
+                setIsUserFollowing(isFollowing);
+                // Cập nhật số lượng followers locally
+                setProfile((prev) => {
+                  if (!prev) return prev;
+                  const currentCount = prev.stats?.followers ?? 0;
+                  return {
+                    ...prev,
+                    stats: {
+                      ...(prev.stats || { followers: 0, following: 0, posts: 0 }),
+                      followers: isFollowing ? currentCount + 1 : Math.max(0, currentCount - 1),
+                    },
+                  };
+                });
+              }}
               currentUserId={user?.id}
             />
           </div>

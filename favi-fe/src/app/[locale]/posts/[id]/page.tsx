@@ -186,8 +186,14 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
       const snapshot = { ...byType } as Record<ReactionType, number>;
       if (prev && snapshot[prev] > 0) snapshot[prev] -= 1;
       if (nextType) snapshot[nextType] = (snapshot[nextType] || 0) + 1;
-      const newTotal = (cached?.total ?? post.reactions?.total ?? Object.values(snapshot).reduce((a, b) => a + b, 0));
-      writePostReaction(post.id, { byType: snapshot, currentUserReaction: nextType, total: newTotal });
+      const nextTotal = totalReacts + (prev === type ? 0 : (prev ? 0 : 1)) + (nextType ? 0 : -1);
+      // If we are switching from one type to another (e.g. Like to Love), total stays same.
+      // If we are adding a reaction where none existed, total + 1.
+      // If we are removing a reaction, total - 1.
+      // Simple logic:
+      const finalTotal = totalReacts + (prev ? -1 : 0) + (nextType ? 1 : 0);
+
+      writePostReaction(post.id, { byType: snapshot, currentUserReaction: nextType, total: finalTotal });
     } catch { }
   };
 
