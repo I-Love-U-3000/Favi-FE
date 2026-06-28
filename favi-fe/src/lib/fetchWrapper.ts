@@ -98,10 +98,14 @@ async function request<T>(
   method: string,
   path: string,
   body?: RequestBody,
-  auth = true
+  auth = true,
+  customBaseUrl?: string
 ): Promise<ApiResponse<T>> {
-  if (!baseUrl) throw new Error("Missing NEXT_PUBLIC_API_URL");
-  const url = String(baseUrl) + path;
+  const base = customBaseUrl || baseUrl;
+  if (!base && !path.startsWith("http")) throw new Error("Missing API URL");
+  
+  const isAbsoluteUrl = path.startsWith("http://") || path.startsWith("https://");
+  const url = isAbsoluteUrl ? path : String(base) + path;
 
   const isFormData =
     typeof FormData !== "undefined" && body instanceof FormData;
@@ -148,9 +152,9 @@ async function request<T>(
 }
 
 export const fetchWrapper = {
-  get:  <T>(path: string, auth = true) => request<T>("GET", path, undefined, auth),
-  post: <T>(path: string, body?: RequestBody, auth = true) => request<T>("POST", path, body, auth),
-  put:  <T>(path: string, body?: RequestBody, auth = true) => request<T>("PUT", path, body, auth),
-  patch:<T>(path: string, body?: RequestBody, auth = true) => request<T>("PATCH", path, body, auth),
-  del:  <T>(path: string, body?: RequestBody, auth = true) => request<T>("DELETE", path, body, auth),
+  get:  <T>(path: string, auth = true, customBaseUrl?: string) => request<T>("GET", path, undefined, auth, customBaseUrl),
+  post: <T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string) => request<T>("POST", path, body, auth, customBaseUrl),
+  put:  <T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string) => request<T>("PUT", path, body, auth, customBaseUrl),
+  patch:<T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string) => request<T>("PATCH", path, body, auth, customBaseUrl),
+  del:  <T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string) => request<T>("DELETE", path, body, auth, customBaseUrl),
 };
