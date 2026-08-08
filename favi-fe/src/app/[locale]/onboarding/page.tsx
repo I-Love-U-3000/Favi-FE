@@ -13,7 +13,7 @@ import CropImage from "@/components/CropImage";
 import { isValidUsername, normalizeUsername } from "@/lib/validator/username";
 import profileAPI from "@/lib/api/profileAPI";
 import { uploadToCloudinary } from "@/lib/service/image";
-import { BackgroundBubbles } from "@/components/LoginRegisterBackground";
+import { AuthBackground } from "@/components/AuthBackground";
 import useProfile from "@/lib/hooks/useProfile";
 
 type NameStatus = "idle" | "invalid" | "checking" | "available" | "taken";
@@ -278,7 +278,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="relative min-h-screen">
-      <BackgroundBubbles fast />
+      <AuthBackground />
 
       <Toast ref={toastRef} />
 
