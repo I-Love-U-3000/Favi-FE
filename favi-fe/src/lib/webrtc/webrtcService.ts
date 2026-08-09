@@ -21,6 +21,7 @@ export class WebRTCManager {
 
   // State
   private currentConversationId: string | null = null;
+  private currentTargetUserId: string | null = null;
   private currentCallType: CallType | null = null;
   private isCallInitiator = false;
   private localCallState: LocalCallState = {
@@ -107,8 +108,33 @@ export class WebRTCManager {
     });
 
     // Call accepted
-    this.signalRConnection.on('CallAccepted', () => {
-      // Move to call room
+    this.signalRConnection.on('CallAccepted', async () => {
+      if (this.isCallInitiator && this.currentConversationId && this.currentTargetUserId) {
+        try {
+          console.log('[WebRTC] Call accepted, initiating WebRTC connection');
+          this.createPeerConnection();
+          
+          if (this.localStream) {
+            this.localStream.getTracks().forEach((track) => {
+              this.peerConnection?.addTrack(track, this.localStream!);
+            });
+          }
+
+          const offer = await this.peerConnection!.createOffer();
+          await this.peerConnection!.setLocalDescription(offer);
+
+          await this.signalRConnection!.invoke(
+            'SendOffer',
+            this.currentConversationId,
+            this.currentTargetUserId,
+            JSON.stringify(this.peerConnection!.localDescription)
+          );
+          console.log('[WebRTC] SendOffer SignalR invoke successful');
+        } catch (error) {
+          console.error('[WebRTC] Error initiating WebRTC after CallAccepted:', error);
+          this.onErrorCallback?.('Failed to establish WebRTC connection');
+        }
+      }
     });
 
     // Call rejected
@@ -137,70 +163,23 @@ export class WebRTCManager {
 
     try {
       this.currentConversationId = conversationId;
+      this.currentTargetUserId = targetUserId;
       this.currentCallType = callType;
       this.isCallInitiator = true;
 
       // Get user media
       await this.getUserMedia(callType);
 
-      // Create peer connection
-      this.createPeerConnection();
-
-      // Add local stream to peer connection
-      this.localStream!.getTracks().forEach((track) => {
-        this.peerConnection?.addTrack(track, this.localStream!);
-      });
-
-      // Create and set local description (offer)
-      const offer = await this.peerConnection!.createOffer();
-      await this.peerConnection!.setLocalDescription(offer);
-
-      // Wait for ICE gathering to complete
-      await new Promise<void>((resolve) => {
-        if (this.peerConnection!.iceGatheringState === 'complete') {
-          resolve();
-        } else {
-          const checkState = () => {
-            if (this.peerConnection!.iceGatheringState === 'complete') {
-              this.peerConnection!.removeEventListener('icegatheringstatechange', checkState);
-              resolve();
-            }
-          };
-          this.peerConnection!.addEventListener('icegatheringstatechange', checkState);
-        }
-      });
-
       console.log('[WebRTC] Calling StartCall via SignalR:', { conversationId, targetUserId, callType });
 
-      // Send offer via SignalR
-      try {
-        await this.signalRConnection.invoke(
-          'StartCall',
-          conversationId,
-          targetUserId,
-          callType
-        );
-        console.log('[WebRTC] StartCall SignalR invoke successful');
-      } catch (error) {
-        console.error('[WebRTC] StartCall SignalR invoke failed:', error);
-        throw error;
-      }
-
-      // Also send the offer separately if needed
-      try {
-        await this.signalRConnection.invoke(
-          'SendOffer',
-          conversationId,
-          targetUserId,
-          JSON.stringify(this.peerConnection!.localDescription)
-        );
-        console.log('[WebRTC] SendOffer SignalR invoke successful');
-      } catch (error) {
-        console.error('[WebRTC] SendOffer SignalR invoke failed:', error);
-        // Don't throw here - the call might still work
-      }
-
-      console.log('[WebRTC] Call started');
+      // Send StartCall via SignalR
+      await this.signalRConnection.invoke(
+        'StartCall',
+        conversationId,
+        targetUserId,
+        callType
+      );
+      console.log('[WebRTC] StartCall SignalR invoke successful');
     } catch (error) {
       console.error('[WebRTC] Error starting call:', error);
       this.onErrorCallback?.('Failed to start call');
@@ -253,19 +232,18 @@ export class WebRTCManager {
    * For the receiver (callee), this creates peer connection and answers the call
    */
   private async handleOffer(signal: CallSignalDto): Promise<void> {
-    // For receiver: create peer connection if it doesn't exist
-    if (!this.peerConnection) {
-      console.log('[WebRTC] No peer connection exists, creating one for incoming call');
-      await this.getUserMedia(this.currentCallType || 'video');
-      this.createPeerConnection();
-      if (this.localStream) {
-        this.localStream.getTracks().forEach((track) => {
-          this.peerConnection?.addTrack(track, this.localStream!);
-        });
-      }
-    }
-
     try {
+      this.currentTargetUserId = signal.fromUserId;
+      
+      if (!this.peerConnection) {
+        this.createPeerConnection();
+        if (this.localStream) {
+          this.localStream.getTracks().forEach((track) => {
+            this.peerConnection?.addTrack(track, this.localStream!);
+          });
+        }
+      }
+
       const offer = JSON.parse(signal.data) as RTCSessionDescriptionInit;
       await this.peerConnection!.setRemoteDescription(new RTCSessionDescription(offer));
 
@@ -273,26 +251,11 @@ export class WebRTCManager {
       const answer = await this.peerConnection!.createAnswer();
       await this.peerConnection!.setLocalDescription(answer);
 
-      // Wait for ICE gathering
-      await new Promise<void>((resolve) => {
-        if (this.peerConnection!.iceGatheringState === 'complete') {
-          resolve();
-        } else {
-          const checkState = () => {
-            if (this.peerConnection!.iceGatheringState === 'complete') {
-              this.peerConnection!.removeEventListener('icegatheringstatechange', checkState);
-              resolve();
-            }
-          };
-          this.peerConnection!.addEventListener('icegatheringstatechange', checkState);
-        }
-      });
-
       // Send answer
       await this.signalRConnection?.invoke(
         'SendAnswer',
         this.currentConversationId,
-        signal.fromUserId,
+        this.currentTargetUserId,
         JSON.stringify(this.peerConnection!.localDescription)
       );
 
@@ -375,10 +338,16 @@ export class WebRTCManager {
 
     // ICE candidate event
     this.peerConnection.addEventListener('icecandidate', (event) => {
-      if (event.candidate && this.signalRConnection && this.currentConversationId) {
-        // We need to know the target user ID - this should be tracked
-        // For now, we'll store it and handle it differently
-        console.debug('[WebRTC] ICE candidate generated:', event.candidate);
+      if (event.candidate && this.signalRConnection && this.currentConversationId && this.currentTargetUserId) {
+        console.debug('[WebRTC] ICE candidate generated, sending...');
+        this.signalRConnection.invoke(
+          'SendIceCandidate',
+          this.currentConversationId,
+          this.currentTargetUserId,
+          event.candidate.candidate,
+          event.candidate.sdpMid,
+          event.candidate.sdpMLineIndex
+        ).catch(err => console.error('[WebRTC] Error sending ICE candidate:', err));
       }
     });
 
@@ -510,6 +479,7 @@ export class WebRTCManager {
 
     // Reset state
     this.currentConversationId = null;
+    this.currentTargetUserId = null;
     this.currentCallType = null;
     this.isCallInitiator = false;
     this.remoteStream = null;
@@ -527,6 +497,7 @@ export class WebRTCManager {
 
     try {
       this.currentConversationId = conversationId;
+      this.currentTargetUserId = callerId;
       this.currentCallType = callType;
       this.isCallInitiator = false;
 
@@ -535,21 +506,10 @@ export class WebRTCManager {
       // Get user media
       await this.getUserMedia(callType);
 
-      // Create peer connection
-      this.createPeerConnection();
-
-      // Add local stream to peer connection
-      if (this.localStream) {
-        this.localStream.getTracks().forEach((track) => {
-          this.peerConnection?.addTrack(track, this.localStream!);
-        });
-      }
-
-      // Accept the call via SignalR (this will notify the caller)
+      // Accept the call via SignalR (this will notify the caller to send the offer)
       await this.signalRConnection.invoke('AcceptCall', conversationId, callerId);
 
-      // The offer will come through the ReceiveOffer event, which will be handled automatically
-      console.log('[WebRTC] Call accepted, waiting for offer');
+      console.log('[WebRTC] Call accepted, waiting for offer from caller');
     } catch (error) {
       console.error('[WebRTC] Error accepting call:', error);
       throw error;

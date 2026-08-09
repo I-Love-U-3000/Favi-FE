@@ -98,6 +98,10 @@ export default function ChatPage() {
   // ---- TẤT CẢ HOOK LUÔN Ở TOP-LEVEL (KHÔNG RETURN TRƯỚC NỮA) ----
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const selectedConversationIdRef = useRef(selectedConversationId);
+  useEffect(() => {
+    selectedConversationIdRef.current = selectedConversationId;
+  }, [selectedConversationId]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [lastReadMessageId, setLastReadMessageId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -379,7 +383,7 @@ export default function ChatPage() {
     connection.on("ReceiveMessage", (message) => {
       console.log("New message received via SignalR:", message);
 
-      if (message.conversationId !== selectedConversationId) return;
+      if (message.conversationId !== selectedConversationIdRef.current) return;
 
       // Determine if incoming message is a sticker (GIF)
       const isGif = message.mediaUrl?.toLowerCase().includes('.gif');
@@ -407,7 +411,7 @@ export default function ChatPage() {
       // update both conversations & selectedConversation preview
       setConversations((prev) =>
         prev.map((c) =>
-          c.id === selectedConversationId
+          c.id === message.conversationId
             ? { ...c, messages: [...c.messages, incoming] }
             : c
         )
@@ -429,9 +433,9 @@ export default function ChatPage() {
       console.log("ChatHub reconnected");
       setIsChatHubConnected(true);
       // Re-join the current conversation after reconnecting
-      if (selectedConversationId) {
+      if (selectedConversationIdRef.current) {
         connection
-          .invoke("JoinConversation", selectedConversationId)
+          .invoke("JoinConversation", selectedConversationIdRef.current)
           .catch((err) => console.error("Error re-joining conversation:", err));
       }
     });
@@ -443,9 +447,9 @@ export default function ChatPage() {
         console.log("ChatHub connected");
         setIsChatHubConnected(true);
         // Join the current conversation after connecting
-        if (selectedConversationId) {
+        if (selectedConversationIdRef.current) {
           connection
-            .invoke("JoinConversation", selectedConversationId)
+            .invoke("JoinConversation", selectedConversationIdRef.current)
             .catch((err) => console.error("Error joining conversation:", err));
         }
       })

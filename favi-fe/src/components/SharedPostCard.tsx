@@ -1,3 +1,5 @@
+"use client";
+
 import { useRouter } from "@/i18n/routing";
 import { useState } from "react";
 import type { RepostResponse } from "@/types";

@@ -6,6 +6,8 @@ export interface ApiError {
   status: number;
   error?: string;
   message?: string;
+  code?: string;
+  details?: string;
 }
 
 // Response wrapper type
@@ -40,13 +42,26 @@ function toCamelCase(obj: unknown): unknown {
   }, {} as Record<string, unknown>);
 }
 
-async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
+async function handleResponse<T>(res: Response, method: string, url: string): Promise<ApiResponse<T>> {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw {
+    const apiError = data as Record<string, unknown>;
+    const thrownError: ApiError = {
       status: res.status,
-      error: (data as ApiError)?.error || (data as ApiError)?.message || "Request failed",
+      error: (apiError.error || apiError.message || "Request failed") as string,
+      message: apiError.message as string | undefined,
+      code: apiError.code as string | undefined,
+      details: apiError.details as string | undefined,
     };
+    
+    console.error(`[API Error] ${method} ${url} failed with status ${res.status}:`, {
+      code: thrownError.code,
+      message: thrownError.message,
+      details: thrownError.details,
+      rawResponse: data
+    });
+
+    throw thrownError;
   }
   // Convert backend PascalCase to frontend camelCase
   return toCamelCase(data) as ApiResponse<T>;
@@ -66,7 +81,10 @@ async function tryRefreshAndRetry<T>(
     body: JSON.stringify(refreshToken), // backend nhận body là string
   });
 
-  if (!refreshRes.ok) throw { status: 401, message: "Refresh token expired" };
+  if (!refreshRes.ok) {
+    console.error(`[API Auth Error] Token refresh request failed with status ${refreshRes.status}`);
+    throw { status: 401, message: "Refresh token expired" };
+  }
 
   const refreshData = await refreshRes.json() as RefreshTokenResponse;
   const newAccess = refreshData?.accessToken ?? refreshData?.access_token;
@@ -84,7 +102,7 @@ async function tryRefreshAndRetry<T>(
   };
 
   const retryRes = await fetch(url, retryInit);
-  return handleResponse<T>(retryRes);
+  return handleResponse<T>(retryRes, init.method || "GET", url);
 }
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -98,10 +116,14 @@ async function request<T>(
   method: string,
   path: string,
   body?: RequestBody,
-  auth = true
+  auth = true,
+  customBaseUrl?: string
 ): Promise<ApiResponse<T>> {
-  if (!baseUrl) throw new Error("Missing NEXT_PUBLIC_API_URL");
-  const url = String(baseUrl) + path;
+  const base = customBaseUrl || baseUrl;
+  if (!base && !path.startsWith("http")) throw new Error("Missing API URL");
+  
+  const isAbsoluteUrl = path.startsWith("http://") || path.startsWith("https://");
+  const url = isAbsoluteUrl ? path : String(base) + path;
 
   const isFormData =
     typeof FormData !== "undefined" && body instanceof FormData;
@@ -128,6 +150,7 @@ async function request<T>(
     res = await fetch(url, init);
   } catch (e: unknown) {
     const error = e as Error;
+    console.error(`[API Network Error] ${method} ${url} failed to connect:`, error);
     throw { status: 0, error: error?.message || "Network error" };
   }
 
@@ -144,13 +167,13 @@ async function request<T>(
     }
   }
 
-  return handleResponse<T>(res);
+  return handleResponse<T>(res, method, url);
 }
 
 export const fetchWrapper = {
-  get:  <T>(path: string, auth = true) => request<T>("GET", path, undefined, auth),
-  post: <T>(path: string, body?: RequestBody, auth = true) => request<T>("POST", path, body, auth),
-  put:  <T>(path: string, body?: RequestBody, auth = true) => request<T>("PUT", path, body, auth),
-  patch:<T>(path: string, body?: RequestBody, auth = true) => request<T>("PATCH", path, body, auth),
-  del:  <T>(path: string, body?: RequestBody, auth = true) => request<T>("DELETE", path, body, auth),
+  get:  <T>(path: string, auth = true, customBaseUrl?: string) => request<T>("GET", path, undefined, auth, customBaseUrl),
+  post: <T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string) => request<T>("POST", path, body, auth, customBaseUrl),
+  put:  <T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string) => request<T>("PUT", path, body, auth, customBaseUrl),
+  patch:<T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string) => request<T>("PATCH", path, body, auth, customBaseUrl),
+  del:  <T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string) => request<T>("DELETE", path, body, auth, customBaseUrl),
 };
