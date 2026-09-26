@@ -13,13 +13,14 @@ export function useSignalRNotifications() {
   const [isConnected, setIsConnected] = useState(false);
 
   // Fetch notifications from API
-  const fetchNotifications = useCallback(async (page = 1, pageSize = 20) => {
+  const fetchNotifications = useCallback(async (page = 1, pageSize = 10) => {
     try {
       const data = await notificationAPI.getNotifications(page, pageSize);
+      const items = data.data || data.items || [];
       if (page === 1) {
-        setNotifications(data.items);
+        setNotifications(items);
       } else {
-        setNotifications(prev => [...prev, ...data.items]);
+        setNotifications(prev => [...prev, ...items]);
       }
       return data;
     } catch (error) {

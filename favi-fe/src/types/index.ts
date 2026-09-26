@@ -212,11 +212,26 @@ export type PostResponse = {
   isNSFW?: boolean;
 };
 
+export type PaginationResult<T> = {
+  data: T[];
+  page: number;
+  size: number;
+  hasPrevious: boolean;
+  hasNext: boolean;
+  items?: T[];
+  pageSize?: number;
+  totalCount?: number;
+};
+
 export type PagedResult<T> = {
   items: T[];
   page: number;
   pageSize: number;
   totalCount: number;
+  data?: T[];
+  size?: number;
+  hasPrevious?: boolean;
+  hasNext?: boolean;
 };
 
 export type CreateCommentRequest = {

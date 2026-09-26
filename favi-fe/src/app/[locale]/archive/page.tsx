@@ -17,6 +17,9 @@ export default function ArchivePage() {
 
   const [posts, setPosts] = useState<PostResponse[]>([]);
   const [stories, setStories] = useState<StoryResponse[]>([]);
+  const [postPage, setPostPage] = useState(1);
+  const [hasNextPosts, setHasNextPosts] = useState(false);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unarchiving, setUnarchiving] = useState<Set<string>>(new Set());
@@ -48,15 +51,17 @@ export default function ArchivePage() {
       setError(null);
       try {
         // Load archived posts
-        const result: PagedResult<PostResponse> = await postAPI.getArchived(1, 50);
+        const result = await postAPI.getArchived(1, 10);
 
         // Fetch full post data for each archived post (including media)
-        const archivedPosts = result.items || [];
+        const archivedPosts = result.data || result.items || [];
         const fullPosts = await Promise.all(
           archivedPosts.map((post) => postAPI.getById(post.id))
         );
 
         setPosts(fullPosts);
+        setPostPage(1);
+        setHasNextPosts(result.hasNext ?? false);
 
         // Load archived stories
         const archivedStories = await storyAPI.getArchived();
@@ -71,6 +76,26 @@ export default function ArchivePage() {
 
     loadArchived();
   }, [isAuthenticated, router, t]);
+
+  const handleLoadMorePosts = async () => {
+    if (loadingMorePosts || !hasNextPosts) return;
+    setLoadingMorePosts(true);
+    try {
+      const nextPage = postPage + 1;
+      const result = await postAPI.getArchived(nextPage, 10);
+      const archivedPosts = result.data || result.items || [];
+      const fullPosts = await Promise.all(
+        archivedPosts.map((post) => postAPI.getById(post.id))
+      );
+      setPosts((prev) => [...prev, ...fullPosts]);
+      setPostPage(result.page || nextPage);
+      setHasNextPosts(result.hasNext ?? false);
+    } catch (e: any) {
+      console.error("Failed to load more archived posts:", e);
+    } finally {
+      setLoadingMorePosts(false);
+    }
+  };
 
   const handleUnarchive = async (postId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent navigation
@@ -209,7 +234,8 @@ export default function ArchivePage() {
 
         {/* Posts Grid */}
         {!loading && !error && activeTab === "posts" && posts.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {posts.map((post) => (
               <div
                 key={post.id}
@@ -264,6 +290,24 @@ export default function ArchivePage() {
               </div>
             ))}
           </div>
+
+          {hasNextPosts && (
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={handleLoadMorePosts}
+                disabled={loadingMorePosts}
+                className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+                style={{
+                  backgroundColor: "var(--primary, #3b82f6)",
+                  color: "white",
+                }}
+              >
+                {loadingMorePosts ? "Loading..." : "Load more"}
+              </button>
+            </div>
+          )}
+        </>
         )}
 
         {/* Stories Grid */}

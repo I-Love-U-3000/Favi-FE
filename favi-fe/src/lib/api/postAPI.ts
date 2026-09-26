@@ -5,6 +5,7 @@ import type {
   PostResponse,
   PostMediaResponse,
   PagedResult,
+  PaginationResult,
   ReactionType,
   PostReactionResponse,
   CreateRepostRequest,
@@ -28,6 +29,26 @@ function camelize<T = any>(input: any): T {
   const out: Record<string, any> = {};
   for (const [k, v] of Object.entries(input)) out[camelKey(k)] = camelize(v);
   return out as T;
+}
+
+function normalizePagination<T>(res: any): PaginationResult<T> & { items: T[]; pageSize: number; totalCount: number } {
+  const c = camelize(res);
+  const data = Array.isArray(c?.data) ? c.data : (Array.isArray(c?.items) ? c.items : (Array.isArray(c) ? c : []));
+  const page = typeof c?.page === "number" ? c.page : 1;
+  const size = typeof c?.size === "number" ? c.size : (typeof c?.pageSize === "number" ? c.pageSize : data.length);
+  const hasPrevious = typeof c?.hasPrevious === "boolean" ? c.hasPrevious : page > 1;
+  const hasNext = typeof c?.hasNext === "boolean" ? c.hasNext : false;
+  return {
+    ...c,
+    data,
+    items: data,
+    page,
+    size,
+    pageSize: size,
+    hasPrevious,
+    hasNext,
+    totalCount: typeof c?.totalCount === "number" ? c.totalCount : data.length,
+  };
 }
 
 // ---------- media upload with manual refresh ----------
@@ -89,47 +110,47 @@ export const postAPI = {
   getById: async (id: string) =>
     camelize<PostResponse>(await fetchWrapper.get<any>(`/Posts/${id}`)),
 
-  getByProfile: async (profileId: string, page = 1, pageSize = 20) =>
-    camelize<PagedResult<PostResponse>>(
-      await fetchWrapper.get<any>(`/Posts/profile/${profileId}?page=${page}&pageSize=${pageSize}`)
+  getByProfile: async (profileId: string, page = 1, size = 10) =>
+    normalizePagination<PostResponse>(
+      await fetchWrapper.get<any>(`/Posts/profile/${profileId}?page=${page}&size=${size}`)
     ),
 
-  getFeed: async (page = 1, pageSize = 20) =>
-    camelize<PagedResult<PostResponse>>(
-      await fetchWrapper.get<any>(`/Posts/feed?page=${page}&pageSize=${pageSize}`, true)
+  getFeed: async (page = 1, size = 10) =>
+    normalizePagination<PostResponse>(
+      await fetchWrapper.get<any>(`/Posts/feed?page=${page}&size=${size}`, true)
     ),
 
-  getFeedWithReposts: async (page = 1, pageSize = 20) =>
-    camelize<PagedResult<FeedItemDto>>(
-      await fetchWrapper.get<any>(`/Posts/feed-with-reposts?page=${page}&pageSize=${pageSize}`, true)
+  getFeedWithReposts: async (page = 1, size = 10) =>
+    normalizePagination<FeedItemDto>(
+      await fetchWrapper.get<any>(`/Posts/feed-with-reposts?page=${page}&size=${size}`, true)
     ),
 
-  getGuestFeed: async (page = 1, pageSize = 20) =>
-    camelize<PagedResult<PostResponse>>(
+  getGuestFeed: async (page = 1, size = 10) =>
+    normalizePagination<PostResponse>(
       await fetchWrapper.get<any>(
-        `/Posts/guest-feed?page=${page}&pageSize=${pageSize}`, 
+        `/Posts/guest-feed?page=${page}&size=${size}`, 
         false 
       )
     ),
 
-  getExplore: async (page = 1, pageSize = 20) =>
-    camelize<PagedResult<PostResponse>>(
-      await fetchWrapper.get<any>(`/Posts/explore?page=${page}&pageSize=${pageSize}`, true)
+  getExplore: async (page = 1, size = 10) =>
+    normalizePagination<PostResponse>(
+      await fetchWrapper.get<any>(`/Posts/explore?page=${page}&size=${size}`, true)
     ),
 
-  getLatest: async (page = 1, pageSize = 20) =>
-    camelize<PagedResult<PostResponse>>(
-      await fetchWrapper.get<any>(`/Posts/latest?page=${page}&pageSize=${pageSize}`, false)
+  getLatest: async (page = 1, size = 10) =>
+    normalizePagination<PostResponse>(
+      await fetchWrapper.get<any>(`/Posts/latest?page=${page}&size=${size}`, false)
     ),
 
-  getByTag: async (tagId: string, page = 1, pageSize = 20) =>
-    camelize<PagedResult<PostResponse>>(
-      await fetchWrapper.get<any>(`/Posts/tag/${tagId}?page=${page}&pageSize=${pageSize}`)
+  getByTag: async (tagId: string, page = 1, size = 10) =>
+    normalizePagination<PostResponse>(
+      await fetchWrapper.get<any>(`/Posts/tag/${tagId}?page=${page}&size=${size}`)
     ),
 
-  getRelated: async (postId: string, page = 1, pageSize = 20) =>
-    camelize<PagedResult<PostResponse>>(
-      await fetchWrapper.get<any>(`/Posts/${postId}/related?page=${page}&pageSize=${pageSize}`)
+  getRelated: async (postId: string, page = 1, size = 10) =>
+    normalizePagination<PostResponse>(
+      await fetchWrapper.get<any>(`/Posts/${postId}/related?page=${page}&size=${size}`)
     ),
 
   // Mutations
@@ -145,9 +166,9 @@ export const postAPI = {
   toggleReaction: (postId: string, type: ReactionType) =>
     fetchWrapper.post<any>(`/posts/${postId}/reactions?type=${encodeURIComponent(type)}`, undefined, true),
 
-  getReactors: async (postId: string) =>
-    camelize<PostReactionResponse[]>(
-      await fetchWrapper.get<any>(`/posts/${postId}/reactors`, true)
+  getReactors: async (postId: string, page = 1, size = 10) =>
+    normalizePagination<PostReactionResponse>(
+      await fetchWrapper.get<any>(`/posts/${postId}/reactors?page=${page}&size=${size}`, true)
     ),
 
   // ---------- Recycle Bin ----------
@@ -157,9 +178,9 @@ export const postAPI = {
   permanentDelete: (id: string) =>
     fetchWrapper.del<any>(`/posts/${id}/permanent`, undefined, true),
 
-  getRecycleBin: async (page = 1, pageSize = 20) =>
-    camelize<PagedResult<PostResponse>>(
-      await fetchWrapper.get<any>(`/posts/recycle-bin?page=${page}&pageSize=${pageSize}`, true)
+  getRecycleBin: async (page = 1, size = 10) =>
+    normalizePagination<PostResponse>(
+      await fetchWrapper.get<any>(`/posts/recycle-bin?page=${page}&size=${size}`, true)
     ),
 
   // ---------- Archive ----------
@@ -169,9 +190,9 @@ export const postAPI = {
   unarchive: (id: string) =>
     fetchWrapper.post<any>(`/posts/${id}/unarchive`, undefined, true),
 
-  getArchived: async (page = 1, pageSize = 20) =>
-    camelize<PagedResult<PostResponse>>(
-      await fetchWrapper.get<any>(`/posts/archived?page=${page}&pageSize=${pageSize}`, true)
+  getArchived: async (page = 1, size = 10) =>
+    normalizePagination<PostResponse>(
+      await fetchWrapper.get<any>(`/posts/archived?page=${page}&size=${size}`, true)
     ),
 
   // ---------- Repost/Share ----------
@@ -186,9 +207,9 @@ export const postAPI = {
       await fetchWrapper.get<any>(`/Posts/shares/${repostId}`, true)
     ),
 
-  getProfileShares: async (profileId: string, page = 1, pageSize = 20) =>
-    camelize<PagedResult<RepostResponse>>(
-      await fetchWrapper.get<any>(`/Posts/profile/${profileId}/shares?page=${page}&pageSize=${pageSize}`)
+  getProfileShares: async (profileId: string, page = 1, size = 10) =>
+    normalizePagination<RepostResponse>(
+      await fetchWrapper.get<any>(`/Posts/profile/${profileId}/shares?page=${page}&size=${size}`)
     ),
 };
 

@@ -5,6 +5,7 @@ import type {
   CommentTreeResponse,
   CreateCommentRequest,
   PagedResult,
+  PaginationResult,
   ReactionType,
   UpdateCommentRequest,
 } from "@/types";
@@ -21,10 +22,30 @@ function camelize<T = any>(input: any): T {
   return out as T;
 }
 
+function normalizePagination<T>(res: any): PaginationResult<T> & { items: T[]; pageSize: number; totalCount: number } {
+  const c = camelize(res);
+  const data = Array.isArray(c?.data) ? c.data : (Array.isArray(c?.items) ? c.items : (Array.isArray(c) ? c : []));
+  const page = typeof c?.page === "number" ? c.page : 1;
+  const size = typeof c?.size === "number" ? c.size : (typeof c?.pageSize === "number" ? c.pageSize : data.length);
+  const hasPrevious = typeof c?.hasPrevious === "boolean" ? c.hasPrevious : page > 1;
+  const hasNext = typeof c?.hasNext === "boolean" ? c.hasNext : false;
+  return {
+    ...c,
+    data,
+    items: data,
+    page,
+    size,
+    pageSize: size,
+    hasPrevious,
+    hasNext,
+    totalCount: typeof c?.totalCount === "number" ? c.totalCount : data.length,
+  };
+}
+
 export const commentAPI = {
-  getByPost: async (postId: string, page = 1, pageSize = 20) =>
-    camelize<PagedResult<CommentTreeResponse>>(
-      await fetchWrapper.get<any>(`/Comments/post/${postId}?page=${page}&pageSize=${pageSize}`, true)
+  getByPost: async (postId: string, page = 1, size = 10) =>
+    normalizePagination<CommentTreeResponse>(
+      await fetchWrapper.get<any>(`/Comments/post/${postId}?page=${page}&size=${size}`, true)
     ),
 
   create: async (payload: CreateCommentRequest) =>
@@ -40,8 +61,10 @@ export const commentAPI = {
   toggleReaction: async (id: string, type: ReactionType) =>
     camelize(await fetchWrapper.post<any>(`/Comments/${id}/reactions?type=${encodeURIComponent(type)}`, undefined, true)),
 
-  getReactors: async (commentId: string) =>
-    camelize<CommentReactionResponse[]>(await fetchWrapper.get<any>(`/Comments/${commentId}/reactors`, true)),
+  getReactors: async (commentId: string, page = 1, size = 10) =>
+    normalizePagination<CommentReactionResponse>(
+      await fetchWrapper.get<any>(`/Comments/${commentId}/reactors?page=${page}&size=${size}`, true)
+    ),
 };
 
 export default commentAPI;

@@ -14,6 +14,9 @@ export default function RecycleBinPage() {
   const t = useTranslations("RecycleBinPage");
 
   const [posts, setPosts] = useState<PostResponse[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [restoring, setRestoring] = useState<Set<string>>(new Set());
@@ -29,15 +32,17 @@ export default function RecycleBinPage() {
       setLoading(true);
       setError(null);
       try {
-        const result: PagedResult<PostResponse> = await postAPI.getRecycleBin(1, 50);
+        const result = await postAPI.getRecycleBin(1, 10);
 
         // Fetch full post data for each recycled post (including media)
-        const recycledPosts = result.items || [];
+        const recycledPosts = result.data || result.items || [];
         const fullPosts = await Promise.all(
           recycledPosts.map((post) => postAPI.getById(post.id))
         );
 
         setPosts(fullPosts);
+        setPage(1);
+        setHasNext(result.hasNext ?? false);
       } catch (e: any) {
         setError(e?.error || e?.message || t("LoadFailed"));
       } finally {
@@ -47,6 +52,26 @@ export default function RecycleBinPage() {
 
     loadRecycleBin();
   }, [isAuthenticated, router, t]);
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasNext) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const result = await postAPI.getRecycleBin(nextPage, 10);
+      const recycledPosts = result.data || result.items || [];
+      const fullPosts = await Promise.all(
+        recycledPosts.map((post) => postAPI.getById(post.id))
+      );
+      setPosts((prev) => [...prev, ...fullPosts]);
+      setPage(result.page || nextPage);
+      setHasNext(result.hasNext ?? false);
+    } catch (e: any) {
+      console.error("Failed to load more recycled posts:", e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleRestore = async (postId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent navigation
@@ -133,7 +158,8 @@ export default function RecycleBinPage() {
         )}
 
         {!loading && !error && posts.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {posts.map((post) => (
               <div
                 key={post.id}
@@ -188,6 +214,24 @@ export default function RecycleBinPage() {
               </div>
             ))}
           </div>
+
+          {hasNext && (
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+                style={{
+                  backgroundColor: "var(--primary, #3b82f6)",
+                  color: "white",
+                }}
+              >
+                {loadingMore ? "Loading..." : "Load more"}
+              </button>
+            </div>
+          )}
+        </>
         )}
       </div>
     </div>

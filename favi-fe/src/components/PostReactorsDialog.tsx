@@ -32,6 +32,9 @@ export default function PostReactorsDialog({
   const router = useRouter();
   const [reactors, setReactors] = useState<PostReactionResponse[]>([]);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const hasLoadedRef = useRef(false);
 
   // Wrap onHide to prevent event bubbling to parent dialog
@@ -48,16 +51,35 @@ export default function PostReactorsDialog({
 
     hasLoadedRef.current = true;
     setLoading(true);
+    setPage(1);
     try {
-      const data = await postAPI.getReactors(postId);
-      setReactors(data);
+      const res = await postAPI.getReactors(postId, 1, 10);
+      setReactors(res.data || res.items || []);
+      setHasNext(res.hasNext ?? false);
     } catch (error) {
       console.error("Failed to load reactors:", error);
       setReactors([]);
+      setHasNext(false);
     } finally {
       setLoading(false);
     }
   }, [postId]);
+
+  const handleLoadMore = async () => {
+    if (!postId || loadingMore || !hasNext) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const res = await postAPI.getReactors(postId, nextPage, 10);
+      setReactors(prev => [...prev, ...(res.data || res.items || [])]);
+      setPage(res.page || nextPage);
+      setHasNext(res.hasNext ?? false);
+    } catch (error) {
+      console.error("Failed to load more reactors:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     if (visible && postId) {
@@ -157,6 +179,27 @@ export default function PostReactorsDialog({
                 </div>
               </button>
             ))}
+
+            {hasNext && (
+              <div className="p-3 text-center border-t" style={{ borderColor: "var(--border)" }}>
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="w-full py-2 text-sm font-medium rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                  style={{ color: "var(--primary, #3b82f6)" }}
+                >
+                  {loadingMore ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <i className="pi pi-spin pi-spinner text-xs" />
+                      Loading...
+                    </span>
+                  ) : (
+                    "Load more"
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

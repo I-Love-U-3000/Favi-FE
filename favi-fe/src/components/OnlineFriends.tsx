@@ -21,7 +21,8 @@ export default function OnlineFriends() {
       setLoading(true);
       const response = await profileAPI.getOnlineFriends(3);
       if (!cancelled) {
-        setFriends(response || []);
+        const items = (response as any)?.data || (response as any)?.items || (Array.isArray(response) ? response : []);
+        setFriends(items);
         hasFetchedRef.current = true;
       }
     } catch (e: any) {

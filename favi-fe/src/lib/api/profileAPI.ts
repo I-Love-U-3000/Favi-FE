@@ -1,5 +1,5 @@
 import { fetchWrapper } from "@/lib/fetchWrapper";
-import type { PostMediaResponse, ProfileResponse, SocialKind, FollowResponse } from "@/types";
+import type { PostMediaResponse, ProfileResponse, SocialKind, FollowResponse, PaginationResult } from "@/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -16,6 +16,26 @@ function camelize<T = any>(input: any): T {
   const out: Record<string, any> = {};
   for (const [k, v] of Object.entries(input)) out[camelKey(k)] = camelize(v);
   return out as T;
+}
+
+function normalizePagination<T>(res: any): PaginationResult<T> & { items: T[]; pageSize: number; totalCount: number } {
+  const c = camelize(res);
+  const data = Array.isArray(c?.data) ? c.data : (Array.isArray(c?.items) ? c.items : (Array.isArray(c) ? c : []));
+  const page = typeof c?.page === "number" ? c.page : 1;
+  const size = typeof c?.size === "number" ? c.size : (typeof c?.pageSize === "number" ? c.pageSize : data.length);
+  const hasPrevious = typeof c?.hasPrevious === "boolean" ? c.hasPrevious : page > 1;
+  const hasNext = typeof c?.hasNext === "boolean" ? c.hasNext : false;
+  return {
+    ...c,
+    data,
+    items: data,
+    page,
+    size,
+    pageSize: size,
+    hasPrevious,
+    hasNext,
+    totalCount: typeof c?.totalCount === "number" ? c.totalCount : data.length,
+  };
 }
 
 async function uploadProfileAsset(path: string, file: File): Promise<PostMediaResponse> {
@@ -64,12 +84,13 @@ async function uploadProfileAsset(path: string, file: File): Promise<PostMediaRe
 
 export const profileAPI = {
   getById: (id: string) => fetchWrapper.get<ProfileResponse>(`/profiles/${id}`, true),
-  getRecommendations: (skip?: number, take?: number) => {
-    const q: string[] = [];
+  getRecommendations: async (page = 1, size = 10, skip?: number, take?: number) => {
+    const q: string[] = [`page=${page}`, `size=${size}`];
     if (typeof skip === "number") q.push(`skip=${skip}`);
     if (typeof take === "number") q.push(`take=${take}`);
-    const qs = q.length ? `?${q.join("&")}` : "";
-    return fetchWrapper.get<ProfileResponse[]>(`/profiles/recommendations${qs}`, true);
+    const qs = `?${q.join("&")}`;
+    const res = await fetchWrapper.get<any>(`/profiles/recommendations${qs}`, true);
+    return normalizePagination<ProfileResponse>(res);
   },
   getAvatar: (id: string) => fetchWrapper.get<string>(`/profiles/avatar/${id}`, false),
   getPoster: (id: string) => fetchWrapper.get<string>(`/profiles/poster/${id}`, false),
@@ -92,23 +113,30 @@ export const profileAPI = {
 
   unfollow: (targetId: string) => fetchWrapper.del<any>(`/profiles/follow/${targetId}`, undefined, true),
 
-  followers: async (id: string, skip?: number, take?: number) => {
-    const q: string[] = [];
+  followers: async (id: string, page = 1, size = 10, skip?: number, take?: number) => {
+    const q: string[] = [`page=${page}`, `size=${size}`];
     if (skip !== undefined) q.push(`skip=${skip}`);
     if (take !== undefined) q.push(`take=${take}`);
-    const qs = q.length ? `?${q.join("&")}` : "";
+    const qs = `?${q.join("&")}`;
     const res = await fetchWrapper.get<any>(`/profiles/${id}/followers${qs}`, true);
-    // Backend returns PascalCase so normalize to camelCase for UI consumption
-    return camelize<FollowResponse[] | { items: FollowResponse[] }>(res);
+    return normalizePagination<FollowResponse>(res);
   },
 
-  followings: async (id: string, skip?: number, take?: number) => {
-    const q: string[] = [];
+  followings: async (id: string, page = 1, size = 10, skip?: number, take?: number) => {
+    const q: string[] = [`page=${page}`, `size=${size}`];
     if (skip !== undefined) q.push(`skip=${skip}`);
     if (take !== undefined) q.push(`take=${take}`);
-    const qs = q.length ? `?${q.join("&")}` : "";
+    const qs = `?${q.join("&")}`;
     const res = await fetchWrapper.get<any>(`/profiles/${id}/followings${qs}`, true);
-    return camelize<FollowResponse[] | { items: FollowResponse[] }>(res);
+    return normalizePagination<FollowResponse>(res);
+  },
+
+  getFriends: async (id?: string, page = 1, size = 10) => {
+    const q: string[] = [`page=${page}`, `size=${size}`];
+    const qs = `?${q.join("&")}`;
+    const path = id ? `/profiles/${id}/friends${qs}` : `/profiles/friends${qs}`;
+    const res = await fetchWrapper.get<any>(path, true);
+    return normalizePagination<ProfileResponse>(res);
   },
 
   getLinksPublic: (id: string) => fetchWrapper.get<any>(`/profiles/${id}/links`, false),
@@ -135,11 +163,12 @@ export const profileAPI = {
     return { valid, message: data?.message } as { valid: boolean; message?: string };
   },
 
-  getOnlineFriends: (withinLastMinutes?: number) => {
-    const q: string[] = [];
+  getOnlineFriends: async (withinLastMinutes?: number, page = 1, size = 10) => {
+    const q: string[] = [`page=${page}`, `size=${size}`];
     if (typeof withinLastMinutes === "number") q.push(`withinLastMinutes=${withinLastMinutes}`);
-    const qs = q.length ? `?${q.join("&")}` : "";
-    return fetchWrapper.get<ProfileResponse[]>(`/profiles/online-friends${qs}`, true);
+    const qs = `?${q.join("&")}`;
+    const res = await fetchWrapper.get<any>(`/profiles/online-friends${qs}`, true);
+    return normalizePagination<ProfileResponse>(res);
   },
 
   heartbeat: () => fetchWrapper.post<{ message: string; lastActiveAt: string }>("/profiles/heartbeat", undefined, true),

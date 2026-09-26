@@ -13,16 +13,31 @@ export default function NotificationsPage() {
   const { notifications, fetchNotifications, markAsRead, markAllAsRead } = useSignalRContext();
   const [filter, setFilter] = useState<FilterType>("all");
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    loadMoreNotifications();
+    (async () => {
+      const result = await fetchNotifications(1, 10);
+      if (result) {
+        setHasMore(result.hasNext ?? false);
+        setPage(1);
+      }
+    })();
   }, []);
 
-  const loadMoreNotifications = async () => {
-    const result = await fetchNotifications(page, 20);
-    if (result) {
-      setHasMore(result.items.length + notifications.length < result.totalCount);
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const result = await fetchNotifications(nextPage, 10);
+      if (result) {
+        setHasMore(result.hasNext ?? false);
+        setPage(nextPage);
+      }
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -103,13 +118,12 @@ export default function NotificationsPage() {
 
         {hasMore && filtered.length > 0 && (
           <button
-            onClick={() => {
-              setPage((p) => p + 1);
-              loadMoreNotifications();
-            }}
-            className="w-full py-3 text-center text-sm text-blue-500 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl"
+            type="button"
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="w-full py-3 text-center text-sm font-medium text-blue-500 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl disabled:opacity-50"
           >
-            Load more
+            {loadingMore ? "Loading..." : "Load more"}
           </button>
         )}
       </div>

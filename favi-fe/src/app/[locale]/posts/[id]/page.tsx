@@ -640,16 +640,23 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
     onCountChange?.(items.length);
   }, [items.length, onCountChange]);
 
+  const [commentPage, setCommentPage] = useState(1);
+  const [hasNextComments, setHasNextComments] = useState(false);
+  const [loadingMoreComments, setLoadingMoreComments] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await commentAPI.getByPost(postId, 1, 200);
+        const res = await commentAPI.getByPost(postId, 1, 10);
         if (!cancelled) {
-          const flat = flattenFromApi(res.items || []);
+          const raw = res.data || res.items || [];
+          const flat = flattenFromApi(raw);
           setItems(flat);
+          setCommentPage(res.page || 1);
+          setHasNextComments(res.hasNext ?? false);
           onCountChange?.(Number(res.totalCount ?? flat.length));
         }
       } catch (e: any) {
@@ -660,6 +667,28 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
     })();
     return () => { cancelled = true; };
   }, [postId, onCountChange]);
+
+  const handleLoadMoreComments = async () => {
+    if (loadingMoreComments || !hasNextComments) return;
+    setLoadingMoreComments(true);
+    try {
+      const nextPage = commentPage + 1;
+      const res = await commentAPI.getByPost(postId, nextPage, 10);
+      const raw = res.data || res.items || [];
+      const flat = flattenFromApi(raw);
+      setItems((prev) => {
+        const existingIds = new Set(prev.map((c) => getId(c)));
+        const newItems = flat.filter((c) => !existingIds.has(getId(c)));
+        return [...prev, ...newItems];
+      });
+      setCommentPage(res.page || nextPage);
+      setHasNextComments(res.hasNext ?? false);
+    } catch (e: any) {
+      console.error("Failed to load more comments:", e);
+    } finally {
+      setLoadingMoreComments(false);
+    }
+  };
 
   const byId = new Map(items.map(c => [getId(c), c] as const));
   const childrenMap = new Map<string, CommentResponse[]>();
@@ -916,6 +945,20 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
               </div>
             );
           })}
+
+          {hasNextComments && (
+            <div className="pt-2 pb-1 flex justify-center">
+              <button
+                type="button"
+                onClick={handleLoadMoreComments}
+                disabled={loadingMoreComments}
+                className="w-full py-2 text-xs font-medium text-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                style={{ color: "var(--primary, #3b82f6)" }}
+              >
+                {loadingMoreComments ? "Loading comments..." : "Load more comments"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

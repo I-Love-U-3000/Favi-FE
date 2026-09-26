@@ -10,7 +10,7 @@ import type { PostResponse, ReactionType, ReportTarget } from "@/types";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import { readPostReaction, writePostReaction } from "@/lib/postCache";
 import { useTranslations } from "next-intl";
-import { PagedResult } from "@/types";
+import { PagedResult, PaginationResult } from "@/types";
 import { useOverlay } from "@/components/RootProvider";
 import TrendingCollections from "@/components/TrendingCollections";
 import ShareToChatDialog from "@/components/ShareToChatDialog";
@@ -45,6 +45,9 @@ export default function HomePage() {
   const router = useRouter();
   const { openAddToCollectionDialog } = useOverlay();
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posts, setPosts] = useState<PostResponse[]>([]);
   const [nsfwConfirmedGridPosts, setNsfwConfirmedGridPosts] = useState<Set<string>>(new Set());
@@ -56,18 +59,20 @@ export default function HomePage() {
       setLoading(true);
       setError(null);
       try {
-        let res: PagedResult<PostResponse>;
+        let res: PaginationResult<PostResponse>;
 
         if (isAuthenticated) {
           // personal feed
-          res = await postAPI.getFeed(1, 24);
+          res = await postAPI.getFeed(1, 10);
         } else {
           // guest feed
-          res = await postAPI.getGuestFeed(1, 24);
+          res = await postAPI.getGuestFeed(1, 10);
         }
 
         if (!cancelled) {
-          setPosts(res.items || []);
+          setPosts(res.data || res.items || []);
+          setPage(res.page || 1);
+          setHasNext(res.hasNext ?? false);
         }
       } catch (e: any) {
         if (!cancelled) {
@@ -83,6 +88,25 @@ export default function HomePage() {
       cancelled = true;
     };
   }, [isAuthenticated, t]);
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasNext) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const res = isAuthenticated
+        ? await postAPI.getFeed(nextPage, 10)
+        : await postAPI.getGuestFeed(nextPage, 10);
+      const newItems = res.data || res.items || [];
+      setPosts((prev) => [...prev, ...newItems]);
+      setPage(res.page || nextPage);
+      setHasNext(res.hasNext ?? false);
+    } catch (e: any) {
+      console.error("Failed to load more feed posts:", e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const gridPosts = useMemo(() => posts.filter(p => (p.medias || []).length > 0), [posts]);
 
@@ -171,6 +195,30 @@ export default function HomePage() {
                     </div>
                   </Link>
                 ))}
+              </div>
+            )}
+
+            {hasNext && (
+              <div className="mt-8 flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+                  style={{
+                    backgroundColor: "var(--primary, #3b82f6)",
+                    color: "white",
+                  }}
+                >
+                  {loadingMore ? (
+                    <>
+                      <i className="pi pi-spin pi-spinner text-sm" />
+                      <span>Loading...</span>
+                    </>
+                  ) : (
+                    <span>Load more</span>
+                  )}
+                </button>
               </div>
             )}
           </section>

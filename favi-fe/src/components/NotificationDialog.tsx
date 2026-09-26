@@ -17,18 +17,33 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
   const router = useRouter();
   const { notifications, unreadCount, isConnected, fetchNotifications, markAsRead, markAllAsRead, deleteNotification } = useSignalRContext();
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    if (visible && page === 1) {
-      loadMoreNotifications();
+    if (visible) {
+      setPage(1);
+      (async () => {
+        const result = await fetchNotifications(1, 10);
+        if (result) {
+          setHasMore(result.hasNext ?? false);
+        }
+      })();
     }
   }, [visible]);
 
-  const loadMoreNotifications = async () => {
-    const result = await fetchNotifications(page, 20);
-    if (result) {
-      setHasMore(result.items.length + notifications.length < result.totalCount);
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const result = await fetchNotifications(nextPage, 10);
+      if (result) {
+        setHasMore(result.hasNext ?? false);
+        setPage(nextPage);
+      }
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -225,14 +240,13 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
 
           {hasMore && notifications.length > 0 && (
             <button
-              onClick={() => {
-                setPage((p) => p + 1);
-                loadMoreNotifications();
-              }}
-              className="w-full p-3 text-center text-sm notif-item transition-colors"
+              type="button"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="w-full p-3 text-center text-sm notif-item transition-colors disabled:opacity-50"
               style={{ color: 'var(--primary)' }}
             >
-              Load more
+              {loadingMore ? "Loading..." : "Load more"}
             </button>
           )}
         </div>

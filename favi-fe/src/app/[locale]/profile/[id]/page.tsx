@@ -408,6 +408,9 @@ function FollowListDialog({
   loading,
   error,
   profiles,
+  hasNext,
+  loadingMore,
+  onLoadMore,
   onHide,
 }: {
   type: "followers" | "following";
@@ -415,6 +418,9 @@ function FollowListDialog({
   loading: boolean;
   error: string | null;
   profiles: ProfileResponse[];
+  hasNext?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
   onHide: () => void;
 }) {
   const title = type === "followers" ? "Followers" : "Following";
@@ -480,6 +486,20 @@ function FollowListDialog({
               <FollowUserRow profile={p} />
             </div>
           ))}
+
+          {hasNext && onLoadMore && (
+            <div className="pt-2 flex justify-center">
+              <button
+                type="button"
+                onClick={onLoadMore}
+                disabled={loadingMore}
+                className="w-full py-2.5 text-sm font-medium text-center rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                style={{ color: "var(--primary, #3b82f6)" }}
+              >
+                {loadingMore ? "Loading..." : "Load more"}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </Dialog>
@@ -522,11 +542,25 @@ export default function ProfilePage() {
   const [followDialogError, setFollowDialogError] = useState<string | null>(null);
   const [followersList, setFollowersList] = useState<ProfileResponse[]>([]);
   const [followingList, setFollowingList] = useState<ProfileResponse[]>([]);
+  const [followDialogPage, setFollowDialogPage] = useState(1);
+  const [followDialogHasNext, setFollowDialogHasNext] = useState(false);
+  const [followDialogLoadingMore, setFollowDialogLoadingMore] = useState(false);
   const followRequestKeyRef = useRef(0);
   const [isUserFollowing, setIsUserFollowing] = useState(false);
   const [reactorsDialogOpen, setReactorsDialogOpen] = useState(false);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [showAvatarPreview, setShowAvatarPreview] = useState(false);
+  const [profilePostsPage, setProfilePostsPage] = useState(1);
+  const [hasNextProfilePosts, setHasNextProfilePosts] = useState(false);
+  const [loadingMoreProfilePosts, setLoadingMoreProfilePosts] = useState(false);
+
+  const [repostsPage, setRepostsPage] = useState(1);
+  const [hasNextReposts, setHasNextReposts] = useState(false);
+  const [loadingMoreReposts, setLoadingMoreReposts] = useState(false);
+
+  const [collectionsPage, setCollectionsPage] = useState(1);
+  const [hasNextCollections, setHasNextCollections] = useState(false);
+  const [loadingMoreCollections, setLoadingMoreCollections] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -536,9 +570,10 @@ export default function ProfilePage() {
         const p = await profileAPI.getById(id);
         const norm = normalizeProfile(p);
         if (!cancelled && norm) setProfile(norm);
-        const res = await postAPI.getByProfile(id, 1, 24);
-        const postCount = typeof res.totalCount === "number" ? res.totalCount : (res.items?.length || 0);
-        const mapped: PhotoPost[] = (res.items || []).map((x: PostResponse) => ({
+        const res = await postAPI.getByProfile(id, 1, 10);
+        const postItems = res.data || res.items || [];
+        const postCount = typeof res.totalCount === "number" ? res.totalCount : postItems.length;
+        const mapped: PhotoPost[] = postItems.map((x: PostResponse) => ({
           id: x.id,
           imageUrl: x.medias?.[0]?.thumbnailUrl || x.medias?.[0]?.url || "",
           alt: x.caption ?? "",
@@ -550,7 +585,11 @@ export default function ProfilePage() {
           tags: (x.tags || []).map(t => t.name),
           isNSFW: x.isNSFW,
         }));
-        if (!cancelled) setPosts(mapped);
+        if (!cancelled) {
+          setPosts(mapped);
+          setProfilePostsPage(res.page || 1);
+          setHasNextProfilePosts(res.hasNext ?? false);
+        }
         if (!cancelled) {
           setProfile(prev => {
             if (!prev) return prev;
@@ -641,18 +680,27 @@ export default function ProfilePage() {
         }
 
         // Fetch user's collections
-        const collectionsRes = await collectionAPI.getByOwner(id, 1, 50);
+        const collectionsRes = await collectionAPI.getByOwner(id, 1, 10);
         const FALLBACK_COLLECTION_COVER = "https://via.placeholder.com/400x200/6366f1/ffffff?text=Collection";
-        const mappedCollections: CollectionResponse[] = (collectionsRes.items || []).map((c) => ({
+        const collData = collectionsRes.data || collectionsRes.items || [];
+        const mappedCollections: CollectionResponse[] = collData.map((c) => ({
           ...c,
           coverImageUrl: c.coverImageUrl?.trim() || FALLBACK_COLLECTION_COVER,
         }));
-        if (!cancelled) setCollections(mappedCollections as any);
+        if (!cancelled) {
+          setCollections(mappedCollections as any);
+          setCollectionsPage(collectionsRes.page || 1);
+          setHasNextCollections(collectionsRes.hasNext ?? false);
+        }
 
         // Fetch user's reposts
         try {
-          const repostsRes = await postAPI.getProfileShares(id, 1, 50);
-          if (!cancelled) setReposts(repostsRes.items || []);
+          const repostsRes = await postAPI.getProfileShares(id, 1, 10);
+          if (!cancelled) {
+            setReposts(repostsRes.data || repostsRes.items || []);
+            setRepostsPage(repostsRes.page || 1);
+            setHasNextReposts(repostsRes.hasNext ?? false);
+          }
         } catch {
           // Reposts are optional, don't fail if loading fails
           if (!cancelled) setReposts([]);
@@ -767,20 +815,97 @@ export default function ProfilePage() {
     };
   }, [previewImage]);
 
+  const handleLoadMoreProfilePosts = async () => {
+    if (!id || loadingMoreProfilePosts || !hasNextProfilePosts) return;
+    setLoadingMoreProfilePosts(true);
+    try {
+      const nextPage = profilePostsPage + 1;
+      const res = await postAPI.getByProfile(id, nextPage, 10);
+      const postItems = res.data || res.items || [];
+      const mapped: PhotoPost[] = postItems.map((x: PostResponse) => ({
+        id: x.id,
+        imageUrl: x.medias?.[0]?.thumbnailUrl || x.medias?.[0]?.url || "",
+        alt: x.caption ?? "",
+        width: x.medias?.[0]?.width || 0,
+        height: x.medias?.[0]?.height || 0,
+        createdAtISO: x.createdAt,
+        likeCount: x.reactions?.total ?? 0,
+        commentCount: Number(x.commentsCount ?? x.commentsCount ?? 0) || 0,
+        tags: (x.tags || []).map(t => t.name),
+        isNSFW: x.isNSFW,
+      }));
+      setPosts((prev) => [...prev, ...mapped]);
+      setProfilePostsPage(res.page || nextPage);
+      setHasNextProfilePosts(res.hasNext ?? false);
+    } catch (e: any) {
+      console.error("Failed to load more user posts:", e);
+    } finally {
+      setLoadingMoreProfilePosts(false);
+    }
+  };
+
+  const handleLoadMoreReposts = async () => {
+    if (!id || loadingMoreReposts || !hasNextReposts) return;
+    setLoadingMoreReposts(true);
+    try {
+      const nextPage = repostsPage + 1;
+      const res = await postAPI.getProfileShares(id, nextPage, 10);
+      const newItems = res.data || res.items || [];
+      setReposts((prev) => {
+        const existingIds = new Set(prev.map((r) => r.id));
+        const filtered = newItems.filter((r) => !existingIds.has(r.id));
+        return [...prev, ...filtered];
+      });
+      setRepostsPage(res.page || nextPage);
+      setHasNextReposts(res.hasNext ?? false);
+    } catch (e: any) {
+      console.error("Failed to load more reposts:", e);
+    } finally {
+      setLoadingMoreReposts(false);
+    }
+  };
+
+  const handleLoadMoreCollections = async () => {
+    if (!id || loadingMoreCollections || !hasNextCollections) return;
+    setLoadingMoreCollections(true);
+    try {
+      const nextPage = collectionsPage + 1;
+      const res = await collectionAPI.getByOwner(id, nextPage, 10);
+      const collData = res.data || res.items || [];
+      const FALLBACK_COLLECTION_COVER = "https://via.placeholder.com/400x200/6366f1/ffffff?text=Collection";
+      const mapped: CollectionResponse[] = collData.map((c) => ({
+        ...c,
+        coverImageUrl: c.coverImageUrl?.trim() || FALLBACK_COLLECTION_COVER,
+      }));
+      setCollections((prev) => {
+        const existingIds = new Set(prev.map((c) => c.id));
+        const filtered = mapped.filter((c) => !existingIds.has(c.id));
+        return [...prev, ...filtered];
+      });
+      setCollectionsPage(res.page || nextPage);
+      setHasNextCollections(res.hasNext ?? false);
+    } catch (e: any) {
+      console.error("Failed to load more collections:", e);
+    } finally {
+      setLoadingMoreCollections(false);
+    }
+  };
+
   const openFollowDialog = async (kind: "followers" | "following") => {
     if (!profile) return;
     setFollowDialogType(kind);
     setFollowDialogVisible(true);
     setFollowDialogError(null);
     setFollowDialogLoading(true);
+    setFollowDialogPage(1);
     const requestKey = followRequestKeyRef.current + 1;
     followRequestKeyRef.current = requestKey;
 
     try {
       const res = kind === "followers"
-        ? await profileAPI.followers(profile.id, 0, 200)
-        : await profileAPI.followings(profile.id, 0, 200);
-      const items: any[] = Array.isArray(res) ? res : res?.items ?? [];
+        ? await profileAPI.followers(profile.id, 1, 10)
+        : await profileAPI.followings(profile.id, 1, 10);
+      const items: any[] = res.data || res.items || [];
       const ids = Array.from(
         new Set(
           items
@@ -807,6 +932,7 @@ export default function ProfilePage() {
       } else {
         setFollowingList(resolved);
       }
+      setFollowDialogHasNext(res.hasNext ?? false);
     } catch (e: any) {
       if (followRequestKeyRef.current !== requestKey) return;
       setFollowDialogError(e?.error || e?.message || "Failed to load list");
@@ -815,10 +941,56 @@ export default function ProfilePage() {
       } else {
         setFollowingList([]);
       }
+      setFollowDialogHasNext(false);
     } finally {
       if (followRequestKeyRef.current === requestKey) {
         setFollowDialogLoading(false);
       }
+    }
+  };
+
+  const handleLoadMoreFollowList = async () => {
+    if (!profile || !followDialogType || followDialogLoadingMore || !followDialogHasNext) return;
+    setFollowDialogLoadingMore(true);
+    const requestKey = followRequestKeyRef.current;
+    try {
+      const nextPage = followDialogPage + 1;
+      const res = followDialogType === "followers"
+        ? await profileAPI.followers(profile.id, nextPage, 10)
+        : await profileAPI.followings(profile.id, nextPage, 10);
+      const items: any[] = res.data || res.items || [];
+      const ids = Array.from(
+        new Set(
+          items
+            .map((f) => (followDialogType === "followers" ? f.followerId : f.followeeId))
+            .filter(Boolean)
+        )
+      ) as string[];
+
+      const profileResults = ids.length
+        ? await Promise.allSettled(ids.map((pid) => profileAPI.getById(pid)))
+        : [];
+
+      if (followRequestKeyRef.current !== requestKey) return;
+
+      const resolved = profileResults
+        .filter(
+          (r): r is PromiseFulfilledResult<ProfileResponse> =>
+            r.status === "fulfilled"
+        )
+        .map((r) => r.value);
+
+      if (followDialogType === "followers") {
+        setFollowersList((prev) => [...prev, ...resolved]);
+      } else {
+        setFollowingList((prev) => [...prev, ...resolved]);
+      }
+      setFollowDialogPage(res.page || nextPage);
+      setFollowDialogHasNext(res.hasNext ?? false);
+    } catch (e: any) {
+      console.error("Failed to load more follow list:", e);
+    } finally {
+      setFollowDialogLoadingMore(false);
     }
   };
 
@@ -1121,6 +1293,22 @@ export default function ProfilePage() {
           <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
             <TabPanel header={`Posts (${posts.length})`}>
               <PhotoGrid items={posts} />
+              {hasNextProfilePosts && (
+                <div className="mt-6 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={handleLoadMoreProfilePosts}
+                    disabled={loadingMoreProfilePosts}
+                    className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+                    style={{
+                      backgroundColor: "var(--primary, #3b82f6)",
+                      color: "white",
+                    }}
+                  >
+                    {loadingMoreProfilePosts ? "Loading..." : "Load more"}
+                  </button>
+                </div>
+              )}
             </TabPanel>
 
             <TabPanel header={`Reposts (${reposts.length})`}>
@@ -1140,12 +1328,44 @@ export default function ProfilePage() {
                       />
                     </div>
                   ))}
+                  {hasNextReposts && (
+                    <div className="mt-6 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={handleLoadMoreReposts}
+                        disabled={loadingMoreReposts}
+                        className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+                        style={{
+                          backgroundColor: "var(--primary, #3b82f6)",
+                          color: "white",
+                        }}
+                      >
+                        {loadingMoreReposts ? "Loading..." : "Load more"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </TabPanel>
 
             <TabPanel header={`Collections (${collections.length})`}>
               <CollectionsGrid items={collections} onCountClick={(id) => { setSelectedCollectionId(id); setReactorsDialogOpen(true); }} />
+              {hasNextCollections && (
+                <div className="mt-6 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={handleLoadMoreCollections}
+                    disabled={loadingMoreCollections}
+                    className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+                    style={{
+                      backgroundColor: "var(--primary, #3b82f6)",
+                      color: "white",
+                    }}
+                  >
+                    {loadingMoreCollections ? "Loading..." : "Load more"}
+                  </button>
+                </div>
+              )}
             </TabPanel>
 
             <TabPanel header="Links">
@@ -1204,6 +1424,9 @@ export default function ProfilePage() {
           loading={followDialogLoading}
           error={followDialogError}
           profiles={followDialogProfiles}
+          hasNext={followDialogHasNext}
+          loadingMore={followDialogLoadingMore}
+          onLoadMore={handleLoadMoreFollowList}
           onHide={closeFollowDialog}
         />
         <EditProfileDialog

@@ -32,9 +32,20 @@ interface ChatListProps {
   onClose: () => void;
   onSelect: (toId: string) => void;
   conversations: Conversation[];
+  hasNext?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
-export default function ChatList({ userId, onClose, onSelect, conversations }: ChatListProps) {
+export default function ChatList({
+  userId,
+  onClose,
+  onSelect,
+  conversations,
+  hasNext,
+  loadingMore,
+  onLoadMore,
+}: ChatListProps) {
   const getLastMessage = (conv: Conversation) => {
     // Use backend's lastMessagePreview if available (for conversations not yet loaded)
     if (conv.lastMessagePreview) {
@@ -133,6 +144,20 @@ export default function ChatList({ userId, onClose, onSelect, conversations }: C
           {itemTemplate(conv)}
         </div>
       ))}
+
+      {hasNext && onLoadMore && (
+        <div className="pt-2 flex justify-center">
+          <button
+            type="button"
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            className="w-full py-2.5 text-xs font-medium text-center rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+            style={{ color: "var(--primary, #3b82f6)" }}
+          >
+            {loadingMore ? "Loading..." : "Load more"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

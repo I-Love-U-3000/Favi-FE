@@ -109,6 +109,17 @@ export default function ChatPage() {
   const [viewingImageUrl, setViewingImageUrl] = useState<string>("");
   const [mediaGalleryOpen, setMediaGalleryOpen] = useState(false);
 
+  // Conversation pagination
+  const [conversationsPage, setConversationsPage] = useState(1);
+  const [hasNextConversations, setHasNextConversations] = useState(false);
+  const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
+
+  // Messages pagination (infinite scroll up)
+  const [messagesPage, setMessagesPage] = useState(1);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+  const isInitialScrollDoneRef = useRef(false);
+
   // Track which conversations have been loaded (to preserve their unreadCount)
   const loadedConversationsRef = useRef<Set<string>>(new Set());
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -137,10 +148,8 @@ export default function ChatPage() {
     if (!currentUserId) return;
 
     try {
-      const data = (await chatAPI.getConversations(
-        1,
-        50
-      )) as ConversationSummaryResponse[];
+      const res = await chatAPI.getConversations(1, 10);
+      const data = (res.data || res.items || []) as ConversationSummaryResponse[];
 
       const mapped: ChatConversation[] = data.map((c) => {
         const other =
@@ -189,6 +198,8 @@ export default function ChatPage() {
           return newConv;
         })
       );
+      setConversationsPage(res.page || 1);
+      setHasNextConversations(res.hasNext ?? false);
 
       // Only set initial selection if not preserving
       if (!preserveSelection) {
@@ -206,6 +217,56 @@ export default function ChatPage() {
       console.error("Error fetching conversations", e);
     }
   }, [currentUserId, initialConversationId]);
+
+  const handleLoadMoreConversations = async () => {
+    if (!currentUserId || loadingMoreConversations || !hasNextConversations) return;
+    setLoadingMoreConversations(true);
+    try {
+      const nextPage = conversationsPage + 1;
+      const res = await chatAPI.getConversations(nextPage, 10);
+      const data = (res.data || res.items || []) as ConversationSummaryResponse[];
+      const mapped: ChatConversation[] = data.map((c) => {
+        const other =
+          c.members.find((m) => m.profileId !== currentUserId) ?? c.members[0];
+
+        const lastActive = other?.lastActiveAt
+          ? new Date(other.lastActiveAt)
+          : null;
+
+        const isOnline =
+          !!lastActive &&
+          Date.now() - lastActive.getTime() < 3 * 60 * 1000;
+
+        return {
+          id: c.id,
+          key: c.id,
+          recipient: {
+            username: other?.username ?? "unknown",
+            avatar: other?.avatarUrl ?? "/avatar-default.svg",
+            isOnline,
+            lastActiveAt: other?.lastActiveAt,
+            profileId: other?.profileId,
+          },
+          messages: [],
+          unreadCount: c.unreadCount,
+          lastMessagePreview: c.lastMessagePreview,
+          lastMessageAt: c.lastMessageAt,
+        };
+      });
+
+      setConversations((prev) => {
+        const existingIds = new Set(prev.map((c) => c.id));
+        const newItems = mapped.filter((c) => !existingIds.has(c.id));
+        return [...prev, ...newItems];
+      });
+      setConversationsPage(res.page || nextPage);
+      setHasNextConversations(res.hasNext ?? false);
+    } catch (e) {
+      console.error("Error loading more conversations", e);
+    } finally {
+      setLoadingMoreConversations(false);
+    }
+  };
 
   // Initial fetch
   useEffect(() => {
@@ -231,13 +292,9 @@ export default function ChatPage() {
       }
 
       try {
-        const page = (await chatAPI.getMessages(
-          conversation.id,
-          1,
-          50
-        )) as MessagePageResponse;
-
-        const apiMessages = page.items as MessageResponse[];
+        const page = await chatAPI.getMessages(conversation.id, 1, 50);
+        const apiMessages = (page.items || page.data || []) as MessageResponse[];
+        const total = (page as any).total ?? (page as any).totalCount ?? 0;
 
         const mappedMsgs: ChatMessage[] = apiMessages.map((m) => {
           // Determine if this is a sticker (GIF URLs)
@@ -260,6 +317,9 @@ export default function ChatPage() {
         });
 
         setMessages(mappedMsgs);
+        setMessagesPage(1);
+        setHasMoreMessages(apiMessages.length < total || (page as any).hasNext === true);
+        isInitialScrollDoneRef.current = false;
 
         // Mark this conversation as loaded (to preserve its unreadCount during refreshes)
         loadedConversationsRef.current.add(conversation.id);
@@ -296,6 +356,61 @@ export default function ChatPage() {
     [currentUserId]
   );
 
+  // Auto-fetch older messages when scrolling up
+  const handleMessagesScroll = useCallback(async () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    if (container.scrollTop < 60 && hasMoreMessages && !loadingOlderMessages && selectedConversationId) {
+      setLoadingOlderMessages(true);
+      const prevScrollHeight = container.scrollHeight;
+      try {
+        const nextPage = messagesPage + 1;
+        const page = await chatAPI.getMessages(selectedConversationId, nextPage, 50);
+        const apiMessages = (page.items || page.data || []) as MessageResponse[];
+        const total = (page as any).total ?? (page as any).totalCount ?? 0;
+        if (apiMessages.length > 0) {
+          const mappedOlderMsgs: ChatMessage[] = apiMessages.map((m) => {
+            const isGif = m.mediaUrl?.toLowerCase().includes('.gif');
+            return {
+              backendId: m.id,
+              senderId: m.senderId,
+              senderUsername: m.username,
+              text: m.content ?? undefined,
+              timestamp: new Date(m.createdAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              imageUrl: isGif ? undefined : (m.mediaUrl ?? undefined),
+              stickerUrl: isGif ? m.mediaUrl : undefined,
+              readBy: m.readBy ?? [],
+              postPreview: m.postPreview ?? undefined,
+            };
+          });
+
+          setMessages((prev) => {
+            const existingIds = new Set(prev.map((m) => m.backendId));
+            const newOlder = mappedOlderMsgs.filter((m) => !existingIds.has(m.backendId));
+            return [...newOlder, ...prev];
+          });
+          setMessagesPage(nextPage);
+          setHasMoreMessages(nextPage * 50 < total || (page as any).hasNext === true);
+
+          requestAnimationFrame(() => {
+            if (container) {
+              container.scrollTop = container.scrollHeight - prevScrollHeight;
+            }
+          });
+        } else {
+          setHasMoreMessages(false);
+        }
+      } catch (e) {
+        console.error("Error loading older messages", e);
+      } finally {
+        setLoadingOlderMessages(false);
+      }
+    }
+  }, [hasMoreMessages, loadingOlderMessages, messagesPage, selectedConversationId]);
+
   // Khi `selectedConversationId` thay đổi (do click hoặc do initial select) thì load messages
   useEffect(() => {
     if (!selectedConversationId) return;
@@ -306,10 +421,10 @@ export default function ChatPage() {
     loadMessages(conv);
   }, [selectedConversationId, loadMessages, currentUserId]);
 
-  // Scroll to bottom when conversation changes or messages are loaded
+  // Scroll to bottom when conversation changes or initial messages are loaded
   useEffect(() => {
-    if (messagesContainerRef.current && messages.length > 0) {
-      // Use setTimeout to ensure DOM has updated with new messages
+    if (messagesContainerRef.current && messages.length > 0 && !isInitialScrollDoneRef.current) {
+      isInitialScrollDoneRef.current = true;
       const timeoutId = setTimeout(() => {
         if (messagesContainerRef.current) {
           messagesContainerRef.current.scrollTo({
@@ -715,16 +830,19 @@ export default function ChatPage() {
             </div>
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               <ChatList
-              userId={currentUserId}
-              onClose={() => {}}
-              onSelect={(conversationKey: string) => {
-                const conv = conversations.find((c) => c.key === conversationKey);
-                if (conv) {
-                  handleConversationSelect(conv.id);
-                }
-              }}
-              conversations={uiConversations}
-            />
+                userId={currentUserId}
+                onClose={() => {}}
+                onSelect={(conversationKey: string) => {
+                  const conv = conversations.find((c) => c.key === conversationKey);
+                  if (conv) {
+                    handleConversationSelect(conv.id);
+                  }
+                }}
+                conversations={uiConversations}
+                hasNext={hasNextConversations}
+                loadingMore={loadingMoreConversations}
+                onLoadMore={handleLoadMoreConversations}
+              />
             </div>
           </aside>
 
@@ -739,7 +857,13 @@ export default function ChatPage() {
                   onVoiceCall={() => handleStartCall("audio")}
                   onVideoCall={() => handleStartCall("video")}
                 />
-                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
+                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto" onScroll={handleMessagesScroll}>
+                  {loadingOlderMessages && (
+                    <div className="py-2 text-center text-xs opacity-60 flex items-center justify-center gap-1.5">
+                      <i className="pi pi-spin pi-spinner text-xs" />
+                      <span>Loading older messages...</span>
+                    </div>
+                  )}
                   <MessageList
                     messages={uiMessages}
                     currentUser={currentUserId}

@@ -19,7 +19,7 @@ export function NotificationsPanel() {
 
   const { toast } = useToast();
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -30,10 +30,10 @@ export function NotificationsPanel() {
     const currentPage = pageNum ?? page;
     setIsLoading(true);
     try {
-      const result = await fetchNotifications(currentPage, 20);
+      const result = await fetchNotifications(currentPage, 10);
 
       if (result) {
-        setTotalCount(result.totalCount);
+        setHasNext(result.hasNext ?? false);
       }
     } catch (error) {
       toast({
@@ -72,7 +72,6 @@ export function NotificationsPanel() {
 
   const handleRefresh = () => {
     setPage(1);
-    setTotalCount(0);
     loadMoreNotifications(1);
     toast({
       title: "Refreshed",
@@ -80,8 +79,7 @@ export function NotificationsPanel() {
     });
   };
 
-  // Calculate if there are more items using the backend's totalCount
-  const hasMore = page * 20 < totalCount;
+  const hasMore = hasNext;
 
   return (
     <>

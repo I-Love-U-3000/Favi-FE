@@ -31,6 +31,9 @@ export default function CollectionReactorsDialog({
   const router = useRouter();
   const [reactors, setReactors] = useState<CollectionReactionResponse[]>([]);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const hasLoadedRef = useRef(false);
 
   const handleHide = useCallback((e?: any) => {
@@ -46,16 +49,35 @@ export default function CollectionReactorsDialog({
 
     hasLoadedRef.current = true;
     setLoading(true);
+    setPage(1);
     try {
-      const data = await collectionAPI.getReactors(collectionId);
-      setReactors(data);
+      const res = await collectionAPI.getReactors(collectionId, 1, 10);
+      setReactors(res.data || res.items || []);
+      setHasNext(res.hasNext ?? false);
     } catch (error) {
       console.error("Failed to load reactors:", error);
       setReactors([]);
+      setHasNext(false);
     } finally {
       setLoading(false);
     }
   }, [collectionId]);
+
+  const handleLoadMore = async () => {
+    if (!collectionId || loadingMore || !hasNext) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const res = await collectionAPI.getReactors(collectionId, nextPage, 10);
+      setReactors(prev => [...prev, ...(res.data || res.items || [])]);
+      setPage(res.page || nextPage);
+      setHasNext(res.hasNext ?? false);
+    } catch (error) {
+      console.error("Failed to load more reactors:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     if (visible && collectionId) {
@@ -153,6 +175,27 @@ export default function CollectionReactorsDialog({
                 </div>
               </button>
             ))}
+
+            {hasNext && (
+              <div className="p-3 text-center border-t" style={{ borderColor: "var(--border)" }}>
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="w-full py-2 text-sm font-medium rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                  style={{ color: "var(--primary, #3b82f6)" }}
+                >
+                  {loadingMore ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <i className="pi pi-spin pi-spinner text-xs" />
+                      Loading...
+                    </span>
+                  ) : (
+                    "Load more"
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

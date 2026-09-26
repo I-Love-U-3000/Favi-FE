@@ -12,15 +12,20 @@ interface RelatedPostsProps {
 
 export default function RelatedPosts({ postId, className = "" }: RelatedPostsProps) {
   const [posts, setPosts] = useState<PostResponse[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [nsfwConfirmed, setNsfwConfirmed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const loadRelated = async () => {
       try {
-        const result = await postAPI.getRelated(postId, 1, 12);
-        // Filter to only posts with media
-        setPosts((result.items || []).filter((p: PostResponse) => (p.medias || []).length > 0));
+        const result = await postAPI.getRelated(postId, 1, 10);
+        const items = result.data || result.items || [];
+        setPosts(items.filter((p: PostResponse) => (p.medias || []).length > 0));
+        setPage(1);
+        setHasNext(result.hasNext ?? false);
       } catch (e) {
         console.error("Failed to load related posts:", e);
       } finally {
@@ -29,6 +34,24 @@ export default function RelatedPosts({ postId, className = "" }: RelatedPostsPro
     };
     loadRelated();
   }, [postId]);
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasNext) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const result = await postAPI.getRelated(postId, nextPage, 10);
+      const items = result.data || result.items || [];
+      const filtered = items.filter((p: PostResponse) => (p.medias || []).length > 0);
+      setPosts((prev) => [...prev, ...filtered]);
+      setPage(result.page || nextPage);
+      setHasNext(result.hasNext ?? false);
+    } catch (e) {
+      console.error("Failed to load more related posts:", e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   if (loading) return <div className="text-sm opacity-70">Loading related posts…</div>;
   if (posts.length === 0) return null;
@@ -67,6 +90,23 @@ export default function RelatedPosts({ postId, className = "" }: RelatedPostsPro
           </Link>
         ))}
       </div>
+
+      {hasNext && (
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="px-5 py-2 rounded-full font-medium text-xs transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+            style={{
+              backgroundColor: "var(--primary, #3b82f6)",
+              color: "white",
+            }}
+          >
+            {loadingMore ? "Loading..." : "Load more"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

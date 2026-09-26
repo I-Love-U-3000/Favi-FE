@@ -20,7 +20,13 @@ export default function FriendsPage() {
   const t = useTranslations("FriendsPage");
 
   const [recommendations, setRecommendations] = useState<ProfileResponse[]>([]);
+  const [recommendationsPage, setRecommendationsPage] = useState(1);
+  const [hasNextRecommendations, setHasNextRecommendations] = useState(false);
+  const [loadingMoreRecommendations, setLoadingMoreRecommendations] = useState(false);
   const [friends, setFriends] = useState<ProfileResponse[]>([]);
+  const [friendsPage, setFriendsPage] = useState(1);
+  const [hasNextFriends, setHasNextFriends] = useState(false);
+  const [loadingMoreFriends, setLoadingMoreFriends] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
@@ -42,40 +48,30 @@ export default function FriendsPage() {
       setError(null);
 
       try {
-        const recRes = (await profileAPI.getRecommendations(
-          0,
-          20
-        )) as MaybePaged<ProfileResponse>;
+        const recRes = await profileAPI.getRecommendations(1, 10);
 
-        let followRes: MaybePaged<FollowResponse> | null = null;
+        let followRes: any = null;
         if (user?.id) {
-          followRes = (await profileAPI.followings(
+          followRes = await profileAPI.followings(
             user.id,
-            0,
-            1000
-          )) as MaybePaged<FollowResponse>;
+            1,
+            10
+          );
         }
 
         if (cancelled) return;
 
-        const recItems: ProfileResponse[] = Array.isArray(recRes)
-          ? recRes
-          : recRes.items ?? [];
+        const recItems: ProfileResponse[] = recRes.data || recRes.items || (Array.isArray(recRes) ? recRes : []);
 
         let friendProfiles: ProfileResponse[] = [];
 
         if (followRes) {
-          const followItems: FollowResponse[] = Array.isArray(followRes)
-            ? followRes
-            : followRes.items ?? [];
-
+          const followItems: FollowResponse[] = followRes.data || followRes.items || [];
           const followList = (followItems || []).filter(Boolean);
-          console.log("Parsed followList:", followList);
 
           const followeeIds = Array.from(
             new Set(followList.map((f) => f.followeeId).filter(Boolean))
           );
-          console.log("Followee IDs:", followeeIds);
 
           const profilesResult = await Promise.allSettled(
             followeeIds.map((id) => profileAPI.getById(id))
@@ -89,11 +85,14 @@ export default function FriendsPage() {
                 r.status === "fulfilled"
             )
             .map((r) => r.value);
-          console.log("Resolved friend profiles:", friendProfiles);
         }
 
         setRecommendations(recItems);
+        setRecommendationsPage(recRes.page || 1);
+        setHasNextRecommendations(recRes.hasNext ?? false);
         setFriends(friendProfiles);
+        setFriendsPage(1);
+        setHasNextFriends(followRes?.hasNext ?? false);
       } catch (e) {
         console.error("FriendsPage load error:", e);
         const err = e as { message?: string; error?: string };
@@ -110,6 +109,58 @@ export default function FriendsPage() {
       cancelled = true;
     };
   }, [isAuthenticated, user?.id]);
+
+  const handleLoadMoreRecommendations = async () => {
+    if (loadingMoreRecommendations || !hasNextRecommendations) return;
+    setLoadingMoreRecommendations(true);
+    try {
+      const nextPage = recommendationsPage + 1;
+      const recRes = await profileAPI.getRecommendations(nextPage, 10);
+      const recItems: ProfileResponse[] = recRes.data || recRes.items || (Array.isArray(recRes) ? recRes : []);
+      setRecommendations((prev) => {
+        const existingIds = new Set(prev.map((p) => p.id));
+        const filteredNew = recItems.filter((p) => !existingIds.has(p.id));
+        return [...prev, ...filteredNew];
+      });
+      setRecommendationsPage(recRes.page || nextPage);
+      setHasNextRecommendations(recRes.hasNext ?? false);
+    } catch (e) {
+      console.error("Failed to load more recommendations:", e);
+    } finally {
+      setLoadingMoreRecommendations(false);
+    }
+  };
+
+  const handleLoadMoreFriends = async () => {
+    if (!user?.id || loadingMoreFriends || !hasNextFriends) return;
+    setLoadingMoreFriends(true);
+    try {
+      const nextPage = friendsPage + 1;
+      const followRes = await profileAPI.followings(user.id, nextPage, 10);
+      const followItems: FollowResponse[] = followRes.data || followRes.items || [];
+      const followeeIds = Array.from(
+        new Set(followItems.map((f) => f.followeeId).filter(Boolean))
+      );
+      const profilesResult = await Promise.allSettled(
+        followeeIds.map((id) => profileAPI.getById(id))
+      );
+      const newProfiles = profilesResult
+        .filter((r): r is PromiseFulfilledResult<ProfileResponse> => r.status === "fulfilled")
+        .map((r) => r.value);
+
+      setFriends((prev) => {
+        const existingIds = new Set(prev.map((p) => p.id));
+        const filteredNew = newProfiles.filter((p) => !existingIds.has(p.id));
+        return [...prev, ...filteredNew];
+      });
+      setFriendsPage(followRes.page || nextPage);
+      setHasNextFriends(followRes.hasNext ?? false);
+    } catch (e) {
+      console.error("Failed to load more friends:", e);
+    } finally {
+      setLoadingMoreFriends(false);
+    }
+  };
 
   const handleFollow = async (id: string) => {
     try {
@@ -218,6 +269,23 @@ export default function FriendsPage() {
             <div className="mt-3 space-y-3">
               {friends.map((f) => renderUserCard(f, false))}
             </div>
+
+            {hasNextFriends && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleLoadMoreFriends}
+                  disabled={loadingMoreFriends}
+                  className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+                  style={{
+                    backgroundColor: "var(--primary, #3b82f6)",
+                    color: "white",
+                  }}
+                >
+                  {loadingMoreFriends ? "Loading..." : "Load more"}
+                </button>
+              </div>
+            )}
           </section>
 
           {/* Suggestions section */}
@@ -235,6 +303,23 @@ export default function FriendsPage() {
             <div className="mt-3 space-y-3">
               {recommendations.map((s) => renderUserCard(s, true))}
             </div>
+
+            {hasNextRecommendations && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleLoadMoreRecommendations}
+                  disabled={loadingMoreRecommendations}
+                  className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+                  style={{
+                    backgroundColor: "var(--primary, #3b82f6)",
+                    color: "white",
+                  }}
+                >
+                  {loadingMoreRecommendations ? "Loading..." : "Load more"}
+                </button>
+              </div>
+            )}
           </section>
         </>
       )}

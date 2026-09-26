@@ -16,6 +16,7 @@ interface StoryViewerDialogProps {
   archivedStories?: StoryResponse[];
   onNSFWConfirm?: (storyId: string) => void;
   isNSFWConfirmed?: (storyId: string) => boolean;
+  onViewerReady?: () => void;
 }
 
 export default function StoryViewerDialog({

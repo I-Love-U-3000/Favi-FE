@@ -1,9 +1,9 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
-import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
+import { HubConnection, HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 import { useAuth } from "@/components/AuthProvider";
-import { NotificationDto, PagedResult } from "@/types";
+import { NotificationDto, PagedResult, PaginationResult } from "@/types";
 import notificationAPI from "@/lib/api/notificationAPI";
 import { toast } from "@/hooks/use-toast";
 
@@ -11,7 +11,7 @@ interface SignalRContextValue {
   notifications: NotificationDto[];
   unreadCount: number;
   isConnected: boolean;
-  fetchNotifications: (page?: number, pageSize?: number) => Promise<PagedResult<NotificationDto> | undefined>;
+  fetchNotifications: (page?: number, pageSize?: number) => Promise<PaginationResult<NotificationDto> | undefined>;
   markAsRead: (notificationId: string) => Promise<boolean>;
   markAllAsRead: () => Promise<boolean>;
   deleteNotification: (notificationId: string) => Promise<boolean>;
@@ -25,21 +25,22 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
 
-  const connectionRef = useRef<ReturnType<typeof HubConnectionBuilder> | null>(null);
+  const connectionRef = useRef<HubConnection | null>(null);
   const isInitializedRef = useRef<string | null>(null); // Track userId to prevent duplicate connections
 
   // Fetch notifications from API
-  const fetchNotifications = async (page = 1, pageSize = 20) => {
+  const fetchNotifications = async (page = 1, pageSize = 10) => {
     if (!user || !user.id) {
       console.warn("Cannot fetch notifications: user not authenticated");
       return undefined;
     }
     try {
       const data = await notificationAPI.getNotifications(page, pageSize);
+      const items = data.data || data.items || [];
       if (page === 1) {
-        setNotifications(data.items);
+        setNotifications(items);
       } else {
-        setNotifications(prev => [...prev, ...data.items]);
+        setNotifications(prev => [...prev, ...items]);
       }
       return data;
     } catch (error) {
