@@ -673,7 +673,8 @@ export default function ProfilePage() {
           // Method 3: Check feed (this user might be in the feed)
           if (!hasStories && user) {
             try {
-              const feed = await storyAPI.getFeed();
+              const feedRes = await storyAPI.getFeed(1, 50);
+              const feed = feedRes?.data || feedRes?.items || (Array.isArray(feedRes) ? feedRes : []);
               console.log("Feed response:", feed);
               userStoriesInFeed = Array.isArray(feed) ?
                 feed.filter((story: any) => story.profileId === id || story.Profile?.Id === id) :

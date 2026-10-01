@@ -40,8 +40,10 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
       const result = await fetchNotifications(nextPage, 10);
       if (result) {
         setHasMore(result.hasNext ?? false);
-        setPage(nextPage);
+        setPage(result.page || nextPage);
       }
+    } catch (e: any) {
+      console.error("Failed to load more notifications:", e);
     } finally {
       setLoadingMore(false);
     }
@@ -239,15 +241,27 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
           )}
 
           {hasMore && notifications.length > 0 && (
-            <button
-              type="button"
-              onClick={handleLoadMore}
-              disabled={loadingMore}
-              className="w-full p-3 text-center text-sm notif-item transition-colors disabled:opacity-50"
-              style={{ color: 'var(--primary)' }}
-            >
-              {loadingMore ? "Loading..." : "Load more"}
-            </button>
+            <div className="p-4 flex justify-center border-t" style={{ borderColor: "var(--border)" }}>
+              <button
+                type="button"
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="px-6 py-2 rounded-full font-medium text-xs transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+                style={{
+                  backgroundColor: "var(--primary, #3b82f6)",
+                  color: "white",
+                }}
+              >
+                {loadingMore ? (
+                  <>
+                    <i className="pi pi-spin pi-spinner text-xs" />
+                    <span>Loading...</span>
+                  </>
+                ) : (
+                  <span>Load more</span>
+                )}
+              </button>
+            </div>
           )}
         </div>
       </div>

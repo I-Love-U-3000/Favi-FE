@@ -192,11 +192,13 @@ export default function StoryViewerDialog({
             }
             feed = [initialStoryFeed];
           } else if (initialProfileId) {
-            const allFeeds = await storyAPI.getFeed();
-            const idx = allFeeds.findIndex((f) => f.profileId === initialProfileId);
-            feed = [allFeeds[idx]];
+            const feedRes = await storyAPI.getFeed(1, 50);
+            const allFeeds = feedRes?.data || feedRes?.items || (Array.isArray(feedRes) ? feedRes : []);
+            const idx = allFeeds.findIndex((f: any) => f.profileId === initialProfileId);
+            feed = idx >= 0 ? [allFeeds[idx]] : [];
           } else {
-            feed = await storyAPI.getFeed();
+            const feedRes = await storyAPI.getFeed(1, 50);
+            feed = feedRes?.data || feedRes?.items || (Array.isArray(feedRes) ? feedRes : []);
           }
         }
 
@@ -395,10 +397,11 @@ export default function StoryViewerDialog({
               setLoading(true);
               const loadStories = async () => {
                 try {
-                  const feed = await storyAPI.getFeed();
+                  const feedRes = await storyAPI.getFeed(1, 50);
+                  const feed = feedRes?.data || feedRes?.items || (Array.isArray(feedRes) ? feedRes : []);
                   setStoryFeeds(feed);
-                    storyStateRef.current.storyFeeds = feed;
-                                        setError(null);
+                  storyStateRef.current.storyFeeds = feed;
+                  setError(null);
                 } catch (e: any) {
                   console.error("Failed to reload stories:", e);
                   setError(e?.error || e?.message || "Failed to reload stories");

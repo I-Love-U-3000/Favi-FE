@@ -34,8 +34,10 @@ export default function NotificationsPage() {
       const result = await fetchNotifications(nextPage, 10);
       if (result) {
         setHasMore(result.hasNext ?? false);
-        setPage(nextPage);
+        setPage(result.page || nextPage);
       }
+    } catch (e: any) {
+      console.error("Failed to load more notifications:", e);
     } finally {
       setLoadingMore(false);
     }
@@ -117,14 +119,27 @@ export default function NotificationsPage() {
         )}
 
         {hasMore && filtered.length > 0 && (
-          <button
-            type="button"
-            onClick={handleLoadMore}
-            disabled={loadingMore}
-            className="w-full py-3 text-center text-sm font-medium text-blue-500 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl disabled:opacity-50"
-          >
-            {loadingMore ? "Loading..." : "Load more"}
-          </button>
+          <div className="mt-6 flex justify-center">
+            <button
+              type="button"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+              style={{
+                backgroundColor: "var(--primary, #3b82f6)",
+                color: "white",
+              }}
+            >
+              {loadingMore ? (
+                <>
+                  <i className="pi pi-spin pi-spinner text-sm" />
+                  <span>Loading...</span>
+                </>
+              ) : (
+                <span>Load more</span>
+              )}
+            </button>
+          </div>
         )}
       </div>
     </div>

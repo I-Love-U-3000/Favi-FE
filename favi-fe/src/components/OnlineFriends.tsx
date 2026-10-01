@@ -11,6 +11,9 @@ const DEFAULT_AVATAR = "/avatar-default.svg";
 export default function OnlineFriends() {
   const [friends, setFriends] = useState<ProfileResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasFetchedRef = useRef(false);
 
@@ -19,10 +22,12 @@ export default function OnlineFriends() {
 
     try {
       setLoading(true);
-      const response = await profileAPI.getOnlineFriends(3);
+      const response = await profileAPI.getOnlineFriends(15, 1, 5);
       if (!cancelled) {
         const items = (response as any)?.data || (response as any)?.items || (Array.isArray(response) ? response : []);
         setFriends(items);
+        setPage(response?.page || 1);
+        setHasNext(response?.hasNext ?? false);
         hasFetchedRef.current = true;
       }
     } catch (e: any) {
@@ -37,6 +42,27 @@ export default function OnlineFriends() {
     return () => {
       cancelled = true;
     };
+  };
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasNext) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const response = await profileAPI.getOnlineFriends(15, nextPage, 5);
+      const newItems = (response as any)?.data || (response as any)?.items || (Array.isArray(response) ? response : []);
+      setFriends((prev) => {
+        const existingIds = new Set(prev.map(f => f.id));
+        const uniqueNew = newItems.filter((f: ProfileResponse) => !existingIds.has(f.id));
+        return [...prev, ...uniqueNew];
+      });
+      setPage(response?.page || nextPage);
+      setHasNext(response?.hasNext ?? false);
+    } catch (e: any) {
+      console.error("Error loading more online friends:", e);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   useEffect(() => {
@@ -134,6 +160,30 @@ export default function OnlineFriends() {
           friends.map((friend) => (
             <FriendItem key={friend.id} friend={friend} />
           ))
+        )}
+
+        {hasNext && (
+          <div className="pt-2 flex justify-center">
+            <button
+              type="button"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="w-full py-2 px-4 rounded-xl font-medium text-xs transition-all shadow-sm hover:shadow flex items-center justify-center gap-2 disabled:opacity-50"
+              style={{
+                backgroundColor: "var(--primary, #3b82f6)",
+                color: "white",
+              }}
+            >
+              {loadingMore ? (
+                <>
+                  <i className="pi pi-spin pi-spinner text-xs" />
+                  <span>Loading...</span>
+                </>
+              ) : (
+                <span>Load more</span>
+              )}
+            </button>
+          </div>
         )}
       </div>
     </div>

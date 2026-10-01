@@ -13,6 +13,9 @@ const FALLBACK_COVER = "https://via.placeholder.com/400x200/6366f1/ffffff?text=C
 export default function TrendingCollections() {
   const [collections, setCollections] = useState<CollectionResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reactorsDialogOpen, setReactorsDialogOpen] = useState(false);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
@@ -23,9 +26,11 @@ export default function TrendingCollections() {
 
     try {
       setLoading(true);
-      const response = await collectionAPI.getTrending(1, 5);
+      const response = await collectionAPI.getTrending(1, 3);
       if (!cancelled) {
-        setCollections(response.items || []);
+        setCollections(response.items || response.data || []);
+        setPage(response.page || 1);
+        setHasNext(response.hasNext ?? false);
         hasFetchedRef.current = true;
       }
     } catch (e: any) {
@@ -40,6 +45,23 @@ export default function TrendingCollections() {
     return () => {
       cancelled = true;
     };
+  };
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasNext) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const response = await collectionAPI.getTrending(nextPage, 3);
+      const newItems = response.items || response.data || [];
+      setCollections((prev) => [...prev, ...newItems]);
+      setPage(response.page || nextPage);
+      setHasNext(response.hasNext ?? false);
+    } catch (e: any) {
+      console.error("Error loading more trending collections:", e);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   useEffect(() => {
@@ -155,6 +177,30 @@ export default function TrendingCollections() {
             </div>
           ))}
         </div>
+
+        {hasNext && (
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="w-full py-2 px-4 rounded-xl font-medium text-xs transition-all shadow-sm hover:shadow flex items-center justify-center gap-2 disabled:opacity-50"
+              style={{
+                backgroundColor: "var(--primary, #3b82f6)",
+                color: "white",
+              }}
+            >
+              {loadingMore ? (
+                <>
+                  <i className="pi pi-spin pi-spinner text-xs" />
+                  <span>Loading...</span>
+                </>
+              ) : (
+                <span>Load more</span>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {selectedCollectionId && (

@@ -4,7 +4,28 @@ import type {
   StoryFeedResponse,
   StoryViewerResponse,
   CreateStoryRequest,
+  PaginationResult,
+  PrivacyLevel,
 } from "@/types";
+
+function normalizePagination<T>(res: any): PaginationResult<T> & { items: T[]; pageSize: number; totalCount: number } {
+  const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []));
+  const page = typeof res?.page === "number" ? res.page : 1;
+  const size = typeof res?.size === "number" ? res.size : (typeof res?.pageSize === "number" ? res.pageSize : data.length);
+  const hasPrevious = typeof res?.hasPrevious === "boolean" ? res.hasPrevious : page > 1;
+  const hasNext = typeof res?.hasNext === "boolean" ? res.hasNext : false;
+  return {
+    ...res,
+    data,
+    items: data,
+    page,
+    size,
+    pageSize: size,
+    hasPrevious,
+    hasNext,
+    totalCount: typeof res?.totalCount === "number" ? res.totalCount : data.length,
+  };
+}
 
 // Helper to build FormData for story creation
 function buildStoryFormData(
@@ -23,9 +44,9 @@ function buildStoryFormData(
 }
 
 export const storyAPI = {
-  create: (mediaFile: File, privacyLevel: number) => {
+  create: (mediaFile: File, privacyLevel: number | PrivacyLevel) => {
     const requestData: CreateStoryRequest = {
-      privacyLevel,
+      privacyLevel: privacyLevel as PrivacyLevel,
     };
     const formData = buildStoryFormData(requestData, mediaFile);
     return fetchWrapper.post<StoryResponse>("/stories", formData, true);
@@ -40,8 +61,14 @@ export const storyAPI = {
   getProfileStoryCount: (profileId: string) =>
     fetchWrapper.get<{ count: number }>(`/stories/profile/${profileId}/count`, false),
 
-  getFeed: () =>
-    fetchWrapper.get<StoryFeedResponse[]>("/stories/feed", true),
+  getFeed: async (page = 1, size = 10, pageSize?: number) => {
+    const actualSize = pageSize || size;
+    const res = await fetchWrapper.get<any>(
+      `/stories/feed?page=${page}&size=${actualSize}&pageSize=${actualSize}`,
+      true
+    );
+    return normalizePagination<StoryFeedResponse>(res);
+  },
 
   getArchived: () =>
     fetchWrapper.get<StoryResponse[]>("/stories/archived", true),
@@ -60,3 +87,4 @@ export const storyAPI = {
 };
 
 export default storyAPI;
+

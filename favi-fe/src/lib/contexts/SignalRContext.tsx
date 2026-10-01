@@ -40,7 +40,11 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
       if (page === 1) {
         setNotifications(items);
       } else {
-        setNotifications(prev => [...prev, ...items]);
+        setNotifications(prev => {
+          const existingIds = new Set(prev.map(n => n.id));
+          const uniqueNew = items.filter(n => !existingIds.has(n.id));
+          return [...prev, ...uniqueNew];
+        });
       }
       return data;
     } catch (error) {

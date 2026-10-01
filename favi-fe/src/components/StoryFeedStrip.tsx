@@ -22,6 +22,9 @@ export default function StoryFeedStrip() {
   const [stories, setStories] = useState<StoryItem[]>([]);
   const [storyFeeds, setStoryFeeds] = useState<StoryFeedResponse[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>();
@@ -37,7 +40,8 @@ export default function StoryFeedStrip() {
       setLoading(true);
       setError(null);
       try {
-        const feed = await storyAPI.getFeed();
+        const res = await storyAPI.getFeed(1, 8);
+        const feed = res.data || res.items || [];
 
         if (!cancelled) {
           const storyItems: StoryItem[] = feed.map((item) => ({
@@ -49,6 +53,8 @@ export default function StoryFeedStrip() {
           }));
           setStories(storyItems);
           setStoryFeeds(feed);
+          setPage(res.page || 1);
+          setHasNext(res.hasNext ?? false);
         }
       } catch (e: any) {
         if (!cancelled) {
@@ -64,6 +70,31 @@ export default function StoryFeedStrip() {
       cancelled = true;
     };
   }, [isAuthenticated, t]);
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasNext) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const res = await storyAPI.getFeed(nextPage, 8);
+      const newFeed = res.data || res.items || [];
+      const newItems: StoryItem[] = newFeed.map((item) => ({
+        profileId: item.profileId,
+        username: item.profileUsername,
+        avatarUrl: item.profileAvatarUrl,
+        stories: item.stories,
+        hasViewed: item.stories.every((s) => s.hasViewed),
+      }));
+      setStories((prev) => [...prev, ...newItems]);
+      setStoryFeeds((prev) => [...prev, ...newFeed]);
+      setPage(res.page || nextPage);
+      setHasNext(res.hasNext ?? false);
+    } catch (e: any) {
+      console.error("Failed to load more stories:", e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   // Show nothing for unauthenticated users
   if (!isAuthenticated) {
@@ -114,7 +145,8 @@ export default function StoryFeedStrip() {
             // Trigger a refresh by setting loading and clearing stories
             setLoading(true);
             setStories([]);
-            storyAPI.getFeed().then((feed) => {
+            storyAPI.getFeed(1, 8).then((res) => {
+              const feed = res.data || res.items || [];
               const storyItems: StoryItem[] = feed.map((item) => ({
                 profileId: item.profileId,
                 username: item.profileUsername,
@@ -124,6 +156,8 @@ export default function StoryFeedStrip() {
               }));
               setStories(storyItems);
               setStoryFeeds(feed);
+              setPage(res.page || 1);
+              setHasNext(res.hasNext ?? false);
             }).catch(console.error).finally(() => setLoading(false));
           }}
         />
@@ -137,7 +171,7 @@ export default function StoryFeedStrip() {
         className="w-full border-b overflow-hidden"
         style={{ borderColor: "var(--border)" }}
       >
-        <div className="flex gap-4 py-4 px-2 overflow-x-auto no-scrollbar">
+        <div className="flex gap-4 py-4 px-2 overflow-x-auto no-scrollbar items-center">
           {stories.map((story) => (
             <StoryItem
               key={story.profileId}
@@ -162,6 +196,27 @@ export default function StoryFeedStrip() {
               }}
             />
           ))}
+
+          {hasNext && (
+            <button
+              type="button"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="shrink-0 flex flex-col items-center gap-1.5 group disabled:opacity-50"
+              title="Load more stories"
+            >
+              <div className="w-14 h-14 rounded-full border-2 border-dashed border-sky-400 dark:border-sky-500 hover:border-sky-500 dark:hover:border-sky-400 flex items-center justify-center transition-all bg-sky-50/50 dark:bg-sky-950/20 group-hover:scale-105">
+                {loadingMore ? (
+                  <i className="pi pi-spin pi-spinner text-sky-500 text-base" />
+                ) : (
+                  <i className="pi pi-plus text-sky-500 text-base group-hover:rotate-90 transition-transform" />
+                )}
+              </div>
+              <span className="text-xs text-center max-w-[70px] truncate" style={{ color: "var(--text)" }}>
+                {loadingMore ? "Loading..." : "More"}
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -173,7 +228,7 @@ export default function StoryFeedStrip() {
           // They will be reset when the dialog opens again
         }}
         initialProfileId={selectedProfileId}
-        initialStoryFeed={selectedStoryFeed}
+        initialStoryFeed={selectedStoryFeed || undefined}
       />
     </>
   );

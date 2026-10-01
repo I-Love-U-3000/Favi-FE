@@ -21,19 +21,19 @@ export function NotificationsPanel() {
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    loadMoreNotifications(1);
+    loadNotifications(1);
   }, []);
 
-  const loadMoreNotifications = async (pageNum?: number) => {
-    const currentPage = pageNum ?? page;
+  const loadNotifications = async (pageNum = 1) => {
     setIsLoading(true);
     try {
-      const result = await fetchNotifications(currentPage, 10);
-
+      const result = await fetchNotifications(pageNum, 10);
       if (result) {
         setHasNext(result.hasNext ?? false);
+        setPage(result.page || pageNum);
       }
     } catch (error) {
       toast({
@@ -46,10 +46,25 @@ export function NotificationsPanel() {
     }
   };
 
-  const handleLoadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    loadMoreNotifications(nextPage);
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasNext) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const result = await fetchNotifications(nextPage, 10);
+      if (result) {
+        setHasNext(result.hasNext ?? false);
+        setPage(result.page || nextPage);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load more notifications",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   const handleMarkAllAsRead = async () => {
@@ -72,7 +87,7 @@ export function NotificationsPanel() {
 
   const handleRefresh = () => {
     setPage(1);
-    loadMoreNotifications(1);
+    loadNotifications(1);
     toast({
       title: "Refreshed",
       description: "Notifications have been refreshed",
@@ -142,14 +157,26 @@ export function NotificationsPanel() {
         )}
 
         {hasMore && notifications.length > 0 && (
-          <button
-            onClick={handleLoadMore}
-            disabled={isLoading}
-            className="w-full p-3 text-center text-sm notif-item-panel transition-colors disabled:opacity-50 hover:bg-white/5"
-            style={{ color: 'var(--primary)' }}
-          >
-            {isLoading ? "Loading..." : "Load more"}
-          </button>
+          <div className="p-3 flex justify-center border-t" style={{ borderColor: "var(--border)" }}>
+            <button
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="px-6 py-2 rounded-full font-medium text-xs transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+              style={{
+                backgroundColor: "var(--primary, #3b82f6)",
+                color: "white",
+              }}
+            >
+              {loadingMore ? (
+                <>
+                  <i className="pi pi-spin pi-spinner text-xs" />
+                  <span>Loading...</span>
+                </>
+              ) : (
+                <span>Load more</span>
+              )}
+            </button>
+          </div>
         )}
       </div>
     </div>
