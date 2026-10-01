@@ -7,19 +7,31 @@ import collectionAPI from "@/lib/api/collectionAPI";
 import type { CollectionResponse } from "@/types";
 import CollectionReactionButton from "./CollectionReactionButton";
 import CollectionReactorsDialog from "./CollectionReactorsDialog";
+import { useAuth } from "@/components/AuthProvider";
+import {
+  getHomeCollectionsCache,
+  updateHomeCollectionsCache,
+} from "@/lib/cache/homeCache";
 
 const FALLBACK_COVER = "https://via.placeholder.com/400x200/6366f1/ffffff?text=Collection";
 
 export default function TrendingCollections() {
-  const [collections, setCollections] = useState<CollectionResponse[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const cachedCollections = getHomeCollectionsCache(user?.id);
+
+  const [collections, setCollections] = useState<CollectionResponse[]>(
+    cachedCollections.isInitialized ? cachedCollections.collections : []
+  );
+  const [loading, setLoading] = useState(!cachedCollections.isInitialized);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasNext, setHasNext] = useState(false);
+  const [page, setPage] = useState(cachedCollections.isInitialized ? cachedCollections.page : 1);
+  const [hasNext, setHasNext] = useState(
+    cachedCollections.isInitialized ? cachedCollections.hasNext : false
+  );
   const [error, setError] = useState<string | null>(null);
   const [reactorsDialogOpen, setReactorsDialogOpen] = useState(false);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
-  const hasFetchedRef = useRef(false);
+  const hasFetchedRef = useRef(cachedCollections.isInitialized);
 
   const fetchTrending = async () => {
     let cancelled = false;
@@ -28,10 +40,22 @@ export default function TrendingCollections() {
       setLoading(true);
       const response = await collectionAPI.getTrending(1, 3);
       if (!cancelled) {
-        setCollections(response.items || response.data || []);
-        setPage(response.page || 1);
-        setHasNext(response.hasNext ?? false);
+        const items = response.items || response.data || [];
+        const loadedPage = response.page || 1;
+        const loadedHasNext = response.hasNext ?? false;
+
+        setCollections(items);
+        setPage(loadedPage);
+        setHasNext(loadedHasNext);
         hasFetchedRef.current = true;
+
+        updateHomeCollectionsCache({
+          collections: items,
+          page: loadedPage,
+          hasNext: loadedHasNext,
+          isInitialized: true,
+          userId: user?.id,
+        });
       }
     } catch (e: any) {
       if (!cancelled) {
@@ -54,9 +78,20 @@ export default function TrendingCollections() {
       const nextPage = page + 1;
       const response = await collectionAPI.getTrending(nextPage, 3);
       const newItems = response.items || response.data || [];
-      setCollections((prev) => [...prev, ...newItems]);
-      setPage(response.page || nextPage);
-      setHasNext(response.hasNext ?? false);
+      const updatedCollections = [...collections, ...newItems];
+      const updatedPage = response.page || nextPage;
+      const updatedHasNext = response.hasNext ?? false;
+
+      setCollections(updatedCollections);
+      setPage(updatedPage);
+      setHasNext(updatedHasNext);
+
+      updateHomeCollectionsCache({
+        collections: updatedCollections,
+        page: updatedPage,
+        hasNext: updatedHasNext,
+        userId: user?.id,
+      });
     } catch (e: any) {
       console.error("Error loading more trending collections:", e);
     } finally {
@@ -65,10 +100,10 @@ export default function TrendingCollections() {
   };
 
   useEffect(() => {
-    if (!hasFetchedRef.current) {
+    if (!cachedCollections.isInitialized && !hasFetchedRef.current) {
       fetchTrending();
     }
-  }, []);
+  }, [cachedCollections.isInitialized]);
 
   // Refetch when component becomes visible (when user navigates back)
   useEffect(() => {

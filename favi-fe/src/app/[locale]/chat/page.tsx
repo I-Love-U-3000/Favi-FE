@@ -19,44 +19,24 @@ import type {
 } from "@/types";
 import { useAuth } from "@/components/AuthProvider";
 import { useSearchParams } from "next/navigation";
-
-// --------- INTERNAL CHAT TYPES (làm việc với backend) ---------
-interface ChatMessage {
-  backendId: string; // id từ backend (Guid)
-  senderId: string;
-  senderUsername: string;
-  text?: string;
-  timestamp: string;
-  imageUrl?: string;
-  stickerUrl?: string;
-  readBy?: string[]; // Array of profile IDs who have read this message
-  postPreview?: {
-    id: string;
-    authorProfileId: string;
-    caption?: string | null;
-    thumbnailUrl?: string | null;
-    mediasCount: number;
-    createdAt: string;
-  } | null;
-}
-
-interface ChatRecipient {
-  username: string;
-  avatar: string;
-  isOnline: boolean;
-  lastActiveAt?: string;
-  profileId?: string; // Profile ID of the recipient (for read receipts)
-}
-
-interface ChatConversation {
-  id: string; // conversationId từ backend
-  key: string; // key cho UI (ở đây = id luôn)
-  recipient: ChatRecipient;
-  messages: ChatMessage[];
-  unreadCount?: number; // Unread message count
-  lastMessagePreview?: string | null; // Last message preview from backend
-  lastMessageAt?: string | null; // Last message timestamp from backend
-}
+import type {
+  ChatMessage,
+  ChatRecipient,
+  ChatConversation,
+} from "@/lib/cache/chatCache";
+import {
+  getChatCache,
+  updateChatConversations,
+  setSelectedChatConversationId,
+  setChatSearchQuery,
+  getConversationMessages,
+  setConversationMessages,
+  appendMessageToConversation,
+  addLoadedChatConversation,
+  saveConversationScrollTop,
+  getOrCreateChatHubConnection,
+  removeMessageListener,
+} from "@/lib/cache/chatCache";
 
 // --------- UI TYPES cho ChatList / MessageList ---------
 interface UiMessage {
@@ -95,36 +75,64 @@ export default function ChatPage() {
   const searchParams = useSearchParams();
   const initialConversationId = searchParams.get("conversationId");
 
+  const chatCache = getChatCache(currentUserId);
+  const initialConvId =
+    initialConversationId ||
+    (chatCache.isInitialized ? chatCache.selectedConversationId : null);
+
+  const initialCachedMessages = initialConvId
+    ? getConversationMessages(initialConvId)
+    : undefined;
+
   // ---- TẤT CẢ HOOK LUÔN Ở TOP-LEVEL (KHÔNG RETURN TRƯỚC NỮA) ----
-  const [conversations, setConversations] = useState<ChatConversation[]>([]);
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<ChatConversation[]>(
+    chatCache.isInitialized ? chatCache.conversations : []
+  );
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(
+    initialConvId
+  );
   const selectedConversationIdRef = useRef(selectedConversationId);
   useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
+    setSelectedChatConversationId(selectedConversationId);
   }, [selectedConversationId]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    initialCachedMessages ? initialCachedMessages.messages : []
+  );
   const [lastReadMessageId, setLastReadMessageId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>(
+    chatCache.isInitialized ? chatCache.searchQuery : ""
+  );
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [viewingImageUrl, setViewingImageUrl] = useState<string>("");
   const [mediaGalleryOpen, setMediaGalleryOpen] = useState(false);
 
   // Conversation pagination
-  const [conversationsPage, setConversationsPage] = useState(1);
-  const [hasNextConversations, setHasNextConversations] = useState(false);
+  const [conversationsPage, setConversationsPage] = useState(
+    chatCache.isInitialized ? chatCache.conversationsPage : 1
+  );
+  const [hasNextConversations, setHasNextConversations] = useState(
+    chatCache.isInitialized ? chatCache.hasNextConversations : false
+  );
   const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
 
   // Messages pagination (infinite scroll up)
-  const [messagesPage, setMessagesPage] = useState(1);
-  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [messagesPage, setMessagesPage] = useState(
+    initialCachedMessages ? initialCachedMessages.messagesPage : 1
+  );
+  const [hasMoreMessages, setHasMoreMessages] = useState(
+    initialCachedMessages ? initialCachedMessages.hasMoreMessages : false
+  );
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const isInitialScrollDoneRef = useRef(false);
 
   // Track which conversations have been loaded (to preserve their unreadCount)
-  const loadedConversationsRef = useRef<Set<string>>(new Set());
+  const loadedConversationsRef = useRef<Set<string>>(
+    chatCache.isInitialized ? new Set(chatCache.loadedConversations) : new Set()
+  );
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const chatHubRef = useRef<signalR.HubConnection | null>(null);
-  const chatHubInitializedRef = useRef<string | null>(null); // Track initialized userId to prevent duplicate connections
   const [isChatHubConnected, setIsChatHubConnected] = useState(false);
 
   // ---- CALL CONTEXT ----
@@ -183,26 +191,33 @@ export default function ChatPage() {
 
       // Preserve local state: keep unreadCount for conversations that have been loaded
       // and keep messages for conversations that have been loaded
-      setConversations((prev) =>
-        mapped.map((newConv) => {
-          const existingConv = prev.find((c) => c.id === newConv.id);
-          // If this conversation was loaded before, preserve its local unreadCount
-          // The backend might return stale unread counts if markAsRead hasn't been processed yet
-          if (existingConv && loadedConversationsRef.current.has(newConv.id)) {
-            return {
-              ...newConv,
-              messages: existingConv.messages,
-              unreadCount: existingConv.unreadCount, // Preserve local unread count
-            };
-          }
-          return newConv;
-        })
+      const updatedConversations = mapped.map((newConv) => {
+        const existingConv = prev.find((c) => c.id === newConv.id);
+        // If this conversation was loaded before, preserve its local unreadCount
+        // The backend might return stale unread counts if markAsRead hasn't been processed yet
+        if (existingConv && loadedConversationsRef.current.has(newConv.id)) {
+          return {
+            ...newConv,
+            messages: existingConv.messages,
+            unreadCount: existingConv.unreadCount, // Preserve local unread count
+          };
+        }
+        return newConv;
+      });
+
+      updateChatConversations(
+        updatedConversations,
+        res.page || 1,
+        res.hasNext ?? false,
+        currentUserId
       );
+
+      setConversations(updatedConversations);
       setConversationsPage(res.page || 1);
       setHasNextConversations(res.hasNext ?? false);
 
-      // Only set initial selection if not preserving
-      if (!preserveSelection) {
+      // Only set initial selection if not preserving and no selection exists
+      if (!preserveSelection && !selectedConversationIdRef.current) {
         // Ưu tiên mở conversationId từ URL nếu có
         const initialConv =
           (initialConversationId &&
@@ -257,7 +272,14 @@ export default function ChatPage() {
       setConversations((prev) => {
         const existingIds = new Set(prev.map((c) => c.id));
         const newItems = mapped.filter((c) => !existingIds.has(c.id));
-        return [...prev, ...newItems];
+        const updated = [...prev, ...newItems];
+        updateChatConversations(
+          updated,
+          res.page || nextPage,
+          res.hasNext ?? false,
+          currentUserId
+        );
+        return updated;
       });
       setConversationsPage(res.page || nextPage);
       setHasNextConversations(res.hasNext ?? false);
@@ -268,10 +290,12 @@ export default function ChatPage() {
     }
   };
 
-  // Initial fetch
+  // Initial fetch only if not already cached
   useEffect(() => {
-    fetchConversations(false);
-  }, [fetchConversations]);
+    if (!chatCache.isInitialized) {
+      fetchConversations(false);
+    }
+  }, [fetchConversations, chatCache.isInitialized]);
 
   // Periodically refresh conversations to update online status (preserve selection)
   useEffect(() => {
@@ -316,13 +340,21 @@ export default function ChatPage() {
           };
         });
 
+        const hasMore = apiMessages.length < total || (page as any).hasNext === true;
         setMessages(mappedMsgs);
         setMessagesPage(1);
-        setHasMoreMessages(apiMessages.length < total || (page as any).hasNext === true);
+        setHasMoreMessages(hasMore);
         isInitialScrollDoneRef.current = false;
+
+        setConversationMessages(conversation.id, {
+          messages: mappedMsgs,
+          messagesPage: 1,
+          hasMoreMessages: hasMore,
+        });
 
         // Mark this conversation as loaded (to preserve its unreadCount during refreshes)
         loadedConversationsRef.current.add(conversation.id);
+        addLoadedChatConversation(conversation.id);
 
         // Mark ALL unread messages as read (not just the last one)
         // Find messages not from current user that haven't been read yet
@@ -387,13 +419,20 @@ export default function ChatPage() {
             };
           });
 
+          const hasMore = nextPage * 50 < total || (page as any).hasNext === true;
           setMessages((prev) => {
             const existingIds = new Set(prev.map((m) => m.backendId));
             const newOlder = mappedOlderMsgs.filter((m) => !existingIds.has(m.backendId));
-            return [...newOlder, ...prev];
+            const updated = [...newOlder, ...prev];
+            setConversationMessages(selectedConversationId, {
+              messages: updated,
+              messagesPage: nextPage,
+              hasMoreMessages: hasMore,
+            });
+            return updated;
           });
           setMessagesPage(nextPage);
-          setHasMoreMessages(nextPage * 50 < total || (page as any).hasNext === true);
+          setHasMoreMessages(hasMore);
 
           requestAnimationFrame(() => {
             if (container) {
@@ -411,26 +450,58 @@ export default function ChatPage() {
     }
   }, [hasMoreMessages, loadingOlderMessages, messagesPage, selectedConversationId]);
 
+  const handleContainerScroll = useCallback(() => {
+    handleMessagesScroll();
+    if (messagesContainerRef.current && selectedConversationId) {
+      saveConversationScrollTop(selectedConversationId, messagesContainerRef.current.scrollTop);
+    }
+  }, [handleMessagesScroll, selectedConversationId]);
+
   // Khi `selectedConversationId` thay đổi (do click hoặc do initial select) thì load messages
   useEffect(() => {
     if (!selectedConversationId) return;
     // Guard: Don't load messages if user is not authenticated
     if (!currentUserId) return;
+
+    // Check if messages for this conversation are already in cache
+    const cachedConv = getConversationMessages(selectedConversationId);
+    if (cachedConv && cachedConv.messages.length > 0) {
+      setMessages(cachedConv.messages);
+      setMessagesPage(cachedConv.messagesPage);
+      setHasMoreMessages(cachedConv.hasMoreMessages);
+      isInitialScrollDoneRef.current = false;
+      return;
+    }
+
     const conv = conversations.find((c) => c.id === selectedConversationId);
     if (!conv) return;
     loadMessages(conv);
   }, [selectedConversationId, loadMessages, currentUserId]);
 
-  // Scroll to bottom when conversation changes or initial messages are loaded
+  // Sync if URL search parameter changes
+  useEffect(() => {
+    if (initialConversationId && initialConversationId !== selectedConversationId) {
+      setSelectedConversationId(initialConversationId);
+    }
+  }, [initialConversationId, selectedConversationId]);
+
+  // Scroll to bottom or restore position when conversation changes or initial messages are loaded
   useEffect(() => {
     if (messagesContainerRef.current && messages.length > 0 && !isInitialScrollDoneRef.current) {
       isInitialScrollDoneRef.current = true;
       const timeoutId = setTimeout(() => {
         if (messagesContainerRef.current) {
-          messagesContainerRef.current.scrollTo({
-            top: messagesContainerRef.current.scrollHeight,
-            behavior: 'auto'
-          });
+          const cachedConv = selectedConversationId
+            ? getConversationMessages(selectedConversationId)
+            : null;
+          if (cachedConv?.scrollTop !== undefined && cachedConv.scrollTop > 0) {
+            messagesContainerRef.current.scrollTop = cachedConv.scrollTop;
+          } else {
+            messagesContainerRef.current.scrollTo({
+              top: messagesContainerRef.current.scrollHeight,
+              behavior: "auto",
+            });
+          }
         }
       }, 100);
       return () => clearTimeout(timeoutId);
@@ -446,62 +517,12 @@ export default function ChatPage() {
 
   // ------------- 3. SignalR: Connect to ChatHub and join conversation -------------
   useEffect(() => {
-    // Guard: Don't connect if no user
-    if (!currentUserId) {
-      // Clear the initialized ref when user logs out
-      chatHubInitializedRef.current = null;
-      return;
-    }
+    if (!currentUserId) return;
 
-    // Guard: Don't create a new connection if we already have one for this user
-    if (chatHubInitializedRef.current === currentUserId && chatHubRef.current) {
-      return;
-    }
-
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-    if (!token) {
-      console.warn("No access token found for SignalR connection");
-      return;
-    }
-
-    // Mark this user as initialized
-    chatHubInitializedRef.current = currentUserId;
-
-    // Custom logger to filter out cleanup errors
-    const customLogger = signalR.LogLevel.Information;
-    
-    // Build connection
-    const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${process.env.NEXT_PUBLIC_HUB_URL}/chatHub`, {
-        skipNegotiation: false,
-        withCredentials: false,
-        accessTokenFactory: () => token || "",
-      })
-      .withAutomaticReconnect({
-        reconnectDelay: [0, 2000, 10000, 30000],
-        maxRetries: 5
-      })
-      .configureLogging({
-        log: (logLevel, message) => {
-          // Filter out expected cleanup errors to reduce console noise
-          if (message.includes('stopped during negotiation') || 
-              message.includes('Failed to start the connection') ||
-              message.includes('connection was stopped')) {
-            return; // Don't log these expected errors
-          }
-          console.log(`[SignalR ${signalR.LogLevel[logLevel]}]`, message);
-        }
-      })
-      .build();
-
-    // Listen for new messages
-    connection.on("ReceiveMessage", (message) => {
+    const handleIncomingMessage = (message: any) => {
       console.log("New message received via SignalR:", message);
 
-      if (message.conversationId !== selectedConversationIdRef.current) return;
-
-      // Determine if incoming message is a sticker (GIF)
-      const isGif = message.mediaUrl?.toLowerCase().includes('.gif');
+      const isGif = message.mediaUrl?.toLowerCase().includes(".gif");
 
       const incoming: ChatMessage = {
         backendId: message.id,
@@ -518,88 +539,62 @@ export default function ChatPage() {
         postPreview: message.postPreview ?? undefined,
       };
 
-      setMessages((prev) => {
-        if (prev.some((x) => x.backendId === incoming.backendId)) return prev;
-        return [...prev, incoming];
-      });
+      appendMessageToConversation(message.conversationId, incoming);
 
-      // update both conversations & selectedConversation preview
+      if (message.conversationId === selectedConversationIdRef.current) {
+        setMessages((prev) => {
+          if (prev.some((x) => x.backendId === incoming.backendId)) return prev;
+          return [...prev, incoming];
+        });
+      }
+
       setConversations((prev) =>
         prev.map((c) =>
           c.id === message.conversationId
-            ? { ...c, messages: [...c.messages, incoming] }
+            ? {
+                ...c,
+                messages: [...c.messages, incoming],
+                lastMessagePreview:
+                  incoming.text || (incoming.imageUrl ? "[Image]" : "[Attachment]"),
+                lastMessageAt: new Date().toISOString(),
+              }
             : c
         )
       );
-    });
+    };
 
-    // Track connection state
-    connection.onclose(() => {
-      console.log("ChatHub connection closed");
-      setIsChatHubConnected(false);
-    });
+    const hub = getOrCreateChatHubConnection(currentUserId, handleIncomingMessage);
+    chatHubRef.current = hub;
 
-    connection.onreconnecting(() => {
-      console.log("ChatHub reconnecting");
-      setIsChatHubConnected(false);
-    });
-
-    connection.onreconnected(() => {
-      console.log("ChatHub reconnected");
-      setIsChatHubConnected(true);
-      // Re-join the current conversation after reconnecting
-      if (selectedConversationIdRef.current) {
-        connection
-          .invoke("JoinConversation", selectedConversationIdRef.current)
-          .catch((err) => console.error("Error re-joining conversation:", err));
-      }
-    });
-
-    // Start connection
-    connection
-      .start()
-      .then(() => {
-        console.log("ChatHub connected");
+    if (hub) {
+      if (hub.state === signalR.HubConnectionState.Connected) {
         setIsChatHubConnected(true);
-        // Join the current conversation after connecting
         if (selectedConversationIdRef.current) {
-          connection
+          hub
             .invoke("JoinConversation", selectedConversationIdRef.current)
             .catch((err) => console.error("Error joining conversation:", err));
         }
-      })
-      .catch((error: Error) => {
-        // Silently ignore errors during cleanup (connection stopped while starting/negotiating)
-        const errorMsg = error?.message || '';
-        if (errorMsg.includes('stopped') || errorMsg.includes('negotiation') || errorMsg.includes('Failed to start')) {
-          // Expected error during cleanup, don't log
-          return;
-        }
-        console.error("Error connecting to ChatHub:", error);
-        setIsChatHubConnected(false);
-      });
-
-    chatHubRef.current = connection;
-
-    // Cleanup on unmount or when currentUserId changes
-    return () => {
-      setIsChatHubConnected(false);
-      // Stop the old connection safely
-      if (chatHubRef.current) {
-        const oldConnection = chatHubRef.current;
-        chatHubRef.current = null;
-        // Stop the connection and ignore any errors during cleanup
-        oldConnection.stop().catch((err) => {
-          // Silently ignore errors during cleanup to prevent console spam
-          if (err && typeof err === 'object' && 'message' in err) {
-            const msg = (err as { message: string }).message;
-            // Only log unexpected errors, not expected cleanup errors
-            if (!msg.includes('stopped') && !msg.includes('negotiation')) {
-              console.warn("SignalR cleanup warning:", msg);
-            }
-          }
-        });
       }
+
+      const onReconnected = () => {
+        setIsChatHubConnected(true);
+        if (selectedConversationIdRef.current) {
+          hub
+            .invoke("JoinConversation", selectedConversationIdRef.current)
+            .catch((err) => console.error("Error re-joining conversation:", err));
+        }
+      };
+
+      const onClose = () => {
+        setIsChatHubConnected(false);
+      };
+
+      hub.onreconnected(onReconnected);
+      hub.onclose(onClose);
+    }
+
+    return () => {
+      removeMessageListener(handleIncomingMessage);
     };
   }, [currentUserId]);
 
@@ -689,6 +684,8 @@ export default function ChatPage() {
               : c
           )
         );
+
+        appendMessageToConversation(selectedConversationId, msg);
       } catch (e) {
         console.error("Error sending message", e);
       }
@@ -797,7 +794,10 @@ export default function ChatPage() {
                   type="text"
                   placeholder="Search conversations..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setChatSearchQuery(e.target.value);
+                  }}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm transition-all duration-200"
                   style={{
                     backgroundColor: "var(--bg-primary)",
@@ -819,7 +819,10 @@ export default function ChatPage() {
                 {searchQuery && (
                   <button
                     type="button"
-                    onClick={() => setSearchQuery("")}
+                    onClick={() => {
+                      setSearchQuery("");
+                      setChatSearchQuery("");
+                    }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-5 h-5 rounded-full transition-colors hover:bg-black/10 dark:hover:bg-white/10"
                     style={{ color: "var(--text-secondary)" }}
                   >
@@ -857,7 +860,7 @@ export default function ChatPage() {
                   onVoiceCall={() => handleStartCall("audio")}
                   onVideoCall={() => handleStartCall("video")}
                 />
-                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto" onScroll={handleMessagesScroll}>
+                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto" onScroll={handleContainerScroll}>
                   {loadingOlderMessages && (
                     <div className="py-2 text-center text-xs opacity-60 flex items-center justify-center gap-1.5">
                       <i className="pi pi-spin pi-spinner text-xs" />

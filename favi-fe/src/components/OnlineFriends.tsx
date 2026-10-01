@@ -5,17 +5,29 @@ import Link from "next/link";
 import ProfileHoverCard from "./ProfileHoverCard";
 import profileAPI from "@/lib/api/profileAPI";
 import type { ProfileResponse } from "@/types";
+import { useAuth } from "@/components/AuthProvider";
+import {
+  getHomeFriendsCache,
+  updateHomeFriendsCache,
+} from "@/lib/cache/homeCache";
 
 const DEFAULT_AVATAR = "/avatar-default.svg";
 
 export default function OnlineFriends() {
-  const [friends, setFriends] = useState<ProfileResponse[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const cachedFriends = getHomeFriendsCache(user?.id);
+
+  const [friends, setFriends] = useState<ProfileResponse[]>(
+    cachedFriends.isInitialized ? cachedFriends.friends : []
+  );
+  const [loading, setLoading] = useState(!cachedFriends.isInitialized);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasNext, setHasNext] = useState(false);
+  const [page, setPage] = useState(cachedFriends.isInitialized ? cachedFriends.page : 1);
+  const [hasNext, setHasNext] = useState(
+    cachedFriends.isInitialized ? cachedFriends.hasNext : false
+  );
   const [error, setError] = useState<string | null>(null);
-  const hasFetchedRef = useRef(false);
+  const hasFetchedRef = useRef(cachedFriends.isInitialized);
 
   const fetchOnlineFriends = async () => {
     let cancelled = false;
@@ -25,10 +37,21 @@ export default function OnlineFriends() {
       const response = await profileAPI.getOnlineFriends(15, 1, 5);
       if (!cancelled) {
         const items = (response as any)?.data || (response as any)?.items || (Array.isArray(response) ? response : []);
+        const loadedPage = response?.page || 1;
+        const loadedHasNext = response?.hasNext ?? false;
+
         setFriends(items);
-        setPage(response?.page || 1);
-        setHasNext(response?.hasNext ?? false);
+        setPage(loadedPage);
+        setHasNext(loadedHasNext);
         hasFetchedRef.current = true;
+
+        updateHomeFriendsCache({
+          friends: items,
+          page: loadedPage,
+          hasNext: loadedHasNext,
+          isInitialized: true,
+          userId: user?.id,
+        });
       }
     } catch (e: any) {
       if (!cancelled) {
@@ -51,13 +74,26 @@ export default function OnlineFriends() {
       const nextPage = page + 1;
       const response = await profileAPI.getOnlineFriends(15, nextPage, 5);
       const newItems = (response as any)?.data || (response as any)?.items || (Array.isArray(response) ? response : []);
-      setFriends((prev) => {
-        const existingIds = new Set(prev.map(f => f.id));
-        const uniqueNew = newItems.filter((f: ProfileResponse) => !existingIds.has(f.id));
-        return [...prev, ...uniqueNew];
+      const updatedFriends = [...friends];
+      const existingIds = new Set(updatedFriends.map(f => f.id));
+      for (const item of newItems) {
+        if (!existingIds.has(item.id)) {
+          updatedFriends.push(item);
+        }
+      }
+      const updatedPage = response?.page || nextPage;
+      const updatedHasNext = response?.hasNext ?? false;
+
+      setFriends(updatedFriends);
+      setPage(updatedPage);
+      setHasNext(updatedHasNext);
+
+      updateHomeFriendsCache({
+        friends: updatedFriends,
+        page: updatedPage,
+        hasNext: updatedHasNext,
+        userId: user?.id,
       });
-      setPage(response?.page || nextPage);
-      setHasNext(response?.hasNext ?? false);
     } catch (e: any) {
       console.error("Error loading more online friends:", e);
     } finally {
@@ -66,10 +102,10 @@ export default function OnlineFriends() {
   };
 
   useEffect(() => {
-    if (!hasFetchedRef.current) {
+    if (!cachedFriends.isInitialized && !hasFetchedRef.current) {
       fetchOnlineFriends();
     }
-  }, []);
+  }, [cachedFriends.isInitialized]);
 
   // Refetch when component becomes visible (when user navigates back)
   useEffect(() => {

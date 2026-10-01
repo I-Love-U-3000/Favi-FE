@@ -2,6 +2,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import authAPI from "@/lib/api/authAPI";
 import { useRouter } from "@/i18n/routing";
+import { clearHomeCache } from "@/lib/cache/homeCache";
+import { clearChatCache } from "@/lib/cache/chatCache";
 
 type UserInfo = { id?: string; email?: string; role?: any } | null;
 
@@ -60,6 +62,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     authAPI.logout();
+    clearHomeCache();
+    clearChatCache();
     try { if (typeof window !== "undefined") localStorage.removeItem("guest_mode"); } catch { }
     compute();
     // Redirect to login page (locale-aware)

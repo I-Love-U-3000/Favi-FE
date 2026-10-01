@@ -9,6 +9,12 @@ import postAPI from "@/lib/api/postAPI";
 import type { PostResponse, ReactionType, ReportTarget } from "@/types";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import { readPostReaction, writePostReaction } from "@/lib/postCache";
+import {
+  getHomeFeedCache,
+  updateHomeFeedCache,
+  saveHomeScroll,
+  removeHomePost,
+} from "@/lib/cache/homeCache";
 import { useTranslations } from "next-intl";
 import { PagedResult, PaginationResult } from "@/types";
 import { useOverlay } from "@/components/RootProvider";
@@ -41,18 +47,65 @@ export default function HomePage() {
   const { isAuthenticated, user } = useAuth();
   const me = useProfile(user?.id);
   const t = useTranslations("HomePage");
-  const [view, setView] = useState<"list" | "grid">("list");
   const router = useRouter();
   const { openAddToCollectionDialog } = useOverlay();
-  const [loading, setLoading] = useState(false);
+
+  // Read existing cached feed
+  const cachedFeed = getHomeFeedCache(user?.id);
+
+  const [view, setView] = useState<"list" | "grid">(
+    cachedFeed.isInitialized ? cachedFeed.view : "list"
+  );
+  const [loading, setLoading] = useState(!cachedFeed.isInitialized);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasNext, setHasNext] = useState(false);
+  const [page, setPage] = useState(cachedFeed.isInitialized ? cachedFeed.page : 1);
+  const [hasNext, setHasNext] = useState(
+    cachedFeed.isInitialized ? cachedFeed.hasNext : false
+  );
   const [error, setError] = useState<string | null>(null);
-  const [posts, setPosts] = useState<PostResponse[]>([]);
-  const [nsfwConfirmedGridPosts, setNsfwConfirmedGridPosts] = useState<Set<string>>(new Set());
+  const [posts, setPosts] = useState<PostResponse[]>(
+    cachedFeed.isInitialized ? cachedFeed.posts : []
+  );
+  const [nsfwConfirmedGridPosts, setNsfwConfirmedGridPosts] = useState<Set<string>>(
+    cachedFeed.isInitialized ? cachedFeed.nsfwConfirmedGridPosts : new Set()
+  );
+
+  // Restore scroll position after mount if returning to cached page
+  useEffect(() => {
+    if (cachedFeed.isInitialized && cachedFeed.scrollY > 0) {
+      const scrollY = cachedFeed.scrollY;
+      const timer = setTimeout(() => {
+        window.scrollTo({ top: scrollY, behavior: "instant" });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Continuously record scroll position
+  useEffect(() => {
+    let ticking = false;
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          saveHomeScroll(window.scrollY);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      saveHomeScroll(window.scrollY);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
 
   useEffect(() => {
+    // If already initialized in memory, do NOT re-fetch! The page is static unless reloaded.
+    if (cachedFeed.isInitialized) {
+      return;
+    }
+
     let cancelled = false;
 
     const load = async () => {
@@ -70,9 +123,21 @@ export default function HomePage() {
         }
 
         if (!cancelled) {
-          setPosts(res.data || res.items || []);
-          setPage(res.page || 1);
-          setHasNext(res.hasNext ?? false);
+          const loadedPosts = res.data || res.items || [];
+          const loadedPage = res.page || 1;
+          const loadedHasNext = res.hasNext ?? false;
+
+          setPosts(loadedPosts);
+          setPage(loadedPage);
+          setHasNext(loadedHasNext);
+
+          updateHomeFeedCache({
+            posts: loadedPosts,
+            page: loadedPage,
+            hasNext: loadedHasNext,
+            isInitialized: true,
+            userId: user?.id,
+          });
         }
       } catch (e: any) {
         if (!cancelled) {
@@ -87,7 +152,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, t]);
+  }, [isAuthenticated, t, cachedFeed.isInitialized, user?.id]);
 
   const handleLoadMore = async () => {
     if (loadingMore || !hasNext) return;
@@ -98,14 +163,47 @@ export default function HomePage() {
         ? await postAPI.getFeed(nextPage, 10)
         : await postAPI.getGuestFeed(nextPage, 10);
       const newItems = res.data || res.items || [];
-      setPosts((prev) => [...prev, ...newItems]);
-      setPage(res.page || nextPage);
-      setHasNext(res.hasNext ?? false);
+      const updatedPosts = [...posts, ...newItems];
+      const updatedPage = res.page || nextPage;
+      const updatedHasNext = res.hasNext ?? false;
+
+      setPosts(updatedPosts);
+      setPage(updatedPage);
+      setHasNext(updatedHasNext);
+
+      updateHomeFeedCache({
+        posts: updatedPosts,
+        page: updatedPage,
+        hasNext: updatedHasNext,
+        userId: user?.id,
+      });
     } catch (e: any) {
       console.error("Failed to load more feed posts:", e);
     } finally {
       setLoadingMore(false);
     }
+  };
+
+  const handleSetView = (nextView: "list" | "grid") => {
+    setView(nextView);
+    updateHomeFeedCache({ view: nextView, userId: user?.id });
+  };
+
+  const handleNsfwConfirm = (postId: string) => {
+    setNsfwConfirmedGridPosts((prev) => {
+      const next = new Set(prev).add(postId);
+      updateHomeFeedCache({ nsfwConfirmedGridPosts: next, userId: user?.id });
+      return next;
+    });
+  };
+
+  const handlePostDeletedOrArchived = (postId: string) => {
+    setPosts((prev) => {
+      const updated = prev.filter((p) => p.id !== postId);
+      updateHomeFeedCache({ posts: updated, userId: user?.id });
+      return updated;
+    });
+    removeHomePost(postId);
   };
 
   const gridPosts = useMemo(() => posts.filter(p => (p.medias || []).length > 0), [posts]);
@@ -136,15 +234,15 @@ export default function HomePage() {
             <div className="mt-6 flex items-center justify-between">
               <div className="text-sm opacity-70">{t("FeedTitle")}</div>
               <div className="inline-flex rounded-full p-1 bg-black/5">
-                <button onClick={() => setView("list")} className={`px-3 py-1.5 text-xs rounded-full ${view === "list" ? "bg-white shadow ring-1 ring-black/10 text-gray-900" : "opacity-70 hover:opacity-100"}`}>{t("ViewList")}</button>
-                <button onClick={() => setView("grid")} className={`px-3 py-1.5 text-xs rounded-full ${view === "grid" ? "bg-white shadow ring-1 ring-black/10 text-gray-900" : "opacity-70 hover:opacity-100"}`}>{t("ViewGrid")}</button>
+                <button onClick={() => handleSetView("list")} className={`px-3 py-1.5 text-xs rounded-full ${view === "list" ? "bg-white shadow ring-1 ring-black/10 text-gray-900" : "opacity-70 hover:opacity-100"}`}>{t("ViewList")}</button>
+                <button onClick={() => handleSetView("grid")} className={`px-3 py-1.5 text-xs rounded-full ${view === "grid" ? "bg-white shadow ring-1 ring-black/10 text-gray-900" : "opacity-70 hover:opacity-100"}`}>{t("ViewGrid")}</button>
               </div>
             </div>
 
             {view === "list" ? (
               <div className="mt-4 space-y-6">
                 {posts.map((p) => (
-                  <PostListItem key={p.id} post={p} />
+                  <PostListItem key={p.id} post={p} onDeleted={() => handlePostDeletedOrArchived(p.id)} />
                 ))}
                 {!loading && posts.length === 0 && (
                   <div className="mt-8 text-center text-sm opacity-70">{t("EmptyFeed")}</div>
@@ -169,7 +267,7 @@ export default function HomePage() {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setNsfwConfirmedGridPosts(prev => new Set(prev).add(p.id));
+                            handleNsfwConfirm(p.id);
                           }}
                           className="px-3 py-1.5 bg-black/70 hover:bg-black/80 text-white text-xs rounded-lg backdrop-blur-sm transition-colors"
                         >
@@ -236,7 +334,13 @@ export default function HomePage() {
   );
 }
 
-function PostListItem({ post }: { post: PostResponse }) {
+function PostListItem({
+  post,
+  onDeleted,
+}: {
+  post: PostResponse;
+  onDeleted?: () => void;
+}) {
   const { requireAuth, user, isAdmin } = useAuth();
   const router = useRouter();
   const t = useTranslations("HomePage");
@@ -501,8 +605,14 @@ function PostListItem({ post }: { post: PostResponse }) {
                 <PostMenuDialog
                   postId={post.id}
                   onEdit={() => router.push(`/posts/${post.id}/edit`)}
-                  onDeleted={() => router.refresh()}
-                  onArchived={() => router.refresh()}
+                  onDeleted={() => {
+                    onDeleted?.();
+                    router.refresh();
+                  }}
+                  onArchived={() => {
+                    onDeleted?.();
+                    router.refresh();
+                  }}
                 />
               </div>
             )}

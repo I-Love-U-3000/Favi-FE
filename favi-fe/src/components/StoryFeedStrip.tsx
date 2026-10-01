@@ -7,24 +7,30 @@ import type { StoryFeedResponse } from "@/types";
 import { useTranslations } from "next-intl";
 import StoryViewerDialog from "@/components/StoryViewerDialog";
 import StoryCreateDialog from "@/components/StoryCreateDialog";
-
-interface StoryItem {
-  profileId: string;
-  username: string;
-  avatarUrl: string | null;
-  stories: StoryFeedResponse["stories"];
-  hasViewed: boolean;
-}
+import {
+  getHomeStoriesCache,
+  updateHomeStoriesCache,
+  type StoryItem,
+} from "@/lib/cache/homeCache";
 
 export default function StoryFeedStrip() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const t = useTranslations("Stories");
-  const [stories, setStories] = useState<StoryItem[]>([]);
-  const [storyFeeds, setStoryFeeds] = useState<StoryFeedResponse[]>([]);
-  const [loading, setLoading] = useState(false);
+
+  const cachedStories = getHomeStoriesCache(user?.id);
+
+  const [stories, setStories] = useState<StoryItem[]>(
+    cachedStories.isInitialized ? cachedStories.stories : []
+  );
+  const [storyFeeds, setStoryFeeds] = useState<StoryFeedResponse[]>(
+    cachedStories.isInitialized ? cachedStories.storyFeeds : []
+  );
+  const [loading, setLoading] = useState(!cachedStories.isInitialized);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasNext, setHasNext] = useState(false);
+  const [page, setPage] = useState(cachedStories.isInitialized ? cachedStories.page : 1);
+  const [hasNext, setHasNext] = useState(
+    cachedStories.isInitialized ? cachedStories.hasNext : false
+  );
   const [error, setError] = useState<string | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>();
@@ -33,6 +39,7 @@ export default function StoryFeedStrip() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
+    if (cachedStories.isInitialized) return;
 
     let cancelled = false;
 
@@ -51,10 +58,22 @@ export default function StoryFeedStrip() {
             stories: item.stories,
             hasViewed: item.stories.every((s) => s.hasViewed),
           }));
+          const loadedPage = res.page || 1;
+          const loadedHasNext = res.hasNext ?? false;
+
           setStories(storyItems);
           setStoryFeeds(feed);
-          setPage(res.page || 1);
-          setHasNext(res.hasNext ?? false);
+          setPage(loadedPage);
+          setHasNext(loadedHasNext);
+
+          updateHomeStoriesCache({
+            stories: storyItems,
+            storyFeeds: feed,
+            page: loadedPage,
+            hasNext: loadedHasNext,
+            isInitialized: true,
+            userId: user?.id,
+          });
         }
       } catch (e: any) {
         if (!cancelled) {
@@ -69,7 +88,7 @@ export default function StoryFeedStrip() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, t]);
+  }, [isAuthenticated, t, cachedStories.isInitialized, user?.id]);
 
   const handleLoadMore = async () => {
     if (loadingMore || !hasNext) return;
@@ -85,10 +104,23 @@ export default function StoryFeedStrip() {
         stories: item.stories,
         hasViewed: item.stories.every((s) => s.hasViewed),
       }));
-      setStories((prev) => [...prev, ...newItems]);
-      setStoryFeeds((prev) => [...prev, ...newFeed]);
-      setPage(res.page || nextPage);
-      setHasNext(res.hasNext ?? false);
+      const updatedStories = [...stories, ...newItems];
+      const updatedFeeds = [...storyFeeds, ...newFeed];
+      const updatedPage = res.page || nextPage;
+      const updatedHasNext = res.hasNext ?? false;
+
+      setStories(updatedStories);
+      setStoryFeeds(updatedFeeds);
+      setPage(updatedPage);
+      setHasNext(updatedHasNext);
+
+      updateHomeStoriesCache({
+        stories: updatedStories,
+        storyFeeds: updatedFeeds,
+        page: updatedPage,
+        hasNext: updatedHasNext,
+        userId: user?.id,
+      });
     } catch (e: any) {
       console.error("Failed to load more stories:", e);
     } finally {
