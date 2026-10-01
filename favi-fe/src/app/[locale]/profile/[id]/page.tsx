@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
@@ -12,7 +12,7 @@ import { Link } from "@/i18n/routing";
 import { mockUserProfile } from "@/lib/mockTest/mockUserProfile";
 import { mockPost } from "@/lib/mockTest/mockPost";
 import { mockCollection } from "@/lib/mockTest/mockCollection";
-import type { UserProfile, PhotoPost, Collection, CollectionResponse, PostResponse, SocialLink, SocialKind, ProfileResponse, ReportTarget, RepostResponse } from "@/types";
+import type { UserProfile, PhotoPost, Collection, CollectionResponse, PostResponse, SocialLink, SocialKind, ProfileResponse, ReportTarget, RepostResponse, FollowResponse } from "@/types";
 import profileAPI from "@/lib/api/profileAPI";
 import postAPI from "@/lib/api/postAPI";
 import chatAPI from "@/lib/api/chatAPI";
@@ -412,6 +412,8 @@ function FollowListDialog({
   loadingMore,
   onLoadMore,
   onHide,
+  searchQuery,
+  onSearchChange,
 }: {
   type: "followers" | "following";
   visible: boolean;
@@ -422,25 +424,33 @@ function FollowListDialog({
   loadingMore?: boolean;
   onLoadMore?: () => void;
   onHide: () => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
 }) {
   const title = type === "followers" ? "Followers" : "Following";
-  const [searchQuery, setSearchQuery] = useState("");
+  const [inputValue, setInputValue] = useState(searchQuery);
 
-  // Reset search when dialog opens/closes or type changes
+  // Sync internal input value with external searchQuery
+  useEffect(() => {
+    setInputValue(searchQuery);
+  }, [searchQuery]);
+
+  // Reset search when dialog opens/closes
   useEffect(() => {
     if (!visible) {
-      setSearchQuery("");
+      setInputValue("");
     }
   }, [visible]);
 
-  // Filter profiles based on search query
-  const filteredProfiles = profiles.filter((p) => {
-    const query = searchQuery.toLowerCase().trim();
-    if (!query) return true;
-    const displayName = (p.displayName || "").toLowerCase();
-    const username = (p.username || "").toLowerCase();
-    return displayName.includes(query) || username.includes(query);
-  });
+  // Debounced search trigger
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (inputValue !== searchQuery) {
+        onSearchChange(inputValue);
+      }
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [inputValue, searchQuery, onSearchChange]);
 
   return (
     <Dialog
@@ -452,32 +462,49 @@ function FollowListDialog({
       contentStyle={{ padding: "1.5rem" }}
     >
       {/* Search Input */}
-      {!loading && !error && profiles.length > 0 && (
-        <div className="mb-4">
+      <div className="mb-4 relative">
+        <span className="p-input-icon-left w-full">
+          <i className="pi pi-search" />
           <InputText
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={`Search ${type === "followers" ? "followers" : "following"}...`}
-            className="w-full"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder={`Search ${type === "followers" ? "followers" : "following"} by username or name...`}
+            className="w-full pl-10 pr-8"
           />
-        </div>
-      )}
+        </span>
+        {inputValue && (
+          <button
+            type="button"
+            onClick={() => {
+              setInputValue("");
+              onSearchChange("");
+            }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs opacity-60 hover:opacity-100 p-1"
+            title="Clear search"
+          >
+            <i className="pi pi-times" />
+          </button>
+        )}
+      </div>
 
       {loading ? (
-        <div className="py-2 text-sm opacity-70">Loading...</div>
-      ) : error ? (
-        <div className="py-2 text-sm text-red-500">{error}</div>
-      ) : profiles.length === 0 ? (
-        <div className="py-2 text-sm opacity-70">
-          {type === "followers" ? "No followers yet." : "No following accounts yet."}
+        <div className="py-8 text-center text-sm opacity-70 flex items-center justify-center gap-2">
+          <i className="pi pi-spin pi-spinner text-base" />
+          <span>Searching {type === "followers" ? "followers" : "following"}...</span>
         </div>
-      ) : filteredProfiles.length === 0 ? (
-        <div className="py-2 text-sm opacity-70">
-          No results found for "{searchQuery}"
+      ) : error ? (
+        <div className="py-4 text-sm text-red-500 text-center">{error}</div>
+      ) : profiles.length === 0 ? (
+        <div className="py-8 text-center text-sm opacity-70">
+          {searchQuery.trim()
+            ? `No accounts found matching "${searchQuery}".`
+            : type === "followers"
+            ? "No followers yet."
+            : "No following accounts yet."}
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredProfiles.map((p) => (
+          {profiles.map((p) => (
             <div
               key={p.id}
               className="rounded-xl p-3"
@@ -493,10 +520,11 @@ function FollowListDialog({
                 type="button"
                 onClick={onLoadMore}
                 disabled={loadingMore}
-                className="w-full py-2.5 text-sm font-medium text-center rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                className="w-full py-2.5 text-sm font-medium text-center rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 style={{ color: "var(--primary, #3b82f6)" }}
               >
-                {loadingMore ? "Loading..." : "Load more"}
+                {loadingMore && <i className="pi pi-spin pi-spinner text-xs" />}
+                <span>{loadingMore ? "Loading more..." : "Load more"}</span>
               </button>
             </div>
           )}
@@ -540,6 +568,7 @@ export default function ProfilePage() {
   const [followDialogVisible, setFollowDialogVisible] = useState(false);
   const [followDialogLoading, setFollowDialogLoading] = useState(false);
   const [followDialogError, setFollowDialogError] = useState<string | null>(null);
+  const [followDialogSearchQuery, setFollowDialogSearchQuery] = useState("");
   const [followersList, setFollowersList] = useState<ProfileResponse[]>([]);
   const [followingList, setFollowingList] = useState<ProfileResponse[]>([]);
   const [followDialogPage, setFollowDialogPage] = useState(1);
@@ -891,113 +920,110 @@ export default function ProfilePage() {
     }
   };
 
-  const openFollowDialog = async (kind: "followers" | "following") => {
+  const fetchFollowData = useCallback(async (
+    kind: "followers" | "following",
+    page: number,
+    query: string,
+    append: boolean
+  ) => {
     if (!profile) return;
-    setFollowDialogType(kind);
-    setFollowDialogVisible(true);
-    setFollowDialogError(null);
-    setFollowDialogLoading(true);
-    setFollowDialogPage(1);
-    const requestKey = followRequestKeyRef.current + 1;
-    followRequestKeyRef.current = requestKey;
+    const requestKey = ++followRequestKeyRef.current;
+    if (!append) {
+      setFollowDialogLoading(true);
+      setFollowDialogError(null);
+    } else {
+      setFollowDialogLoadingMore(true);
+    }
 
     try {
+      const q = query.trim() || undefined;
       const res = kind === "followers"
-        ? await profileAPI.followers(profile.id, 1, 10)
-        : await profileAPI.followings(profile.id, 1, 10);
-      const items: any[] = res.data || res.items || [];
-      const ids = Array.from(
-        new Set(
-          items
-            .map((f) => (kind === "followers" ? f.followerId : f.followeeId))
-            .filter(Boolean)
-        )
-      ) as string[];
+        ? await profileAPI.followers(profile.id, page, 10, q)
+        : await profileAPI.followings(profile.id, page, 10, q);
 
-      const profileResults = ids.length
-        ? await Promise.allSettled(ids.map((pid) => profileAPI.getById(pid)))
-        : [];
+      const items: FollowResponse[] = res.data || res.items || (Array.isArray(res) ? res : []);
+      
+      const resolvedProfiles: ProfileResponse[] = [];
+      const missingIds: string[] = [];
+
+      for (const item of items) {
+        const targetId = (kind === "followers" ? item.followerId : item.followeeId) || "";
+        if (!targetId) continue;
+        if (item.username) {
+          resolvedProfiles.push({
+            id: targetId,
+            username: item.username,
+            displayName: item.displayName || item.username,
+            avatarUrl: item.avatarUrl || "/avatar-default.svg",
+            bio: item.bio || "",
+            isMe: !!user?.id && targetId === user.id,
+          });
+        } else {
+          missingIds.push(targetId);
+        }
+      }
+
+      if (missingIds.length > 0) {
+        const fetched = await Promise.allSettled(missingIds.map((pid) => profileAPI.getById(pid)));
+        for (const r of fetched) {
+          if (r.status === "fulfilled" && r.value) {
+            resolvedProfiles.push(r.value);
+          }
+        }
+      }
 
       if (followRequestKeyRef.current !== requestKey) return;
 
-      const resolved = profileResults
-        .filter(
-          (r): r is PromiseFulfilledResult<ProfileResponse> =>
-            r.status === "fulfilled"
-        )
-        .map((r) => r.value);
-
       if (kind === "followers") {
-        setFollowersList(resolved);
+        setFollowersList((prev) => append ? [...prev, ...resolvedProfiles] : resolvedProfiles);
       } else {
-        setFollowingList(resolved);
+        setFollowingList((prev) => append ? [...prev, ...resolvedProfiles] : resolvedProfiles);
       }
+      setFollowDialogPage(res.page || page);
       setFollowDialogHasNext(res.hasNext ?? false);
     } catch (e: any) {
       if (followRequestKeyRef.current !== requestKey) return;
       setFollowDialogError(e?.error || e?.message || "Failed to load list");
-      if (kind === "followers") {
-        setFollowersList([]);
-      } else {
-        setFollowingList([]);
+      if (!append) {
+        if (kind === "followers") setFollowersList([]);
+        else setFollowingList([]);
+        setFollowDialogHasNext(false);
       }
-      setFollowDialogHasNext(false);
     } finally {
       if (followRequestKeyRef.current === requestKey) {
         setFollowDialogLoading(false);
+        setFollowDialogLoadingMore(false);
       }
     }
+  }, [profile, user?.id]);
+
+  const openFollowDialog = (kind: "followers" | "following") => {
+    if (!profile) return;
+    setFollowDialogType(kind);
+    setFollowDialogVisible(true);
+    setFollowDialogSearchQuery("");
+    setFollowDialogPage(1);
+    fetchFollowData(kind, 1, "", false);
   };
 
-  const handleLoadMoreFollowList = async () => {
-    if (!profile || !followDialogType || followDialogLoadingMore || !followDialogHasNext) return;
-    setFollowDialogLoadingMore(true);
-    const requestKey = followRequestKeyRef.current;
-    try {
-      const nextPage = followDialogPage + 1;
-      const res = followDialogType === "followers"
-        ? await profileAPI.followers(profile.id, nextPage, 10)
-        : await profileAPI.followings(profile.id, nextPage, 10);
-      const items: any[] = res.data || res.items || [];
-      const ids = Array.from(
-        new Set(
-          items
-            .map((f) => (followDialogType === "followers" ? f.followerId : f.followeeId))
-            .filter(Boolean)
-        )
-      ) as string[];
+  const handleSearchFollowList = useCallback((query: string) => {
+    if (!followDialogType) return;
+    setFollowDialogSearchQuery(query);
+    setFollowDialogPage(1);
+    fetchFollowData(followDialogType, 1, query, false);
+  }, [followDialogType, fetchFollowData]);
 
-      const profileResults = ids.length
-        ? await Promise.allSettled(ids.map((pid) => profileAPI.getById(pid)))
-        : [];
-
-      if (followRequestKeyRef.current !== requestKey) return;
-
-      const resolved = profileResults
-        .filter(
-          (r): r is PromiseFulfilledResult<ProfileResponse> =>
-            r.status === "fulfilled"
-        )
-        .map((r) => r.value);
-
-      if (followDialogType === "followers") {
-        setFollowersList((prev) => [...prev, ...resolved]);
-      } else {
-        setFollowingList((prev) => [...prev, ...resolved]);
-      }
-      setFollowDialogPage(res.page || nextPage);
-      setFollowDialogHasNext(res.hasNext ?? false);
-    } catch (e: any) {
-      console.error("Failed to load more follow list:", e);
-    } finally {
-      setFollowDialogLoadingMore(false);
-    }
-  };
+  const handleLoadMoreFollowList = useCallback(() => {
+    if (!followDialogType || followDialogLoadingMore || !followDialogHasNext) return;
+    const nextPage = followDialogPage + 1;
+    fetchFollowData(followDialogType, nextPage, followDialogSearchQuery, true);
+  }, [followDialogType, followDialogLoadingMore, followDialogHasNext, followDialogPage, followDialogSearchQuery, fetchFollowData]);
 
   const closeFollowDialog = () => {
     setFollowDialogVisible(false);
     setFollowDialogType(null);
     setFollowDialogError(null);
+    setFollowDialogSearchQuery("");
   };
 
   const [editOpen, setEditOpen] = useState(false);
@@ -1428,6 +1454,8 @@ export default function ProfilePage() {
           loadingMore={followDialogLoadingMore}
           onLoadMore={handleLoadMoreFollowList}
           onHide={closeFollowDialog}
+          searchQuery={followDialogSearchQuery}
+          onSearchChange={handleSearchFollowList}
         />
         <EditProfileDialog
           open={editOpen}

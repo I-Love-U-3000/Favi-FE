@@ -69,22 +69,40 @@ export default function FriendsPage() {
           const followItems: FollowResponse[] = followRes.data || followRes.items || [];
           const followList = (followItems || []).filter(Boolean);
 
-          const followeeIds = Array.from(
-            new Set(followList.map((f) => f.followeeId).filter(Boolean))
-          );
+          const directProfiles: ProfileResponse[] = [];
+          const missingIds: string[] = [];
 
-          const profilesResult = await Promise.allSettled(
-            followeeIds.map((id) => profileAPI.getById(id))
-          );
+          for (const f of followList) {
+            if (!f.followeeId) continue;
+            if (f.username) {
+              directProfiles.push({
+                id: f.followeeId,
+                username: f.username,
+                displayName: f.displayName || f.username,
+                avatarUrl: f.avatarUrl || "/avatar-default.svg",
+                bio: f.bio || "",
+                isMe: f.followeeId === user?.id,
+              });
+            } else {
+              missingIds.push(f.followeeId);
+            }
+          }
 
-          if (cancelled) return;
+          if (missingIds.length > 0) {
+            const profilesResult = await Promise.allSettled(
+              missingIds.map((id) => profileAPI.getById(id))
+            );
+            if (cancelled) return;
+            const fetched = profilesResult
+              .filter(
+                (r): r is PromiseFulfilledResult<ProfileResponse> =>
+                  r.status === "fulfilled"
+              )
+              .map((r) => r.value);
+            directProfiles.push(...fetched);
+          }
 
-          friendProfiles = profilesResult
-            .filter(
-              (r): r is PromiseFulfilledResult<ProfileResponse> =>
-                r.status === "fulfilled"
-            )
-            .map((r) => r.value);
+          friendProfiles = directProfiles;
         }
 
         setRecommendations(recItems);
@@ -138,15 +156,38 @@ export default function FriendsPage() {
       const nextPage = friendsPage + 1;
       const followRes = await profileAPI.followings(user.id, nextPage, 10);
       const followItems: FollowResponse[] = followRes.data || followRes.items || [];
-      const followeeIds = Array.from(
-        new Set(followItems.map((f) => f.followeeId).filter(Boolean))
-      );
-      const profilesResult = await Promise.allSettled(
-        followeeIds.map((id) => profileAPI.getById(id))
-      );
-      const newProfiles = profilesResult
-        .filter((r): r is PromiseFulfilledResult<ProfileResponse> => r.status === "fulfilled")
-        .map((r) => r.value);
+      const followList = (followItems || []).filter(Boolean);
+
+      const directProfiles: ProfileResponse[] = [];
+      const missingIds: string[] = [];
+
+      for (const f of followList) {
+        if (!f.followeeId) continue;
+        if (f.username) {
+          directProfiles.push({
+            id: f.followeeId,
+            username: f.username,
+            displayName: f.displayName || f.username,
+            avatarUrl: f.avatarUrl || "/avatar-default.svg",
+            bio: f.bio || "",
+            isMe: f.followeeId === user?.id,
+          });
+        } else {
+          missingIds.push(f.followeeId);
+        }
+      }
+
+      if (missingIds.length > 0) {
+        const profilesResult = await Promise.allSettled(
+          missingIds.map((id) => profileAPI.getById(id))
+        );
+        const fetched = profilesResult
+          .filter((r): r is PromiseFulfilledResult<ProfileResponse> => r.status === "fulfilled")
+          .map((r) => r.value);
+        directProfiles.push(...fetched);
+      }
+
+      const newProfiles = directProfiles;
 
       setFriends((prev) => {
         const existingIds = new Set(prev.map((p) => p.id));

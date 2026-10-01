@@ -42,12 +42,13 @@ export type ProfileResponse = {
   bio?: string | null;
   avatarUrl?: string | null;
   coverUrl?: string | null;
-  createdAt: string; // ISO
-  lastActiveAt: string; // ISO
-  privacyLevel: PrivacyLevel;
-  followPrivacyLevel: PrivacyLevel;
+  createdAt?: string; // ISO
+  lastActiveAt?: string; // ISO
+  privacyLevel?: PrivacyLevel;
+  followPrivacyLevel?: PrivacyLevel;
   followersCount?: number | null;
   followingCount?: number | null;
+  isMe?: boolean;
 };
 
 export type UserProfile = {
@@ -332,6 +333,10 @@ export type FollowResponse = {
   followerId: string;
   followeeId: string;
   createdAt: string;
+  username?: string | null;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  bio?: string | null;
 };
 
 // Search types

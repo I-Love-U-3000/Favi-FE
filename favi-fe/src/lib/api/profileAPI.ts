@@ -113,19 +113,53 @@ export const profileAPI = {
 
   unfollow: (targetId: string) => fetchWrapper.del<any>(`/profiles/follow/${targetId}`, undefined, true),
 
-  followers: async (id: string, page = 1, size = 10, skip?: number, take?: number) => {
+  followers: async (
+    id: string,
+    page = 1,
+    size = 10,
+    skipOrQuery?: number | string,
+    take?: number,
+    query?: string
+  ) => {
+    let effectiveQuery: string | undefined;
+    let effectiveSkip: number | undefined;
+    if (typeof skipOrQuery === "string") {
+      effectiveQuery = skipOrQuery;
+    } else {
+      effectiveSkip = skipOrQuery;
+      effectiveQuery = query;
+    }
+
     const q: string[] = [`page=${page}`, `size=${size}`];
-    if (skip !== undefined) q.push(`skip=${skip}`);
+    if (effectiveSkip !== undefined) q.push(`skip=${effectiveSkip}`);
     if (take !== undefined) q.push(`take=${take}`);
+    if (effectiveQuery && effectiveQuery.trim()) q.push(`query=${encodeURIComponent(effectiveQuery.trim())}`);
     const qs = `?${q.join("&")}`;
     const res = await fetchWrapper.get<any>(`/profiles/${id}/followers${qs}`, true);
     return normalizePagination<FollowResponse>(res);
   },
 
-  followings: async (id: string, page = 1, size = 10, skip?: number, take?: number) => {
+  followings: async (
+    id: string,
+    page = 1,
+    size = 10,
+    skipOrQuery?: number | string,
+    take?: number,
+    query?: string
+  ) => {
+    let effectiveQuery: string | undefined;
+    let effectiveSkip: number | undefined;
+    if (typeof skipOrQuery === "string") {
+      effectiveQuery = skipOrQuery;
+    } else {
+      effectiveSkip = skipOrQuery;
+      effectiveQuery = query;
+    }
+
     const q: string[] = [`page=${page}`, `size=${size}`];
-    if (skip !== undefined) q.push(`skip=${skip}`);
+    if (effectiveSkip !== undefined) q.push(`skip=${effectiveSkip}`);
     if (take !== undefined) q.push(`take=${take}`);
+    if (effectiveQuery && effectiveQuery.trim()) q.push(`query=${encodeURIComponent(effectiveQuery.trim())}`);
     const qs = `?${q.join("&")}`;
     const res = await fetchWrapper.get<any>(`/profiles/${id}/followings${qs}`, true);
     return normalizePagination<FollowResponse>(res);
