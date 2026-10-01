@@ -48,6 +48,8 @@ export type ProfileResponse = {
   followPrivacyLevel?: PrivacyLevel;
   followersCount?: number | null;
   followingCount?: number | null;
+  mutualFriendsCount?: number | null;
+  recommendationReason?: string | null;
   isMe?: boolean;
 };
 

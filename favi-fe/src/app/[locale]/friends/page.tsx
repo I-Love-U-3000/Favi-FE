@@ -271,6 +271,12 @@ export default function FriendsPage() {
           <div>
             <div className="text-sm font-medium">{display}</div>
             <div className="text-xs opacity-70">@{p.username}</div>
+            {showFollow && p.recommendationReason && (
+              <div className="text-[11px] font-medium text-blue-500 dark:text-blue-400 mt-0.5 flex items-center gap-1.5">
+                <i className={p.mutualFriendsCount && p.mutualFriendsCount > 0 ? "pi pi-users text-[10px]" : "pi pi-sparkles text-[10px]"} />
+                <span>{p.recommendationReason}</span>
+              </div>
+            )}
           </div>
         </Link>
 
