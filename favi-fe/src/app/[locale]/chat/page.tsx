@@ -34,6 +34,8 @@ import {
   appendMessageToConversation,
   addLoadedChatConversation,
   saveConversationScrollTop,
+  saveConversationScroll,
+  saveChatListScroll,
   getOrCreateChatHubConnection,
   removeMessageListener,
 } from "@/lib/cache/chatCache";
@@ -132,6 +134,8 @@ export default function ChatPage() {
     chatCache.isInitialized ? new Set(chatCache.loadedConversations) : new Set()
   );
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const chatListContainerRef = useRef<HTMLDivElement>(null);
+  const isRestoringMessagesScrollRef = useRef(false);
   const chatHubRef = useRef<signalR.HubConnection | null>(null);
   const [isChatHubConnected, setIsChatHubConnected] = useState(false);
 
@@ -306,6 +310,47 @@ export default function ChatPage() {
     return () => clearInterval(interval);
   }, [fetchConversations]);
 
+  // Restore ChatList scroll position when conversations are loaded/rendered
+  useEffect(() => {
+    if (chatCache.chatListScrollTop > 0 && chatListContainerRef.current) {
+      const target = chatCache.chatListScrollTop;
+      let attempts = 0;
+      const interval = setInterval(() => {
+        attempts++;
+        if (chatListContainerRef.current) {
+          chatListContainerRef.current.scrollTop = target;
+          if (
+            Math.abs(chatListContainerRef.current.scrollTop - target) < 5 ||
+            attempts >= 10
+          ) {
+            clearInterval(interval);
+          }
+        }
+      }, 40);
+      return () => clearInterval(interval);
+    }
+  }, [conversations.length, chatCache.chatListScrollTop]);
+
+  // Save scroll states on unmount
+  useEffect(() => {
+    return () => {
+      if (selectedConversationIdRef.current && messagesContainerRef.current) {
+        const container = messagesContainerRef.current;
+        const threshold = 60;
+        const isAtBottom =
+          container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+        saveConversationScroll(
+          selectedConversationIdRef.current,
+          container.scrollTop,
+          isAtBottom
+        );
+      }
+      if (chatListContainerRef.current) {
+        saveChatListScroll(chatListContainerRef.current.scrollTop);
+      }
+    };
+  }, []);
+
   // ------------- 2. Hàm load messages cho 1 conversation -------------
   const loadMessages = useCallback(
     async (conversation: ChatConversation) => {
@@ -452,9 +497,16 @@ export default function ChatPage() {
 
   const handleContainerScroll = useCallback(() => {
     handleMessagesScroll();
-    if (messagesContainerRef.current && selectedConversationId) {
-      saveConversationScrollTop(selectedConversationId, messagesContainerRef.current.scrollTop);
-    }
+    const container = messagesContainerRef.current;
+    if (!container || !selectedConversationId) return;
+
+    if (isRestoringMessagesScrollRef.current) return;
+
+    const threshold = 60;
+    const isAtBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+
+    saveConversationScroll(selectedConversationId, container.scrollTop, isAtBottom);
   }, [handleMessagesScroll, selectedConversationId]);
 
   // Khi `selectedConversationId` thay đổi (do click hoặc do initial select) thì load messages
@@ -489,30 +541,77 @@ export default function ChatPage() {
   useEffect(() => {
     if (messagesContainerRef.current && messages.length > 0 && !isInitialScrollDoneRef.current) {
       isInitialScrollDoneRef.current = true;
-      const timeoutId = setTimeout(() => {
-        if (messagesContainerRef.current) {
-          const cachedConv = selectedConversationId
-            ? getConversationMessages(selectedConversationId)
-            : null;
-          if (cachedConv?.scrollTop !== undefined && cachedConv.scrollTop > 0) {
-            messagesContainerRef.current.scrollTop = cachedConv.scrollTop;
-          } else {
-            messagesContainerRef.current.scrollTo({
-              top: messagesContainerRef.current.scrollHeight,
-              behavior: "auto",
-            });
+      const cachedConv = selectedConversationId
+        ? getConversationMessages(selectedConversationId)
+        : null;
+
+      isRestoringMessagesScrollRef.current = true;
+
+      const restoreToExactPos =
+        cachedConv &&
+        cachedConv.isAtBottom === false &&
+        typeof cachedConv.scrollTop === "number";
+
+      let attempts = 0;
+      const interval = setInterval(() => {
+        attempts++;
+        const container = messagesContainerRef.current;
+        if (!container || !isRestoringMessagesScrollRef.current) {
+          clearInterval(interval);
+          return;
+        }
+
+        if (restoreToExactPos) {
+          const target = cachedConv.scrollTop!;
+          container.scrollTop = target;
+          if (Math.abs(container.scrollTop - target) < 5 || attempts >= 15) {
+            clearInterval(interval);
+            isRestoringMessagesScrollRef.current = false;
+          }
+        } else {
+          // Bottom
+          container.scrollTop = container.scrollHeight - container.clientHeight;
+          if (attempts >= 15) {
+            clearInterval(interval);
+            isRestoringMessagesScrollRef.current = false;
           }
         }
-      }, 100);
-      return () => clearTimeout(timeoutId);
+      }, 40);
+
+      const cancelRestoration = () => {
+        isRestoringMessagesScrollRef.current = false;
+      };
+
+      const container = messagesContainerRef.current;
+      container.addEventListener("wheel", cancelRestoration, { passive: true, once: true });
+      container.addEventListener("touchstart", cancelRestoration, { passive: true, once: true });
+      container.addEventListener("pointerdown", cancelRestoration, { passive: true, once: true });
+
+      return () => {
+        clearInterval(interval);
+        if (container) {
+          container.removeEventListener("wheel", cancelRestoration);
+          container.removeEventListener("touchstart", cancelRestoration);
+          container.removeEventListener("pointerdown", cancelRestoration);
+        }
+      };
     }
   }, [selectedConversationId, messages.length]);
 
   const handleConversationSelect = useCallback(
     (conversationId: string) => {
+      // Save current conversation scroll state before switching
+      if (selectedConversationId && messagesContainerRef.current) {
+        const container = messagesContainerRef.current;
+        const threshold = 60;
+        const isAtBottom =
+          container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+        saveConversationScroll(selectedConversationId, container.scrollTop, isAtBottom);
+      }
+      isInitialScrollDoneRef.current = false;
       setSelectedConversationId(conversationId);
     },
-    []
+    [selectedConversationId]
   );
 
   // ------------- 3. SignalR: Connect to ChatHub and join conversation -------------
@@ -546,6 +645,22 @@ export default function ChatPage() {
           if (prev.some((x) => x.backendId === incoming.backendId)) return prev;
           return [...prev, incoming];
         });
+
+        if (messagesContainerRef.current) {
+          const container = messagesContainerRef.current;
+          const wasNearBottom =
+            container.scrollHeight - container.scrollTop - container.clientHeight <= 120;
+          if (wasNearBottom) {
+            setTimeout(() => {
+              if (messagesContainerRef.current) {
+                messagesContainerRef.current.scrollTo({
+                  top: messagesContainerRef.current.scrollHeight,
+                  behavior: "smooth",
+                });
+              }
+            }, 50);
+          }
+        }
       }
 
       setConversations((prev) =>
@@ -686,6 +801,15 @@ export default function ChatPage() {
         );
 
         appendMessageToConversation(selectedConversationId, msg);
+
+        setTimeout(() => {
+          if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTo({
+              top: messagesContainerRef.current.scrollHeight,
+              behavior: "smooth",
+            });
+          }
+        }, 50);
       } catch (e) {
         console.error("Error sending message", e);
       }
@@ -831,7 +955,13 @@ export default function ChatPage() {
                 )}
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 pb-4">
+            <div
+              ref={chatListContainerRef}
+              className="flex-1 overflow-y-auto px-4 pb-4"
+              onScroll={(e) => {
+                saveChatListScroll(e.currentTarget.scrollTop);
+              }}
+            >
               <ChatList
                 userId={currentUserId}
                 onClose={() => {}}

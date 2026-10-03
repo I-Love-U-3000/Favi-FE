@@ -322,5 +322,8 @@
         "CustomRange": "Custom range",
         "Refresh": "Refresh",
         "CheckingPermissions": "Checking permissions..."
+    },
+    "ChatPage": {
+        "PickAChat": "Select a conversation to start messaging."
     }
 }

@@ -70,24 +70,86 @@ export default function HomePage() {
     cachedFeed.isInitialized ? cachedFeed.nsfwConfirmedGridPosts : new Set()
   );
 
-  // Restore scroll position after mount if returning to cached page
+  // Track whether we are in the middle of restoring scroll or unmounting
+  const isRestoringScrollRef = useRef(cachedFeed.isInitialized && cachedFeed.scrollY > 0);
+  const isNavigatingAwayRef = useRef(false);
+
+  // Temporary minHeight to prevent the browser from clamping window.scrollTo
+  const [restorationMinHeight, setRestorationMinHeight] = useState<number | undefined>(
+    cachedFeed.isInitialized && cachedFeed.scrollY > 0
+      ? cachedFeed.scrollY + 1200
+      : undefined
+  );
+
+  // Set manual scroll restoration so browser doesn't randomly jump to 0 on back/forward
   useEffect(() => {
-    if (cachedFeed.isInitialized && cachedFeed.scrollY > 0) {
-      const scrollY = cachedFeed.scrollY;
-      const timer = setTimeout(() => {
-        window.scrollTo({ top: scrollY, behavior: "instant" });
-      }, 50);
-      return () => clearTimeout(timer);
+    if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
     }
   }, []);
+
+  // Restore scroll position after mount if returning to cached page
+  useEffect(() => {
+    if (!cachedFeed.isInitialized || cachedFeed.scrollY <= 0) {
+      isRestoringScrollRef.current = false;
+      return;
+    }
+
+    const targetY = cachedFeed.scrollY;
+    isRestoringScrollRef.current = true;
+
+    // Immediate attempt
+    window.scrollTo({ top: targetY, behavior: "instant" });
+
+    // Cancel restoration if user starts scrolling or interacting
+    const cancelRestoration = () => {
+      isRestoringScrollRef.current = false;
+      setRestorationMinHeight(undefined);
+    };
+
+    window.addEventListener("wheel", cancelRestoration, { passive: true, once: true });
+    window.addEventListener("touchstart", cancelRestoration, { passive: true, once: true });
+    window.addEventListener("keydown", cancelRestoration, { passive: true, once: true });
+
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      if (!isRestoringScrollRef.current) {
+        clearInterval(interval);
+        return;
+      }
+
+      window.scrollTo({ top: targetY, behavior: "instant" });
+
+      if (Math.abs(window.scrollY - targetY) < 15 || attempts >= 20) {
+        clearInterval(interval);
+        setTimeout(() => {
+          isRestoringScrollRef.current = false;
+          setRestorationMinHeight(undefined);
+        }, 150);
+      }
+    }, 40);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("wheel", cancelRestoration);
+      window.removeEventListener("touchstart", cancelRestoration);
+      window.removeEventListener("keydown", cancelRestoration);
+    };
+  }, [cachedFeed.isInitialized, cachedFeed.scrollY]);
 
   // Continuously record scroll position
   useEffect(() => {
     let ticking = false;
     const onScroll = () => {
+      if (isRestoringScrollRef.current || isNavigatingAwayRef.current) {
+        return;
+      }
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          saveHomeScroll(window.scrollY);
+          if (!isRestoringScrollRef.current && !isNavigatingAwayRef.current) {
+            saveHomeScroll(window.scrollY);
+          }
           ticking = false;
         });
         ticking = true;
@@ -95,7 +157,8 @@ export default function HomePage() {
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      saveHomeScroll(window.scrollY);
+      // Mark navigating away so unmount scroll collapse doesn't overwrite saved scroll with 0
+      isNavigatingAwayRef.current = true;
       window.removeEventListener("scroll", onScroll);
     };
   }, []);
@@ -210,7 +273,14 @@ export default function HomePage() {
 
   // ====== UI ======
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
+    <div
+      className="flex min-h-screen"
+      style={{
+        backgroundColor: 'var(--bg)',
+        color: 'var(--text)',
+        minHeight: restorationMinHeight ? `${restorationMinHeight}px` : undefined,
+      }}
+    >
       {/* Nội dung */}
       <main className="flex-1 p-6 ">
         <div className="mx-auto max-w-7xl grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">

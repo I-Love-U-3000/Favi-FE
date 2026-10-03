@@ -122,11 +122,13 @@ export default function Navbar() {
         <div className="relative h-full flex flex-col">
           {/* Header */}
           <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10 dark:border-white/5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/favi-logo.png" alt="logo" className="w-8 h-8 rounded-full" />
-            <span className="text-xl font-semibold" style={{ color: "var(--text)" }}>
-              Favi
-            </span>
+            <Link href="/home" scroll={false} className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/favi-logo.png" alt="logo" className="w-8 h-8 rounded-full" />
+              <span className="text-xl font-semibold" style={{ color: "var(--text)" }}>
+                Favi
+              </span>
+            </Link>
 
             <button
               type="button"
@@ -174,6 +176,7 @@ export default function Navbar() {
                 <Link
                   key={href}
                   href={href}
+                  scroll={false}
                   className={itemClass(active)}
                   style={{ color: "var(--text)" }}
                 >

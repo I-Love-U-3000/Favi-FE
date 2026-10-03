@@ -344,5 +344,8 @@
     "CustomRange": "Tùy chọn phạm vi",
     "Refresh": "Làm mới",
     "CheckingPermissions": "Đang kiểm tra quyền..."
+  },
+  "ChatPage": {
+    "PickAChat": "Chọn một cuộc trò chuyện để bắt đầu nhắn tin."
   }
 }

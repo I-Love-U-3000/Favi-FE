@@ -44,6 +44,7 @@ export interface ConversationMessagesCache {
   messagesPage: number;
   hasMoreMessages: boolean;
   scrollTop?: number;
+  isAtBottom?: boolean;
 }
 
 export interface ChatCacheState {
@@ -56,6 +57,7 @@ export interface ChatCacheState {
   searchQuery: string;
   loadedConversations: Set<string>;
   isInitialized: boolean;
+  chatListScrollTop: number;
 }
 
 const initialChatState: ChatCacheState = {
@@ -68,6 +70,7 @@ const initialChatState: ChatCacheState = {
   searchQuery: "",
   loadedConversations: new Set(),
   isInitialized: false,
+  chatListScrollTop: 0,
 };
 
 // Singleton in-memory store for Chat
@@ -162,13 +165,33 @@ export function addLoadedChatConversation(conversationId: string) {
   chatState.loadedConversations.add(conversationId);
 }
 
+export function saveChatListScroll(scrollTop: number) {
+  chatState.chatListScrollTop = Math.max(0, scrollTop);
+}
+
+export function getChatListScroll(): number {
+  return chatState.chatListScrollTop || 0;
+}
+
+export function saveConversationScroll(
+  conversationId: string,
+  scrollTop: number,
+  isAtBottom: boolean
+) {
+  const current = chatState.messagesByConv[conversationId];
+  if (current) {
+    current.scrollTop = Math.max(0, scrollTop);
+    current.isAtBottom = isAtBottom;
+  }
+}
+
 export function saveConversationScrollTop(
   conversationId: string,
   scrollTop: number
 ) {
   const current = chatState.messagesByConv[conversationId];
   if (current) {
-    current.scrollTop = scrollTop;
+    current.scrollTop = Math.max(0, scrollTop);
   }
 }
 
@@ -270,6 +293,7 @@ export function clearChatCache() {
   chatState.searchQuery = "";
   chatState.loadedConversations = new Set();
   chatState.isInitialized = false;
+  chatState.chatListScrollTop = 0;
 
   if (activeChatHub) {
     activeChatHub.stop().catch(() => {});

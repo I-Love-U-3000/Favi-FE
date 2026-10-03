@@ -131,7 +131,7 @@ export function updateHomeFeedCache(
 }
 
 export function saveHomeScroll(scrollY: number) {
-  homeState.feed.scrollY = scrollY;
+  homeState.feed.scrollY = Math.max(0, scrollY);
 }
 
 export function removeHomePost(postId: string) {
