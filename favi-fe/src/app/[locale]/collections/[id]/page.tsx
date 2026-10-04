@@ -11,6 +11,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useOverlay } from "@/components/RootProvider";
 import CollectionReactionButton from "@/components/CollectionReactionButton";
 import CollectionReactorsDialog from "@/components/CollectionReactorsDialog";
+import PostSkeleton from "@/components/PostSkeleton";
 
 import collectionAPI from "@/lib/api/collectionAPI";
 import postAPI from "@/lib/api/postAPI"; // ⚠️ đổi path nếu bạn khác
@@ -240,18 +241,7 @@ export default function CollectionDetail({ params }: Props) {
       {/* Grid */}
       <div className="mx-auto max-w-6xl px-6 mt-6 pb-10">
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="rounded-xl overflow-hidden ring-1 ring-black/5 animate-pulse"
-                style={{ backgroundColor: "var(--border)" }}
-              >
-                <div className="h-48" />
-                <div className="h-10" style={{ backgroundColor: "rgba(0,0,0,0.04)" }} />
-              </div>
-            ))}
-          </div>
+          <PostSkeleton variant="grid" count={8} />
         ) : posts.length === 0 && !error ? (
           <div
             className="rounded-xl border p-8 text-center"

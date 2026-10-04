@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@/i18n/routing";
 import postAPI from "@/lib/api/postAPI";
 import type { PostResponse } from "@/types";
+import PostSkeleton from "@/components/PostSkeleton";
 
 interface RelatedPostsProps {
   postId: string;
@@ -53,7 +54,16 @@ export default function RelatedPosts({ postId, className = "" }: RelatedPostsPro
     }
   };
 
-  if (loading) return <div className="text-sm opacity-70">Loading related posts…</div>;
+  if (loading) {
+    return (
+      <div className={className}>
+        <div className="text-sm font-semibold mb-3" style={{ color: "var(--text)" }}>
+          Related Posts
+        </div>
+        <PostSkeleton variant="grid" count={4} />
+      </div>
+    );
+  }
   if (posts.length === 0) return null;
 
   return (
@@ -89,21 +99,21 @@ export default function RelatedPosts({ postId, className = "" }: RelatedPostsPro
             )}
           </Link>
         ))}
+        {loadingMore && <PostSkeleton variant="grid" count={4} wrap={false} />}
       </div>
 
-      {hasNext && (
+      {!loadingMore && hasNext && (
         <div className="mt-4 flex justify-center">
           <button
             type="button"
             onClick={handleLoadMore}
-            disabled={loadingMore}
-            className="px-5 py-2 rounded-full font-medium text-xs transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+            className="px-5 py-2 rounded-full font-medium text-xs transition-all shadow-sm hover:shadow flex items-center gap-2"
             style={{
               backgroundColor: "var(--primary, #3b82f6)",
               color: "white",
             }}
           >
-            {loadingMore ? "Loading..." : "Load more"}
+            <span>Load more</span>
           </button>
         </div>
       )}

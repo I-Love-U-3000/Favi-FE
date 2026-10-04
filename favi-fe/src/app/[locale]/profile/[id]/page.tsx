@@ -28,6 +28,7 @@ import { useOverlay } from "@/components/RootProvider";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import SharedPostCard from "@/components/SharedPostCard";
 import StoryViewerDialog from "@/components/StoryViewerDialog";
+import PostSkeleton from "@/components/PostSkeleton";
 import AvatarOrStoryDialog from "@/components/AvatarOrStoryDialog";
 import storyAPI from "@/lib/api/storyAPI";
 
@@ -212,7 +213,7 @@ function MoreMenuButton() {
   );
 }
 
-function PhotoGrid({ items }: { items: PhotoPost[] }) {
+function PhotoGrid({ items, loadingMore }: { items: PhotoPost[]; loadingMore?: boolean }) {
   const { openAddToCollectionDialog } = useOverlay();
   const [nsfwConfirmedProfilePosts, setNsfwConfirmedProfilePosts] = useState<Set<string>>(new Set());
 
@@ -279,6 +280,7 @@ function PhotoGrid({ items }: { items: PhotoPost[] }) {
           </Link>
         );
       })}
+      {loadingMore && <PostSkeleton variant="grid" count={4} wrap={false} />}
     </div>
   );
 }
@@ -1184,7 +1186,21 @@ export default function ProfilePage() {
     });
   };
 
-  if (loading) return <div className="p-6 text-sm opacity-70">Loading profile…</div>;
+  if (loading) return (
+    <div className="min-h-screen">
+      <div className="w-full aspect-[16/6] bg-slate-200 dark:bg-slate-800 animate-pulse" />
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="relative -mt-16 h-32 w-32 rounded-full bg-slate-300 dark:bg-slate-700 animate-pulse ring-4" style={{ borderColor: 'var(--bg)' }} />
+        <div className="mt-4 space-y-2">
+          <div className="h-6 w-48 rounded bg-slate-200 dark:bg-slate-800 animate-pulse" />
+          <div className="h-4 w-32 rounded bg-slate-200/70 dark:bg-slate-800/70 animate-pulse" />
+        </div>
+        <div className="mt-8">
+          <PostSkeleton variant="grid" count={8} />
+        </div>
+      </div>
+    </div>
+  );
   if (error) return <div className="p-6 text-sm text-red-500">{error}</div>;
   if (!profile) return <div className="p-6 text-sm opacity-70">User not found.</div>;
 
@@ -1319,20 +1335,19 @@ export default function ProfilePage() {
         <div className="mt-8 mb-20">
           <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
             <TabPanel header={`Posts (${posts.length})`}>
-              <PhotoGrid items={posts} />
-              {hasNextProfilePosts && (
+              <PhotoGrid items={posts} loadingMore={loadingMoreProfilePosts} />
+              {!loadingMoreProfilePosts && hasNextProfilePosts && (
                 <div className="mt-6 flex justify-center">
                   <button
                     type="button"
                     onClick={handleLoadMoreProfilePosts}
-                    disabled={loadingMoreProfilePosts}
-                    className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+                    className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2"
                     style={{
                       backgroundColor: "var(--primary, #3b82f6)",
                       color: "white",
                     }}
                   >
-                    {loadingMoreProfilePosts ? "Loading..." : "Load more"}
+                    <span>Load more</span>
                   </button>
                 </div>
               )}
@@ -1355,19 +1370,23 @@ export default function ProfilePage() {
                       />
                     </div>
                   ))}
-                  {hasNextReposts && (
+                  {loadingMoreReposts && (
+                    <div className="mt-3 space-y-4">
+                      <PostSkeleton variant="feed" count={2} wrap={false} />
+                    </div>
+                  )}
+                  {!loadingMoreReposts && hasNextReposts && (
                     <div className="mt-6 flex justify-center">
                       <button
                         type="button"
                         onClick={handleLoadMoreReposts}
-                        disabled={loadingMoreReposts}
-                        className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+                        className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2"
                         style={{
                           backgroundColor: "var(--primary, #3b82f6)",
                           color: "white",
                         }}
                       >
-                        {loadingMoreReposts ? "Loading..." : "Load more"}
+                        <span>Load more</span>
                       </button>
                     </div>
                   )}

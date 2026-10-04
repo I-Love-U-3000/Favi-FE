@@ -7,6 +7,7 @@ import postAPI from "@/lib/api/postAPI";
 import type { PostResponse, PagedResult } from "@/types";
 import { useTranslations } from "next-intl";
 import PostCard from "@/components/PostCard";
+import PostSkeleton from "@/components/PostSkeleton";
 
 export default function RecycleBinPage() {
   const { isAuthenticated } = useAuth();
@@ -137,10 +138,7 @@ export default function RecycleBinPage() {
 
         {/* Content */}
         {loading && (
-          <div className="text-center py-12 text-sm opacity-70">
-            <i className="pi pi-spin pi-spinner text-2xl mb-2" />
-            <p>{t("Loading")}</p>
-          </div>
+          <PostSkeleton variant="card" count={6} />
         )}
 
         {error && (
@@ -213,21 +211,23 @@ export default function RecycleBinPage() {
                 <PostCard post={post} />
               </div>
             ))}
+            {loadingMore && (
+              <PostSkeleton variant="card" count={3} wrap={false} />
+            )}
           </div>
 
-          {hasNext && (
+          {!loadingMore && hasNext && (
             <div className="mt-6 flex justify-center">
               <button
                 type="button"
                 onClick={handleLoadMore}
-                disabled={loadingMore}
-                className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+                className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2"
                 style={{
                   backgroundColor: "var(--primary, #3b82f6)",
                   color: "white",
                 }}
               >
-                {loadingMore ? "Loading..." : "Load more"}
+                <span>Load more</span>
               </button>
             </div>
           )}

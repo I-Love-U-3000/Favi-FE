@@ -25,6 +25,7 @@ import ReportDialog from "@/components/ReportDialog";
 import StoryFeedStrip from "@/components/StoryFeedStrip";
 import PostReactorsDialog from "@/components/PostReactorsDialog";
 import OnlineFriends from "@/components/OnlineFriends";
+import PostSkeleton from "@/components/PostSkeleton";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -294,7 +295,12 @@ export default function HomePage() {
 
             {/* Feed from database */}
             {loading && (
-              <div className="mt-6 text-sm opacity-70">{t("LoadingPosts")}</div>
+              <div className="mt-6">
+                <PostSkeleton
+                  variant={view === "list" ? "feed" : "grid"}
+                  count={view === "list" ? 3 : 8}
+                />
+              </div>
             )}
             {error && (
               <div className="mt-6 text-sm text-red-500">{error}</div>
@@ -314,6 +320,9 @@ export default function HomePage() {
                 {posts.map((p) => (
                   <PostListItem key={p.id} post={p} onDeleted={() => handlePostDeletedOrArchived(p.id)} />
                 ))}
+                {loadingMore && (
+                  <PostSkeleton variant="feed" count={2} wrap={false} />
+                )}
                 {!loading && posts.length === 0 && (
                   <div className="mt-8 text-center text-sm opacity-70">{t("EmptyFeed")}</div>
                 )}
@@ -363,29 +372,24 @@ export default function HomePage() {
                     </div>
                   </Link>
                 ))}
+                {loadingMore && (
+                  <PostSkeleton variant="grid" count={4} wrap={false} />
+                )}
               </div>
             )}
 
-            {hasNext && (
+            {!loadingMore && hasNext && (
               <div className="mt-8 flex justify-center">
                 <button
                   type="button"
                   onClick={handleLoadMore}
-                  disabled={loadingMore}
-                  className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2"
                   style={{
                     backgroundColor: "var(--primary, #3b82f6)",
                     color: "white",
                   }}
                 >
-                  {loadingMore ? (
-                    <>
-                      <i className="pi pi-spin pi-spinner text-sm" />
-                      <span>Loading...</span>
-                    </>
-                  ) : (
-                    <span>Load more</span>
-                  )}
+                  <span>Load more</span>
                 </button>
               </div>
             )}

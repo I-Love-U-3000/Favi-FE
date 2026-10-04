@@ -12,6 +12,7 @@ import type { SearchPostDto, SearchResult, PostResponse } from "@/types";
 import { searchAPI } from "@/lib/api/searchAPI";
 import postAPI from "@/lib/api/postAPI";
 import { useAuth } from "@/components/AuthProvider";
+import PostSkeleton from "@/components/PostSkeleton";
 
 /* ==================== Types & Utils ==================== */
 type Mode = "keyword" | "semantic" | "tag";
@@ -47,13 +48,19 @@ function ResultCard({ post }: { post: PostResponse }) {
   );
 }
 
-function ResultGrid({ items, loading, hasSearched }: { items: PostResponse[]; loading?: boolean; hasSearched?: boolean }) {
+function ResultGrid({
+  items,
+  loading,
+  loadingMore,
+  hasSearched,
+}: {
+  items: PostResponse[];
+  loading?: boolean;
+  loadingMore?: boolean;
+  hasSearched?: boolean;
+}) {
   if (loading) {
-    return (
-      <div className="flex justify-center py-20">
-        <ProgressSpinner />
-      </div>
-    );
+    return <PostSkeleton variant="grid" count={8} />;
   }
 
   if (!hasSearched) {
@@ -83,6 +90,7 @@ function ResultGrid({ items, loading, hasSearched }: { items: PostResponse[]; lo
       {items.map((post) => (
         <ResultCard key={post.id} post={post} />
       ))}
+      {loadingMore && <PostSkeleton variant="grid" count={4} wrap={false} />}
     </div>
   );
 }
@@ -528,7 +536,12 @@ export default function SearchPage() {
         )}
 
         {/* Results grid */}
-        <ResultGrid items={currentResults} loading={currentLoading && currentPage === 1} hasSearched={currentSearched} />
+        <ResultGrid
+          items={currentResults}
+          loading={currentLoading && currentPage === 1}
+          loadingMore={currentLoading && currentPage > 1}
+          hasSearched={currentSearched}
+        />
 
         {/* Load more button */}
         {!currentLoading && currentHasMore && currentResults.length > 0 && (
@@ -542,15 +555,8 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* Loading spinner for load more */}
-        {currentLoading && currentPage > 1 && (
-          <div className="flex justify-center mt-8">
-            <ProgressSpinner style={{ width: "32px", height: "32px" }} />
-          </div>
-        )}
-
         {/* No more results message */}
-        {!currentHasMore && currentResults.length > 0 && (
+        {!currentLoading && !currentHasMore && currentResults.length > 0 && (
           <div className="text-center mt-8 text-sm opacity-50">No more results</div>
         )}
       </div>

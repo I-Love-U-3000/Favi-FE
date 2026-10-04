@@ -9,6 +9,7 @@ import type { PostResponse, PagedResult, StoryResponse } from "@/types";
 import { useTranslations } from "next-intl";
 import PostCard from "@/components/PostCard";
 import StoryViewerDialog from "@/components/StoryViewerDialog";
+import PostSkeleton from "@/components/PostSkeleton";
 
 export default function ArchivePage() {
   const { isAuthenticated } = useAuth();
@@ -204,7 +205,10 @@ export default function ArchivePage() {
         </div>
 
         {/* Content */}
-        {loading && (
+        {loading && activeTab === "posts" && (
+          <PostSkeleton variant="card" count={6} />
+        )}
+        {loading && activeTab === "stories" && (
           <div className="text-center py-12 text-sm opacity-70">
             <i className="pi pi-spin pi-spinner text-2xl mb-2" />
             <p>{t("Loading")}</p>
@@ -289,21 +293,23 @@ export default function ArchivePage() {
                 <PostCard post={post} />
               </div>
             ))}
+            {loadingMorePosts && (
+              <PostSkeleton variant="card" count={3} wrap={false} />
+            )}
           </div>
 
-          {hasNextPosts && (
+          {!loadingMorePosts && hasNextPosts && (
             <div className="mt-6 flex justify-center">
               <button
                 type="button"
                 onClick={handleLoadMorePosts}
-                disabled={loadingMorePosts}
-                className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
+                className="px-6 py-2.5 rounded-full font-medium text-sm transition-all shadow-sm hover:shadow flex items-center gap-2"
                 style={{
                   backgroundColor: "var(--primary, #3b82f6)",
                   color: "white",
                 }}
               >
-                {loadingMorePosts ? "Loading..." : "Load more"}
+                <span>Load more</span>
               </button>
             </div>
           )}

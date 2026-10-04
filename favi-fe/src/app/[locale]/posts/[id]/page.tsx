@@ -18,6 +18,7 @@ import PostMenuDialog from "@/components/PostMenuDialog";
 import PostReactorsDialog from "@/components/PostReactorsDialog";
 import CommentReactorsDialog from "@/components/CommentReactorsDialog";
 import RelatedPosts from "@/components/RelatedPosts";
+import PostSkeleton from "@/components/PostSkeleton";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -68,7 +69,13 @@ export default function PostPage() {
     };
   }, [id]);
 
-  if (loading) return <div className="p-6 opacity-70 text-sm">Loading…</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen py-8" style={{ backgroundColor: "var(--bg)", color: "var(--text)" }}>
+        <PostSkeleton variant="detail" />
+      </div>
+    );
+  }
   if (error) return <div className="p-6 text-red-500 text-sm">{error}</div>;
   if (!post) notFound();
 
