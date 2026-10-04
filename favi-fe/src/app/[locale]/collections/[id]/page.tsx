@@ -83,6 +83,9 @@ export default function CollectionDetail({ params }: Props) {
   const [posts, setPosts] = useState<PhotoPost[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [reactorsDialogOpen, setReactorsDialogOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const privacyLabel = useMemo(() => {
     if (!coll) return "";
@@ -95,6 +98,7 @@ export default function CollectionDetail({ params }: Props) {
     (async () => {
       setLoading(true);
       setError(null);
+      setPage(1);
 
       try {
         const c = (await collectionAPI.getById(id)) as CollectionResponse | null;
@@ -110,28 +114,13 @@ export default function CollectionDetail({ params }: Props) {
 
         setColl(c);
 
-        const ids = c.postIds ?? [];
-        if (ids.length === 0) {
-          setPosts([]);
-          setLoading(false);
-          return;
-        }
-
-        // ✅ Fetch từng post theo id (có thể tối ưu bằng batch endpoint)
-        const results = await Promise.all(
-          ids.map(async (pid) => {
-            try {
-              const p: any = await postAPI.getById(pid); // ⚠️ đổi theo API của bạn
-              return mapToPhotoPost(p, pid);
-            } catch {
-              return null;
-            }
-          })
-        );
-
+        // Fetch first page of posts paginated (12 items)
+        const postsRes = await collectionAPI.getPosts(id, 1, 12);
         if (!alive) return;
 
-        setPosts(results.filter(Boolean) as PhotoPost[]);
+        const mapped = (postsRes.items || []).map((p: any) => mapToPhotoPost(p, p.id)).filter(Boolean) as PhotoPost[];
+        setPosts(mapped);
+        setHasMore(postsRes.hasNext || (postsRes.page * postsRes.pageSize < postsRes.totalCount));
         setLoading(false);
       } catch (e: any) {
         if (!alive) return;
@@ -160,6 +149,40 @@ export default function CollectionDetail({ params }: Props) {
     if (!coll?.ownerProfileId || !user?.id) return false;
     return user.id === coll.ownerProfileId;
   }, [coll, user]);
+
+  const loadMorePosts = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const res = await collectionAPI.getPosts(id, nextPage, 12);
+      const mapped = (res.items || []).map((p: any) => mapToPhotoPost(p, p.id)).filter(Boolean) as PhotoPost[];
+      setPosts(prev => [...prev, ...mapped]);
+      setPage(nextPage);
+      setHasMore(res.hasNext || (nextPage * res.pageSize < res.totalCount));
+    } catch (err) {
+      console.error("Error loading more posts:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const handleRemoveFromCollection = async (e: React.MouseEvent, postId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const confirmed = window.confirm("Remove this post from the collection?");
+    if (!confirmed) return;
+
+    try {
+      await collectionAPI.removePost(id, postId);
+      setPosts(prev => prev.filter(post => post.id !== postId));
+      setColl(prev => prev ? { ...prev, postCount: Math.max(0, prev.postCount - 1) } : prev);
+    } catch (error: any) {
+      console.error("Error removing post from collection:", error);
+      alert(error?.error || error?.message || "Failed to remove post from collection");
+    }
+  };
 
   const cover = coll?.coverImageUrl?.trim() ? coll.coverImageUrl : FALLBACK_COVER;
 
@@ -251,101 +274,80 @@ export default function CollectionDetail({ params }: Props) {
             <div className="text-sm opacity-75 mt-1">Thêm post vào collection để hiển thị ở đây.</div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {posts.map((p) => {
-              // giữ đúng tỉ lệ ảnh: dùng aspect-ratio theo width/height
-              const ratio = `${p.width} / ${p.height}`;
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {posts.map((p) => {
+                // giữ đúng tỉ lệ ảnh: dùng aspect-ratio theo width/height
+                const ratio = `${p.width} / ${p.height}`;
 
-              const handleAddToCollection = (e: React.MouseEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-                openAddToCollectionDialog(p.id);
-              };
+                const handleAddToCollection = (e: React.MouseEvent) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openAddToCollectionDialog(p.id);
+                };
 
-              const handleRemoveFromCollection = async (e: React.MouseEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-
-                const confirmed = window.confirm("Remove this post from the collection?");
-                if (!confirmed) return;
-
-                try {
-                  await collectionAPI.removePost(id, p.id);
-                  // Refresh collection data to update post list
-                  const updated = await collectionAPI.getById(id);
-                  if (updated) {
-                    setColl(updated);
-                    const ids = updated.postIds ?? [];
-                    if (ids.length === 0) {
-                      setPosts([]);
-                      return;
-                    }
-                    const results = await Promise.all(
-                      ids.map(async (pid) => {
-                        try {
-                          const post: any = await postAPI.getById(pid);
-                          return mapToPhotoPost(post, pid);
-                        } catch {
-                          return null;
-                        }
-                      })
-                    );
-                    setPosts(results.filter(Boolean) as PhotoPost[]);
-                  }
-                } catch (error: any) {
-                  console.error("Error removing post from collection:", error);
-                  alert(error?.error || error?.message || "Failed to remove post from collection");
-                }
-              };
-
-              return (
-                <div key={p.id} className="group block rounded-xl overflow-hidden ring-1 ring-black/5" style={{ backgroundColor: "var(--bg-secondary, #fff)" }}>
-                  <Link href={`/posts/${p.id}`} className="block">
-                    <div className="w-full" style={{ aspectRatio: ratio }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={p.imageUrl}
-                        alt={p.alt ?? ""}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      />
-                    </div>
-
-                    <div className="px-3 py-2 text-xs flex items-center justify-between gap-2">
-                      <div className="inline-flex items-center gap-3 opacity-90">
-                        <span className="inline-flex items-center gap-1">
-                          <i className="pi pi-heart" /> {p.likeCount}
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <i className="pi pi-comments" /> {p.commentCount}
-                        </span>
+                return (
+                  <div key={p.id} className="group block rounded-xl overflow-hidden ring-1 ring-black/5" style={{ backgroundColor: "var(--bg-secondary, #fff)" }}>
+                    <Link href={`/posts/${p.id}`} className="block">
+                      <div className="w-full" style={{ aspectRatio: ratio }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={p.imageUrl}
+                          alt={p.alt ?? ""}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
                       </div>
 
-                      <div className="flex gap-1 max-w-[55%] justify-end overflow-hidden items-center">
-                        <button
-                          type="button"
-                          onClick={handleAddToCollection}
-                          className="p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-                          title="Add to collection"
-                        >
-                          <i className="pi pi-bookmark text-sm" />
-                        </button>
-                        {isOwner && (
+                      <div className="px-3 py-2 text-xs flex items-center justify-between gap-2">
+                        <div className="inline-flex items-center gap-3 opacity-90">
+                          <span className="inline-flex items-center gap-1">
+                            <i className="pi pi-heart" /> {p.likeCount}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <i className="pi pi-comments" /> {p.commentCount}
+                          </span>
+                        </div>
+
+                        <div className="flex gap-1 max-w-[55%] justify-end overflow-hidden items-center">
                           <button
                             type="button"
-                            onClick={handleRemoveFromCollection}
-                            className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition-colors"
-                            title="Remove from collection"
+                            onClick={handleAddToCollection}
+                            className="p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                            title="Add to collection"
                           >
-                            <i className="pi pi-times text-sm" />
+                            <i className="pi pi-bookmark text-sm" />
                           </button>
-                        )}
+                          {isOwner && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleRemoveFromCollection(e, p.id)}
+                              className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition-colors"
+                              title="Remove from collection"
+                            >
+                              <i className="pi pi-times text-sm" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </Link>
-                </div>
-              );
-            })}
-          </div>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+
+            {hasMore && (
+              <div className="mt-8 flex justify-center">
+                <Button
+                  label={loadingMore ? "Đang tải..." : "Tải thêm bài viết"}
+                  icon={loadingMore ? "pi pi-spin pi-spinner" : "pi pi-chevron-down"}
+                  disabled={loadingMore}
+                  onClick={loadMorePosts}
+                  outlined
+                  className="px-6 py-2 rounded-full font-medium"
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
 

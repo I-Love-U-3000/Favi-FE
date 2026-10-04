@@ -89,14 +89,21 @@
   },
 
   "FriendsPage": {
-    "Title": "Đề xuất cho bạn",
-    "SuggestionsTitle": "Đề xuất cho bạn",
+    "Title": "Bạn bè & Kết nối",
+    "SuggestionsTitle": "Gợi ý cho bạn",
     "Empty": "Trống",
     "Follow": "Theo dõi",
-    "FriendsTitle": "Những người bạn đang theo dõi",
+    "Following": "Đang theo dõi",
+    "Unfollow": "Bỏ theo dõi",
+    "FriendsTitle": "Người bạn đang theo dõi",
+    "FollowersTitle": "Người theo dõi bạn",
+    "SearchFollowers": "Tìm kiếm người theo dõi...",
+    "SearchFollowing": "Tìm kiếm người bạn theo dõi...",
     "EmptyFriends": "Bạn chưa theo dõi ai",
+    "EmptyFollowers": "Chưa có ai theo dõi bạn",
     "EmptySuggestions": "Không có đề xuất",
-    "LoginRequired": "Vui lòng đăng nhập"
+    "LoginRequired": "Vui lòng đăng nhập để xem danh sách bạn bè",
+    "LoadMore": "Tải thêm"
   },
   
   "ChatPage": {
@@ -347,5 +354,21 @@
   },
   "ChatPage": {
     "PickAChat": "Chọn một cuộc trò chuyện để bắt đầu nhắn tin."
+  },
+  "Notifications": {
+    "Title": "Thông báo",
+    "MarkAllRead": "Đánh dấu đã đọc",
+    "DeleteRead": "Xóa đã đọc",
+    "UnreadBanner": "{count} thông báo chưa đọc",
+    "Empty": "Chưa có thông báo nào",
+    "Connected": "Đã kết nối",
+    "Disconnected": "Mất kết nối",
+    "JustNow": "vừa xong",
+    "MinutesAgo": "{m} phút trước",
+    "HoursAgo": "{h} giờ trước",
+    "DaysAgo": "{d} ngày trước",
+    "LoadMore": "Tải thêm thông báo",
+    "Loading": "Đang tải...",
+    "DeleteAllReadConfirm": "Bạn có chắc chắn muốn xóa tất cả thông báo đã đọc?"
   }
 }

@@ -15,6 +15,7 @@ interface SignalRContextValue {
   markAsRead: (notificationId: string) => Promise<boolean>;
   markAllAsRead: () => Promise<boolean>;
   deleteNotification: (notificationId: string) => Promise<boolean>;
+  deleteAllRead: () => Promise<boolean>;
 }
 
 const SignalRContext = createContext<SignalRContextValue | undefined>(undefined);
@@ -119,6 +120,18 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
       return true;
     } catch (error) {
       console.error("Error deleting notification:", error);
+      return false;
+    }
+  };
+
+  // Delete all read notifications
+  const deleteAllRead = async () => {
+    try {
+      await notificationAPI.deleteAllRead();
+      setNotifications(prev => prev.filter(n => !n.isRead));
+      return true;
+    } catch (error) {
+      console.error("Error deleting all read notifications:", error);
       return false;
     }
   };
@@ -261,6 +274,7 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    deleteAllRead,
   };
 
   return <SignalRContext.Provider value={value}>{children}</SignalRContext.Provider>;

@@ -83,14 +83,21 @@
         "ChooseLanguage": "Choose a language"
     },
     "FriendsPage": {
-        "Title": "Friends",
+        "Title": "Friends & Connections",
         "SuggestionsTitle": "Who you may know",
         "FriendsTitle": "People you follow",
+        "FollowersTitle": "Your followers",
+        "SearchFollowers": "Search followers...",
+        "SearchFollowing": "Search following...",
         "LoginRequired": "Please login to see your friends.",
         "EmptySuggestions": "No suggestions at the moment.",
         "EmptyFriends": "You are not following anyone yet.",
+        "EmptyFollowers": "No followers yet.",
         "Empty": "Empty",
-        "Follow": "Follow"
+        "Follow": "Follow",
+        "Following": "Following",
+        "Unfollow": "Unfollow",
+        "LoadMore": "Load more"
     },
     "RecycleBinPage": {
         "Title": "Recycle Bin",
@@ -325,5 +332,21 @@
     },
     "ChatPage": {
         "PickAChat": "Select a conversation to start messaging."
+    },
+    "Notifications": {
+        "Title": "Notifications",
+        "MarkAllRead": "Mark all read",
+        "DeleteRead": "Delete read",
+        "UnreadBanner": "{count} unread notifications",
+        "Empty": "No notifications yet",
+        "Connected": "Connected",
+        "Disconnected": "Disconnected",
+        "JustNow": "just now",
+        "MinutesAgo": "{m}m ago",
+        "HoursAgo": "{h}h ago",
+        "DaysAgo": "{d}d ago",
+        "LoadMore": "Load more notifications",
+        "Loading": "Loading...",
+        "DeleteAllReadConfirm": "Are you sure you want to delete all read notifications?"
     }
 }

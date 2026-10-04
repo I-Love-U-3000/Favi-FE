@@ -7,6 +7,7 @@ import { Button } from "primereact/button";
 import { useSignalRContext } from "@/lib/contexts/SignalRContext";
 import { NotificationDto, NotificationType } from "@/types";
 import { notificationTypeToString } from "@/types";
+import { useTranslations } from "next-intl";
 
 interface NotificationDialogProps {
   visible: boolean;
@@ -15,7 +16,9 @@ interface NotificationDialogProps {
 
 export default function NotificationDialog({ visible, onHide }: NotificationDialogProps) {
   const router = useRouter();
-  const { notifications, unreadCount, isConnected, fetchNotifications, markAsRead, markAllAsRead, deleteNotification } = useSignalRContext();
+  const t = useTranslations("Notifications");
+  const { notifications, unreadCount, isConnected, fetchNotifications, markAsRead, markAllAsRead, deleteNotification, deleteAllRead } = useSignalRContext();
+  const [isDeletingRead, setIsDeletingRead] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -137,21 +140,36 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
             <i className="pi pi-bell text-xl" />
-            <span className="font-semibold">Notifications</span>
+            <span className="font-semibold">{t("Title")}</span>
           </div>
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
               <Button
-                label="Mark all read"
-                className="p-button-text p-button-sm"
+                label={t("MarkAllRead")}
+                className="p-button-text p-button-sm text-xs"
                 onClick={markAllAsRead}
+              />
+            )}
+            {notifications.some(n => n.isRead) && (
+              <Button
+                label={t("DeleteRead")}
+                icon={isDeletingRead ? "pi pi-spin pi-spinner" : "pi pi-trash"}
+                disabled={isDeletingRead}
+                className="p-button-text p-button-sm p-button-danger text-xs"
+                onClick={async () => {
+                  const confirmed = window.confirm(t("DeleteAllReadConfirm"));
+                  if (!confirmed) return;
+                  setIsDeletingRead(true);
+                  await deleteAllRead();
+                  setIsDeletingRead(false);
+                }}
               />
             )}
             <div
               className={`w-2 h-2 rounded-full ${
                 isConnected ? "bg-green-500" : "bg-red-500"
               }`}
-              title={isConnected ? "Connected" : "Disconnected"}
+              title={isConnected ? t("Connected") : t("Disconnected")}
             />
           </div>
         </div>
@@ -169,7 +187,7 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
             className="px-4 py-2 text-sm text-center"
             style={{ backgroundColor: "var(--primary)", color: "white" }}
           >
-            {unreadCount} unread notification{unreadCount > 1 ? "s" : ""}
+            {t("UnreadBanner", { count: unreadCount })}
           </div>
         )}
 
@@ -179,7 +197,7 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
             <div className="flex items-center justify-center h-64 opacity-70">
               <div className="text-center">
                 <i className="pi pi-bell text-4xl mb-2" />
-                <p>No notifications yet</p>
+                <p>{t("Empty")}</p>
               </div>
             </div>
           ) : (
@@ -255,10 +273,10 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
                 {loadingMore ? (
                   <>
                     <i className="pi pi-spin pi-spinner text-xs" />
-                    <span>Loading...</span>
+                    <span>{t("Loading")}</span>
                   </>
                 ) : (
-                  <span>Load more</span>
+                  <span>{t("LoadMore")}</span>
                 )}
               </button>
             </div>

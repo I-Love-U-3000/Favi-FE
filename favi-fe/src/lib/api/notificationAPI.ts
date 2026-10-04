@@ -52,6 +52,14 @@ export const notificationAPI = {
   deleteNotification: (notificationId: string) =>
     fetchWrapper.del<void>(
       `/notifications/${notificationId}`,
+      undefined,
+      true
+    ),
+
+  deleteAllRead: () =>
+    fetchWrapper.del<{ message: string; count: number }>(
+      `/notifications/read`,
+      undefined,
       true
     ),
 };

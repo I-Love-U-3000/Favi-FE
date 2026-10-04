@@ -10,7 +10,8 @@ type FilterType = NotificationType | "all";
 
 export default function NotificationsPage() {
   const router = useRouter();
-  const { notifications, fetchNotifications, markAsRead, markAllAsRead } = useSignalRContext();
+  const { notifications, fetchNotifications, markAsRead, markAllAsRead, deleteAllRead } = useSignalRContext();
+  const [isDeletingRead, setIsDeletingRead] = useState(false);
   const [filter, setFilter] = useState<FilterType>("all");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -64,7 +65,22 @@ export default function NotificationsPage() {
     <div className="max-w-3xl mx-auto p-6" style={{ color: "var(--text)" }}>
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-semibold">Notifications</h1>
-        <Button label="Mark all read" className="p-button-text" onClick={markAllAsRead} />
+        <div className="flex items-center gap-2">
+          <Button label="Mark all read" className="p-button-text text-sm" onClick={markAllAsRead} />
+          {notifications.some(n => n.isRead) && (
+            <Button
+              label="Delete read"
+              icon={isDeletingRead ? "pi pi-spin pi-spinner" : "pi pi-trash"}
+              disabled={isDeletingRead}
+              className="p-button-text p-button-danger text-sm"
+              onClick={async () => {
+                setIsDeletingRead(true);
+                await deleteAllRead();
+                setIsDeletingRead(false);
+              }}
+            />
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">

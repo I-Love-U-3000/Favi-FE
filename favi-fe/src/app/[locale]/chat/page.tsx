@@ -195,28 +195,29 @@ export default function ChatPage() {
 
       // Preserve local state: keep unreadCount for conversations that have been loaded
       // and keep messages for conversations that have been loaded
-      const updatedConversations = mapped.map((newConv) => {
-        const existingConv = prev.find((c) => c.id === newConv.id);
-        // If this conversation was loaded before, preserve its local unreadCount
-        // The backend might return stale unread counts if markAsRead hasn't been processed yet
-        if (existingConv && loadedConversationsRef.current.has(newConv.id)) {
-          return {
-            ...newConv,
-            messages: existingConv.messages,
-            unreadCount: existingConv.unreadCount, // Preserve local unread count
-          };
-        }
-        return newConv;
+      setConversations((prev) => {
+        const updatedConversations = mapped.map((newConv) => {
+          const existingConv = prev.find((c) => c.id === newConv.id);
+          if (existingConv && loadedConversationsRef.current.has(newConv.id)) {
+            return {
+              ...newConv,
+              messages: existingConv.messages,
+              unreadCount: existingConv.unreadCount,
+            };
+          }
+          return newConv;
+        });
+
+        updateChatConversations(
+          updatedConversations,
+          res.page || 1,
+          res.hasNext ?? false,
+          currentUserId
+        );
+
+        return updatedConversations;
       });
 
-      updateChatConversations(
-        updatedConversations,
-        res.page || 1,
-        res.hasNext ?? false,
-        currentUserId
-      );
-
-      setConversations(updatedConversations);
       setConversationsPage(res.page || 1);
       setHasNextConversations(res.hasNext ?? false);
 
@@ -682,22 +683,30 @@ export default function ChatPage() {
     chatHubRef.current = hub;
 
     if (hub) {
-      if (hub.state === signalR.HubConnectionState.Connected) {
+      const joinCurrent = () => {
         setIsChatHubConnected(true);
-        if (selectedConversationIdRef.current) {
+        if (selectedConversationIdRef.current && hub.state === signalR.HubConnectionState.Connected) {
           hub
             .invoke("JoinConversation", selectedConversationIdRef.current)
             .catch((err) => console.error("Error joining conversation:", err));
         }
+      };
+
+      if (hub.state === signalR.HubConnectionState.Connected) {
+        joinCurrent();
+      } else {
+        const interval = setInterval(() => {
+          if (hub.state === signalR.HubConnectionState.Connected) {
+            clearInterval(interval);
+            joinCurrent();
+          } else if (hub.state === signalR.HubConnectionState.Disconnected) {
+            clearInterval(interval);
+          }
+        }, 100);
       }
 
       const onReconnected = () => {
-        setIsChatHubConnected(true);
-        if (selectedConversationIdRef.current) {
-          hub
-            .invoke("JoinConversation", selectedConversationIdRef.current)
-            .catch((err) => console.error("Error re-joining conversation:", err));
-        }
+        joinCurrent();
       };
 
       const onClose = () => {
@@ -713,9 +722,9 @@ export default function ChatPage() {
     };
   }, [currentUserId]);
 
-  // Join/leave conversation groups when selection changes
+  // Join/leave conversation groups when selection changes or hub connects
   useEffect(() => {
-    if (!chatHubRef.current || !selectedConversationId) return;
+    if (!chatHubRef.current || !selectedConversationId || !isChatHubConnected) return;
 
     // Only join if the connection is actually connected
     if (chatHubRef.current.state === signalR.HubConnectionState.Connected) {
@@ -732,7 +741,7 @@ export default function ChatPage() {
           .catch((err) => console.error("Error leaving conversation:", err));
       }
     };
-  }, [selectedConversationId]);
+  }, [selectedConversationId, isChatHubConnected]);
 
   // ---- CALL HANDLER (uses global CallProvider) ----
   const handleStartCall = useCallback(async (callType: CallType) => {
@@ -747,14 +756,12 @@ export default function ChatPage() {
       return;
     }
 
-    // Use global call context to start the call with recipient username, avatar, and display name
+    // Use global call context to start the call with recipient username
     await call.startCall(
       selectedConversation.id,
       recipientId,
       callType,
-      selectedConversation.recipient.username,
-      selectedConversation.recipient.avatar,
-      selectedConversation.recipient.username // Use username as display name (can be changed later)
+      selectedConversation.recipient.username
     );
   }, [selectedConversation, call]);
 

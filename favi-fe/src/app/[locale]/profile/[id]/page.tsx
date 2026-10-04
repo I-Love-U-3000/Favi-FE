@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
@@ -132,7 +132,7 @@ function ActionButtons({
       <div className="flex gap-2 items-center">
         <Button label="Edit profile" className="p-button-outlined" onClick={onEdit} />
         <Button icon="pi pi-share-alt" className="p-button-text" />
-        <MoreMenuButton />
+        <MoreMenuButton isOwner={true} />
       </div>
     );
   }
@@ -149,7 +149,7 @@ function ActionButtons({
         onClick={handleMessageClick}
       />
       <Button icon="pi pi-flag" className="p-button-text" onClick={() => setReportOpen(true)} />
-      <MoreMenuButton />
+      <MoreMenuButton isOwner={false} />
       <ReportDialog
         visible={reportOpen}
         onHide={() => setReportOpen(false)}
@@ -162,7 +162,7 @@ function ActionButtons({
   );
 }
 
-function MoreMenuButton() {
+function MoreMenuButton({ isOwner }: { isOwner?: boolean }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
@@ -186,10 +186,18 @@ function MoreMenuButton() {
     }
   };
 
-  const options = [
-    { key: "archive", label: "Kho lưu trữ", icon: "pi pi-box" },
-    { key: "trash", label: "Thùng rác", icon: "pi pi-trash" },
-  ];
+  const options = useMemo(() => {
+    const list: { key: string; label: string; icon: string }[] = [];
+    if (isOwner) {
+      list.push(
+        { key: "archive", label: "Kho lưu trữ", icon: "pi pi-box" },
+        { key: "trash", label: "Thùng rác", icon: "pi pi-trash" }
+      );
+    }
+    return list;
+  }, [isOwner]);
+
+  if (options.length === 0) return null;
 
   return (
     <div className="relative" ref={wrapperRef}>

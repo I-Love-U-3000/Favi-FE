@@ -61,6 +61,10 @@ async function handleResponse<T>(res: Response, method: string, url: string): Pr
       rawResponse: data
     });
 
+    if (res.status === 409 && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("favi-concurrency-conflict", { detail: thrownError }));
+    }
+
     throw thrownError;
   }
   // Convert backend PascalCase to frontend camelCase
@@ -128,10 +132,16 @@ async function request<T>(
   const isFormData =
     typeof FormData !== "undefined" && body instanceof FormData;
 
+  const isMutating = ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase());
+  const idempotencyKey = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
   // KHÔNG set Content-Type nếu là FormData
   const headers: Record<string, string> = {
     ...(auth ? getAuthHeaders() : {}),
     ...(isFormData ? {} : { "Content-Type": "application/json" }),
+    ...(isMutating ? { "Idempotency-Key": idempotencyKey } : {}),
   };
 
   const init: RequestInit = {

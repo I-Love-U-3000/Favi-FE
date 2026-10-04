@@ -293,6 +293,15 @@ export default function HomePage() {
             {/* Stories Strip */}
             <StoryFeedStrip />
 
+            {/* Feed controls - displayed above feed and loading skeletons */}
+            <div className="mt-6 flex items-center justify-between">
+              <div className="text-sm opacity-70">{t("FeedTitle")}</div>
+              <div className="inline-flex rounded-full p-1 bg-black/5">
+                <button onClick={() => handleSetView("list")} className={`px-3 py-1.5 text-xs rounded-full ${view === "list" ? "bg-white shadow ring-1 ring-black/10 text-gray-900" : "opacity-70 hover:opacity-100"}`}>{t("ViewList")}</button>
+                <button onClick={() => handleSetView("grid")} className={`px-3 py-1.5 text-xs rounded-full ${view === "grid" ? "bg-white shadow ring-1 ring-black/10 text-gray-900" : "opacity-70 hover:opacity-100"}`}>{t("ViewGrid")}</button>
+              </div>
+            </div>
+
             {/* Feed from database */}
             {loading && (
               <div className="mt-6">
@@ -305,15 +314,6 @@ export default function HomePage() {
             {error && (
               <div className="mt-6 text-sm text-red-500">{error}</div>
             )}
-
-            {/* Feed controls */}
-            <div className="mt-6 flex items-center justify-between">
-              <div className="text-sm opacity-70">{t("FeedTitle")}</div>
-              <div className="inline-flex rounded-full p-1 bg-black/5">
-                <button onClick={() => handleSetView("list")} className={`px-3 py-1.5 text-xs rounded-full ${view === "list" ? "bg-white shadow ring-1 ring-black/10 text-gray-900" : "opacity-70 hover:opacity-100"}`}>{t("ViewList")}</button>
-                <button onClick={() => handleSetView("grid")} className={`px-3 py-1.5 text-xs rounded-full ${view === "grid" ? "bg-white shadow ring-1 ring-black/10 text-gray-900" : "opacity-70 hover:opacity-100"}`}>{t("ViewGrid")}</button>
-              </div>
-            </div>
 
             {view === "list" ? (
               <div className="mt-4 space-y-6">
@@ -448,18 +448,18 @@ function PostListItem({
 
   const cached = readPostReaction(post.id);
   const [byType, setByType] = useState<Record<ReactionType, number>>(
-    cached?.byType ?? {
-      Like: post.reactions?.byType?.Like ?? 0,
-      Love: post.reactions?.byType?.Love ?? 0,
-      Haha: post.reactions?.byType?.Haha ?? 0,
-      Wow: post.reactions?.byType?.Wow ?? 0,
-      Sad: post.reactions?.byType?.Sad ?? 0,
-      Angry: post.reactions?.byType?.Angry ?? 0,
+    post.reactions?.byType ?? cached?.byType ?? {
+      Like: 0,
+      Love: 0,
+      Haha: 0,
+      Wow: 0,
+      Sad: 0,
+      Angry: 0,
     }
   );
 
   const [userReaction, setUserReaction] = useState<ReactionType | null>(
-    (cached?.currentUserReaction ?? post.reactions?.currentUserReaction ?? null) as any
+    (post.reactions?.currentUserReaction ?? cached?.currentUserReaction ?? null) as any
   );
 
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -476,10 +476,26 @@ function PostListItem({
     hoverTimer.current = window.setTimeout(() => setPickerOpen(false), ms) as unknown as number;
   };
 
-  // Use post.reactions.total as authoritative source, fall back to summing byType
-  const [totalReacts, setTotalReacts] = useState<number>(
-    cached?.total ?? post.reactions?.total ?? Object.values(byType).reduce((a, b) => a + b, 0)
-  );
+  // Authoritative server reaction total > cached reaction total > sum of byType
+  const [totalReacts, setTotalReacts] = useState<number>(() => {
+    if (typeof post.reactions?.total === "number") return post.reactions.total;
+    if (typeof cached?.total === "number") return cached.total;
+    const initialByType = post.reactions?.byType ?? cached?.byType ?? {};
+    return Object.values(initialByType).reduce((a, b) => a + Number(b || 0), 0);
+  });
+
+  // Keep reaction counts in sync if post updates from server
+  useEffect(() => {
+    if (typeof post.reactions?.total === "number") {
+      setTotalReacts(post.reactions.total);
+    }
+    if (post.reactions?.byType) {
+      setByType(post.reactions.byType);
+    }
+    if (typeof post.reactions?.currentUserReaction !== "undefined") {
+      setUserReaction(post.reactions.currentUserReaction as any);
+    }
+  }, [post.reactions]);
 
   const [shareOpen, setShareOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -539,36 +555,34 @@ function PostListItem({
     if (!requireAuth()) return;
     try {
       const prev = userReaction;
+      const nextUserReaction = prev === type ? null : type;
 
-      setByType((prevCounts) => {
-        const next = { ...prevCounts };
-        if (prev && next[prev] > 0) next[prev] -= 1;
-        if (prev !== type) next[type] = (next[type] || 0) + 1;
-        return next;
-      });
+      let diff = 0;
+      if (prev && !nextUserReaction) diff = -1;
+      else if (!prev && nextUserReaction) diff = 1;
+      else if (prev && nextUserReaction && prev !== nextUserReaction) diff = 0;
 
-      setUserReaction(prev === type ? null : type);
+      const newTotal = Math.max(0, totalReacts + diff);
+      setTotalReacts(newTotal);
 
-      // Update total reacts count
-      setTotalReacts((prevTotal) => {
-        let next = prevTotal;
-        if (prev) next = Math.max(0, next - 1);
-        if (prev !== type) next = next + 1;
-        return next;
+      const nextByType = { ...byType };
+      if (prev && nextByType[prev] > 0) nextByType[prev] -= 1;
+      if (nextUserReaction) nextByType[nextUserReaction] = (nextByType[nextUserReaction] || 0) + 1;
+      setByType(nextByType);
+
+      setUserReaction(nextUserReaction);
+
+      // Save to localStorage immediately with correct values
+      writePostReaction(post.id, {
+        byType: nextByType,
+        currentUserReaction: nextUserReaction,
+        total: newTotal,
       });
 
       const res = await postAPI.toggleReaction(post.id, type);
-      if (res && res.removed) setUserReaction(null);
-
-      const snapshot = { ...byType } as Record<ReactionType, number>;
-      if (prev && snapshot[prev] > 0) snapshot[prev] -= 1;
-      if (prev !== type) snapshot[type] = (snapshot[type] || 0) + 1;
-
-      writePostReaction(post.id, {
-        byType: snapshot,
-        currentUserReaction: prev === type ? null : type,
-        total: totalReacts,
-      });
+      if (res && res.removed) {
+        setUserReaction(null);
+      }
     } catch {
       // ignore
     } finally {

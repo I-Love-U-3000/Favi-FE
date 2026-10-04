@@ -229,10 +229,7 @@ export function getOrCreateChatHubConnection(
       withCredentials: false,
       accessTokenFactory: () => token || "",
     })
-    .withAutomaticReconnect({
-      reconnectDelay: [0, 2000, 10000, 30000],
-      maxRetries: 5,
-    })
+    .withAutomaticReconnect([0, 2000, 10000, 30000])
     .configureLogging({
       log: (logLevel, message) => {
         if (
