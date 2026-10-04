@@ -14,6 +14,7 @@ import {
   updateHomeFeedCache,
   saveHomeScroll,
   removeHomePost,
+  updateHomePostReaction,
 } from "@/lib/cache/homeCache";
 import { useTranslations } from "next-intl";
 import { PagedResult, PaginationResult } from "@/types";
@@ -64,9 +65,24 @@ export default function HomePage() {
     cachedFeed.isInitialized ? cachedFeed.hasNext : false
   );
   const [error, setError] = useState<string | null>(null);
-  const [posts, setPosts] = useState<PostResponse[]>(
-    cachedFeed.isInitialized ? cachedFeed.posts : []
-  );
+  const [posts, setPosts] = useState<PostResponse[]>(() => {
+    const initialPosts = cachedFeed.isInitialized ? cachedFeed.posts : [];
+    return initialPosts.map((p) => {
+      const c = readPostReaction(p.id);
+      if (c && typeof c.total === "number") {
+        return {
+          ...p,
+          reactions: {
+            ...p.reactions,
+            total: c.total,
+            byType: c.byType ?? p.reactions?.byType,
+            currentUserReaction: c.currentUserReaction ?? p.reactions?.currentUserReaction,
+          },
+        };
+      }
+      return p;
+    });
+  });
   const [nsfwConfirmedGridPosts, setNsfwConfirmedGridPosts] = useState<Set<string>>(
     cachedFeed.isInitialized ? cachedFeed.nsfwConfirmedGridPosts : new Set()
   );
@@ -270,6 +286,25 @@ export default function HomePage() {
     removeHomePost(postId);
   };
 
+  const handleReactionChange = (postId: string, newReactions: any) => {
+    setPosts((prev) => {
+      const updated = prev.map((p) =>
+        p.id === postId
+          ? {
+              ...p,
+              reactions: {
+                ...p.reactions,
+                ...newReactions,
+              },
+            }
+          : p
+      );
+      updateHomeFeedCache({ posts: updated, userId: user?.id });
+      return updated;
+    });
+    updateHomePostReaction(postId, newReactions);
+  };
+
   const gridPosts = useMemo(() => posts.filter(p => (p.medias || []).length > 0), [posts]);
 
   // ====== UI ======
@@ -283,8 +318,8 @@ export default function HomePage() {
       }}
     >
       {/* Nội dung */}
-      <main className="flex-1 p-6 ">
-        <div className="mx-auto max-w-7xl grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
+      <main className="flex-1 p-3 sm:p-4 md:p-6 min-w-0">
+        <div className="mx-auto max-w-7xl grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 md:gap-6">
           {/* Cột trái (ẩn mock) */}
           <aside className="hidden lg:block" style={{ display: 'none' }} />
 
@@ -318,7 +353,12 @@ export default function HomePage() {
             {view === "list" ? (
               <div className="mt-4 space-y-6">
                 {posts.map((p) => (
-                  <PostListItem key={p.id} post={p} onDeleted={() => handlePostDeletedOrArchived(p.id)} />
+                  <PostListItem
+                    key={p.id}
+                    post={p}
+                    onDeleted={() => handlePostDeletedOrArchived(p.id)}
+                    onReactionChange={handleReactionChange}
+                  />
                 ))}
                 {loadingMore && (
                   <PostSkeleton variant="feed" count={2} wrap={false} />
@@ -393,6 +433,10 @@ export default function HomePage() {
                 </button>
               </div>
             )}
+            {/* Mobile / Tablet Trending Collections Section */}
+            <div className="block xl:hidden mt-10 pt-6 border-t border-white/10 dark:border-white/5">
+              <TrendingCollections />
+            </div>
           </section>
 
           {/* Cột phải (Online Friends + Trending Collections) - Sticky scrollable panel */}
@@ -411,9 +455,11 @@ export default function HomePage() {
 function PostListItem({
   post,
   onDeleted,
+  onReactionChange,
 }: {
   post: PostResponse;
   onDeleted?: () => void;
+  onReactionChange?: (postId: string, newReactions: any) => void;
 }) {
   const { requireAuth, user, isAdmin } = useAuth();
   const router = useRouter();
@@ -447,20 +493,25 @@ function PostListItem({
   const tags = (post.tags || []).map((t) => t.name);
 
   const cached = readPostReaction(post.id);
-  const [byType, setByType] = useState<Record<ReactionType, number>>(
-    post.reactions?.byType ?? cached?.byType ?? {
+  const [byType, setByType] = useState<Record<ReactionType, number>>(() => {
+    if (cached?.byType) return cached.byType;
+    if (post.reactions?.byType) return post.reactions.byType;
+    return {
       Like: 0,
       Love: 0,
       Haha: 0,
       Wow: 0,
       Sad: 0,
       Angry: 0,
-    }
-  );
+    };
+  });
 
-  const [userReaction, setUserReaction] = useState<ReactionType | null>(
-    (post.reactions?.currentUserReaction ?? cached?.currentUserReaction ?? null) as any
-  );
+  const [userReaction, setUserReaction] = useState<ReactionType | null>(() => {
+    if (cached && typeof cached.currentUserReaction !== "undefined") {
+      return cached.currentUserReaction;
+    }
+    return (post.reactions?.currentUserReaction ?? null) as any;
+  });
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const hoverTimer = useRef<number | null>(null);
@@ -476,26 +527,33 @@ function PostListItem({
     hoverTimer.current = window.setTimeout(() => setPickerOpen(false), ms) as unknown as number;
   };
 
-  // Authoritative server reaction total > cached reaction total > sum of byType
   const [totalReacts, setTotalReacts] = useState<number>(() => {
-    if (typeof post.reactions?.total === "number") return post.reactions.total;
     if (typeof cached?.total === "number") return cached.total;
-    const initialByType = post.reactions?.byType ?? cached?.byType ?? {};
+    if (typeof post.reactions?.total === "number") return post.reactions.total;
+    const initialByType = cached?.byType ?? post.reactions?.byType ?? {};
     return Object.values(initialByType).reduce((a, b) => a + Number(b || 0), 0);
   });
 
-  // Keep reaction counts in sync if post updates from server
   useEffect(() => {
-    if (typeof post.reactions?.total === "number") {
-      setTotalReacts(post.reactions.total);
+    const latest = readPostReaction(post.id);
+    if (latest && typeof latest.total === "number") {
+      setTotalReacts(latest.total);
+      if (latest.byType) setByType(latest.byType);
+      if (typeof latest.currentUserReaction !== "undefined") {
+        setUserReaction(latest.currentUserReaction);
+      }
+    } else {
+      if (typeof post.reactions?.total === "number") {
+        setTotalReacts(post.reactions.total);
+      }
+      if (post.reactions?.byType) {
+        setByType(post.reactions.byType);
+      }
+      if (typeof post.reactions?.currentUserReaction !== "undefined") {
+        setUserReaction(post.reactions.currentUserReaction as any);
+      }
     }
-    if (post.reactions?.byType) {
-      setByType(post.reactions.byType);
-    }
-    if (typeof post.reactions?.currentUserReaction !== "undefined") {
-      setUserReaction(post.reactions.currentUserReaction as any);
-    }
-  }, [post.reactions]);
+  }, [post.reactions, post.id]);
 
   const [shareOpen, setShareOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -579,9 +637,20 @@ function PostListItem({
         total: newTotal,
       });
 
+      onReactionChange?.(post.id, {
+        byType: nextByType,
+        currentUserReaction: nextUserReaction,
+        total: newTotal,
+      });
+
       const res = await postAPI.toggleReaction(post.id, type);
       if (res && res.removed) {
         setUserReaction(null);
+        onReactionChange?.(post.id, {
+          byType: nextByType,
+          currentUserReaction: null,
+          total: newTotal,
+        });
       }
     } catch {
       // ignore
@@ -598,10 +667,13 @@ function PostListItem({
       if (c?.byType) setByType(c.byType as any);
       if (typeof c?.currentUserReaction !== "undefined")
         setUserReaction(c.currentUserReaction ?? null);
+      if (typeof c?.total === "number")
+        setTotalReacts(c.total);
+      if (c) onReactionChange?.(post.id, c);
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, [post.id]);
+  }, [post.id, onReactionChange]);
 
   const canDelete = isAdmin || (post.authorProfileId && user?.id === post.authorProfileId);
 
@@ -896,7 +968,7 @@ function PostListItem({
             </div>
 
             {/* Right: icons row */}
-            <div className="flex items-center gap-3 text-sm opacity-90">
+            <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm opacity-90">
               <button
                 className="inline-flex items-center gap-1 hover:opacity-100 transition"
                 title={t("CommentsLabel")}

@@ -53,9 +53,9 @@ export default async function RootLayout({
                 <SignalRProvider>
                   <CallProvider>
                     <RootProvider>
-                      <div className="min-h-screen flex">
+                      <div className="min-h-screen flex flex-col md:flex-row">
                         <NavGate />
-                        <main className="flex-1">{children}</main>
+                        <main className="flex-1 min-w-0 pb-16 md:pb-0">{children}</main>
                       </div>
                     </RootProvider>
                   </CallProvider>

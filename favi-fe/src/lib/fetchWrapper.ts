@@ -54,12 +54,16 @@ async function handleResponse<T>(res: Response, method: string, url: string): Pr
       details: apiError.details as string | undefined,
     };
     
-    console.error(`[API Error] ${method} ${url} failed with status ${res.status}:`, {
-      code: thrownError.code,
-      message: thrownError.message,
-      details: thrownError.details,
-      rawResponse: data
-    });
+    if (res.status === 404) {
+      console.debug(`[API 404] ${method} ${url} (Resource not found or private)`);
+    } else {
+      console.error(`[API Error] ${method} ${url} failed with status ${res.status}:`, {
+        code: thrownError.code,
+        message: thrownError.message,
+        details: thrownError.details,
+        rawResponse: data
+      });
+    }
 
     if (res.status === 409 && typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("favi-concurrency-conflict", { detail: thrownError }));

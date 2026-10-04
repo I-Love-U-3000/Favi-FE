@@ -910,7 +910,9 @@ export default function ChatPage() {
         <div className="flex gap-0 flex-1 overflow-hidden">
           {/* Sidebar danh sách hội thoại */}
           <aside
-            className="w-full md:w-1/3 lg:w-1/4 flex flex-col"
+            className={`w-full md:w-1/3 lg:w-1/4 flex-col ${
+              selectedConversationId ? "hidden md:flex" : "flex"
+            }`}
             style={{ borderRight: "1px solid var(--border)" }}
           >
             <div className="p-4 pb-2">
@@ -987,12 +989,16 @@ export default function ChatPage() {
           </aside>
 
           {/* Khu chat */}
-          <section className="w-full md:w-2/3 lg:w-3/4 flex flex-col">
+          <section
+            className={`w-full md:w-2/3 lg:w-3/4 flex-col ${
+              !selectedConversationId ? "hidden md:flex" : "flex"
+            }`}
+          >
             {selectedConversation ? (
               <>
                 <ChatHeader
                   recipient={selectedConversation.recipient}
-                  onBack={() => {}}
+                  onBack={() => setSelectedConversationId(null)}
                   onInfoClick={() => setMediaGalleryOpen(true)}
                   onVoiceCall={() => handleStartCall("audio")}
                   onVideoCall={() => handleStartCall("video")}

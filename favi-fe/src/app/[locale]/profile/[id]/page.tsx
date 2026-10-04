@@ -1247,9 +1247,9 @@ export default function ProfilePage() {
         </div>
 
         {/* AVATAR */}
-        <div className="absolute inset-x-0 -bottom-12">
-          <div className="mx-auto max-w-6xl px-6">
-            <div className="relative h-40 w-40 rounded-full overflow-hidden ring-4" style={{ borderColor: 'var(--bg)', backgroundColor: 'var(--bg-secondary)' }}>
+        <div className="absolute inset-x-0 -bottom-8 sm:-bottom-10 md:-bottom-12">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="relative h-24 w-24 sm:h-32 sm:w-32 md:h-40 md:w-40 rounded-full overflow-hidden ring-4" style={{ borderColor: 'var(--bg)', backgroundColor: 'var(--bg-secondary)' }}>
               {avatarUrl ? (
                 <button
                   type="button"
@@ -1290,8 +1290,8 @@ export default function ProfilePage() {
       </div>
 
       {/* HEADER INFO */}
-      <div className="mx-auto max-w-6xl px-6" style={{ color: 'var(--text)' }}>
-        <div className="flex flex-col md:flex-row gap-4 justify-between pt-16">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6" style={{ color: 'var(--text)' }}>
+        <div className="flex flex-col md:flex-row gap-4 justify-between pt-10 sm:pt-14 md:pt-16">
           <div>
             <div className="text-2xl font-semibold">{primaryName}</div>
             {trimmedDisplayName && (

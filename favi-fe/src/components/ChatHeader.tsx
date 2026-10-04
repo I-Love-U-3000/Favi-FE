@@ -39,12 +39,22 @@ function formatLastActive(lastActiveAt?: string) {
 export default function ChatHeader({ recipient, onBack, onInfoClick, onVoiceCall, onVideoCall }: ChatHeaderProps) {
   return (
     <div
-      className="px-6 py-4 flex items-center gap-4"
+      className="px-4 md:px-6 py-3 md:py-4 flex items-center gap-3 md:gap-4"
       style={{
         background: "linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)",
         borderBottom: "1px solid var(--border)",
       }}
     >
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="md:hidden p-2 -ml-1 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex items-center justify-center"
+          title="Back to conversations"
+        >
+          <i className="pi pi-arrow-left text-base" />
+        </button>
+      )}
       <div className="relative flex-shrink-0">
         <div
           className="rounded-full overflow-hidden"

@@ -51,6 +51,7 @@ export type ProfileResponse = {
   mutualFriendsCount?: number | null;
   recommendationReason?: string | null;
   isMe?: boolean;
+  version?: number;
 };
 
 export type UserProfile = {

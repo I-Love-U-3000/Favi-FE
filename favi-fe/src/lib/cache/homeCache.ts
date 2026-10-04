@@ -138,6 +138,13 @@ export function removeHomePost(postId: string) {
   homeState.feed.posts = homeState.feed.posts.filter((p) => p.id !== postId);
 }
 
+export function updateHomePostReaction(postId: string, reactions: any) {
+  const post = homeState.feed.posts.find((p) => p.id === postId);
+  if (post) {
+    post.reactions = { ...post.reactions, ...reactions };
+  }
+}
+
 // ---------------- STORIES CACHE ----------------
 export function getHomeStoriesCache(userId?: string | null): HomeStoriesCache {
   ensureUserConsistency(userId);
