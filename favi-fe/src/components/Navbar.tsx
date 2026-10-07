@@ -97,7 +97,7 @@ export default function Navbar() {
 
   const itemClass = (active: boolean) =>
     `flex items-center gap-3 px-3 py-2.5 rounded-lg transition hover:-translate-y-[1px]
-     ${active ? "bg-white/20 dark:bg-white/15 font-semibold text-primary" : "hover:bg-white/10 dark:hover:bg-white/10"}`;
+     ${active ? "bg-primary/15 font-semibold text-primary" : "hover:bg-white/10 dark:hover:bg-white/10"}`;
 
   const profileHref =
     isAuthenticated && (user as any)?.id ? `/profile/${(user as any).id}` : "/profile/me";
@@ -179,9 +179,10 @@ export default function Navbar() {
           scroll={false}
           className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
             pathname?.startsWith("/home")
-              ? "text-blue-500 font-bold"
+              ? "font-bold text-primary"
               : "opacity-70 hover:opacity-100"
           }`}
+          style={{ color: pathname?.startsWith("/home") ? "var(--primary)" : undefined }}
         >
           <i className="pi pi-home text-lg" />
           <span className="text-[10px] mt-0.5">Home</span>
@@ -192,9 +193,10 @@ export default function Navbar() {
           scroll={false}
           className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
             pathname?.startsWith("/search")
-              ? "text-blue-500 font-bold"
+              ? "font-bold text-primary"
               : "opacity-70 hover:opacity-100"
           }`}
+          style={{ color: pathname?.startsWith("/search") ? "var(--primary)" : undefined }}
         >
           <i className="pi pi-search text-lg" />
           <span className="text-[10px] mt-0.5">Explore</span>
@@ -222,9 +224,10 @@ export default function Navbar() {
           scroll={false}
           className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
             pathname?.startsWith("/chat")
-              ? "text-blue-500 font-bold"
+              ? "font-bold text-primary"
               : "opacity-70 hover:opacity-100"
           }`}
+          style={{ color: pathname?.startsWith("/chat") ? "var(--primary)" : undefined }}
         >
           <i className="pi pi-comments text-lg" />
           <span className="text-[10px] mt-0.5">Chat</span>
@@ -235,9 +238,10 @@ export default function Navbar() {
           scroll={false}
           className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
             pathname?.includes("/profile/")
-              ? "text-blue-500 font-bold"
+              ? "font-bold text-primary"
               : "opacity-70 hover:opacity-100"
           }`}
+          style={{ color: pathname?.includes("/profile/") ? "var(--primary)" : undefined }}
         >
           <i className="pi pi-user text-lg" />
           <span className="text-[10px] mt-0.5">Profile</span>

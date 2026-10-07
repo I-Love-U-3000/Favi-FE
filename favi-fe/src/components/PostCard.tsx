@@ -35,8 +35,11 @@ export default function PostCard({ post }: { post: PostResponse }) {
 
   return (
     <div
-      className="rounded-xl overflow-hidden cursor-pointer transition-all hover:scale-[1.02]"
-      style={{ backgroundColor: 'var(--bg-secondary)' }}
+      className="rounded-xl overflow-hidden cursor-pointer transition-all hover:scale-[1.02] border hover:shadow-md"
+      style={{
+        backgroundColor: 'var(--bg-secondary)',
+        borderColor: 'var(--border)',
+      }}
       onClick={() => router.push(`/posts/${post.id}`)}
     >
       {/* Media preview */}
@@ -118,10 +121,10 @@ export default function PostCard({ post }: { post: PostResponse }) {
             {post.tags.slice(0, 3).map((tag) => (
               <span
                 key={tag.id}
-                className="text-xs px-2 py-1 rounded-full cursor-pointer hover:opacity-80 transition-opacity"
+                className="text-xs px-2.5 py-0.5 font-medium rounded-full cursor-pointer hover:opacity-80 transition-opacity"
                 style={{
-                  backgroundColor: "var(--accent)",
-                  color: "var(--text)",
+                  backgroundColor: "var(--primary-subtle)",
+                  color: "var(--primary)",
                 }}
                 onClick={(e) => handleTagClick(tag.name, e)}
               >

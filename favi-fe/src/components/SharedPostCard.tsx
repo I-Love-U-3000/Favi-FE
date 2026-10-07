@@ -25,7 +25,7 @@ export default function SharedPostCard({ repost, onNavigateToOriginal, onProfile
       {/* Sharer Info */}
       <div
         className="flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all hover:opacity-80 mb-2"
-        style={{ backgroundColor: "var(--bg-primary)" }}
+        style={{ backgroundColor: "var(--bg-secondary)" }}
         onClick={onProfileClick}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -52,7 +52,7 @@ export default function SharedPostCard({ repost, onNavigateToOriginal, onProfile
       {repost.caption && (
         <div
           className="p-4 rounded-xl mb-2"
-          style={{ backgroundColor: "var(--bg-primary)" }}
+          style={{ backgroundColor: "var(--bg-secondary)" }}
         >
           <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text)" }}>
             {repost.caption}
@@ -63,7 +63,7 @@ export default function SharedPostCard({ repost, onNavigateToOriginal, onProfile
       {/* Nested Original Post */}
       <div
         className="border rounded-xl overflow-hidden cursor-pointer transition-all hover:opacity-90"
-        style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-primary)" }}
+        style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-secondary)" }}
         onClick={onNavigateToOriginal}
       >
         {/* Original Post Header */}

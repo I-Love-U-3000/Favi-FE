@@ -2,7 +2,7 @@
 
 import { ThemeProvider as NextThemeProvider, useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
-import { THEMES, ThemeKey, DEFAULT_THEME_KEY } from "./themes";
+import { THEMES, ThemeKey, DEFAULT_THEME_KEY, resolveThemeKey } from "./themes";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
 
@@ -20,9 +20,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 function ThemeLoader({ children }: { children: React.ReactNode }) {
-  const { theme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const prevClass = useRef<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const isInitialLoad = useRef(true);
 
   // Defer theme loading until client-side mount
   useEffect(() => {
@@ -31,8 +32,16 @@ function ThemeLoader({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!mounted || typeof document === "undefined") return;
-    const key = (theme as ThemeKey) || DEFAULT_THEME_KEY;
-    const info = THEMES[key] || THEMES[DEFAULT_THEME_KEY];
+
+    // Resolve legacy or unknown key
+    const resolvedKey = resolveThemeKey(theme);
+    if (theme && theme !== resolvedKey) {
+      // Migrate stored legacy key in next-themes
+      setTheme(resolvedKey);
+      return;
+    }
+
+    const info = THEMES[resolvedKey] || THEMES[DEFAULT_THEME_KEY];
     const linkId = "prime-theme-link";
     const href = `/themes/${info.file}`;
     let link = document.getElementById(linkId) as HTMLLinkElement | null;
@@ -44,7 +53,18 @@ function ThemeLoader({ children }: { children: React.ReactNode }) {
     }
 
     const html = document.documentElement;
+
     const applyTheme = () => {
+      // Trigger smooth transition only after initial render
+      if (!isInitialLoad.current) {
+        html.classList.add("theme-transitioning");
+        setTimeout(() => {
+          html.classList.remove("theme-transitioning");
+        }, 280);
+      } else {
+        isInitialLoad.current = false;
+      }
+
       if (prevClass.current) {
         html.classList.remove(prevClass.current);
       }
@@ -58,22 +78,37 @@ function ThemeLoader({ children }: { children: React.ReactNode }) {
         html.classList.remove("dark");
       }
 
-      try {
-        const computed = getComputedStyle(html);
-        const read = (token: string, fallback: string) => {
-          const value = computed.getPropertyValue(token);
-          return value?.trim() || fallback;
-        };
-        html.style.setProperty("--auth-primary", read("--primary-color", info.palette.primary));
-        html.style.setProperty("--auth-accent", read("--primary-300", info.palette.accent));
-        html.style.setProperty("--auth-glow", read("--surface-200", info.palette.glow));
-        html.style.setProperty("--auth-background", read("--surface-b", info.palette.background));
-      } catch {
-        html.style.setProperty("--auth-primary", info.palette.primary);
-        html.style.setProperty("--auth-accent", info.palette.accent);
-        html.style.setProperty("--auth-glow", info.palette.glow);
-        html.style.setProperty("--auth-background", info.palette.background);
-      }
+      const p = info.palette;
+
+      // Core app-wide CSS tokens
+      html.style.setProperty("--bg", p.background);
+      html.style.setProperty("--bg-secondary", p.surface);
+      html.style.setProperty("--bg-hover", p.surfaceHover);
+      html.style.setProperty("--text", p.text);
+      html.style.setProperty("--text-secondary", p.textSecondary);
+      html.style.setProperty("--primary", p.primary);
+      html.style.setProperty("--primary-hover", p.primaryHover);
+      html.style.setProperty("--primary-subtle", p.primarySubtle);
+      html.style.setProperty("--accent", p.accent);
+      html.style.setProperty("--border", p.border);
+      html.style.setProperty("--border-subtle", p.borderSubtle);
+      html.style.setProperty("--theme-glow", p.glow);
+
+      // Auth Screen tokens
+      html.style.setProperty("--auth-primary", p.primary);
+      html.style.setProperty("--auth-accent", p.accent);
+      html.style.setProperty("--auth-glow", p.glow);
+      html.style.setProperty("--auth-background", p.background);
+
+      // PrimeReact dynamic variables overrides
+      html.style.setProperty("--primary-color", p.primary);
+      html.style.setProperty("--primary-color-text", "#ffffff");
+      html.style.setProperty("--surface-ground", p.background);
+      html.style.setProperty("--surface-card", p.surface);
+      html.style.setProperty("--surface-overlay", p.surface);
+      html.style.setProperty("--surface-border", p.border);
+      html.style.setProperty("--text-color", p.text);
+      html.style.setProperty("--text-color-secondary", p.textSecondary);
     };
 
     if (link.getAttribute("href") !== href) {
@@ -89,7 +124,7 @@ function ThemeLoader({ children }: { children: React.ReactNode }) {
     return () => {
       if (link) link.onload = null;
     };
-  }, [theme, mounted]);
+  }, [theme, mounted, setTheme]);
 
   return <>{children}</>;
 }

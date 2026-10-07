@@ -2,9 +2,9 @@
 
 import { useTheme } from "next-themes";
 import { Button } from "primereact/button";
-import { useMemo, useState } from "react";
-import { THEMES, ThemeKey } from "@/theme/themes";
-import SelectionDialog from "@/components/SelectionDialog";
+import { useState } from "react";
+import { ThemeKey, resolveThemeKey } from "@/theme/themes";
+import ThemeDialog from "@/components/ThemeDialog";
 import { useTranslations } from "next-intl";
 
 export default function ThemeSwitcher() {
@@ -12,16 +12,7 @@ export default function ThemeSwitcher() {
   const [open, setOpen] = useState(false);
   const t = useTranslations("Common");
 
-  const options = useMemo(
-    () =>
-      Object.entries(THEMES)
-        .map(([key, val]) => ({
-          label: val.name,
-          value: key,
-        }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
-    []
-  );
+  const currentKey = resolveThemeKey(theme);
 
   return (
     <>
@@ -30,16 +21,14 @@ export default function ThemeSwitcher() {
         icon="pi pi-palette"
         rounded
         text
-        className="!text-xl"
+        className="!text-xl hover:scale-110 transition-transform"
         aria-label={t("ChangeTheme")}
         onClick={() => setOpen(true)}
       />
-      <SelectionDialog
+      <ThemeDialog
         visible={open}
-        title={t("ChooseTheme")}
-        options={options}
-        value={theme ?? undefined}
-        onSelect={(val) => setTheme(val as ThemeKey)}
+        activeKey={currentKey}
+        onSelect={(val) => setTheme(val)}
         onClose={() => setOpen(false)}
       />
     </>

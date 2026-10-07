@@ -3,6 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
+import ThemeDialog from "@/components/ThemeDialog";
+import { useTheme } from "next-themes";
+import { resolveThemeKey, CURATED_THEMES, ThemeKey } from "@/theme/themes";
 import { Dropdown } from "primereact/dropdown";
 import { Divider } from "primereact/divider";
 import { useAuth } from "@/components/AuthProvider";
@@ -32,6 +35,10 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { theme, setTheme } = useTheme();
+  const [themeDialogOpen, setThemeDialogOpen] = useState(false);
+  const activeThemeKey = resolveThemeKey(theme);
+  const activeThemeInfo = CURATED_THEMES[activeThemeKey] || CURATED_THEMES["horizon-light"];
 
   const PRIVACY_OPTIONS: PrivacyOption[] = [
     {
@@ -259,7 +266,35 @@ export default function SettingsPage() {
             <div className="text-sm font-medium">{t("Theme")}</div>
             <div className="text-xs opacity-70">{t("ThemeDesc")}</div>
           </div>
-          <ThemeSwitcher />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setThemeDialogOpen(true)}
+              className="inline-flex items-center gap-3 px-3.5 py-2 rounded-xl border border-black/10 dark:border-white/10 hover:border-primary transition-all shadow-xs hover:shadow-sm"
+              style={{ backgroundColor: "var(--bg)" }}
+            >
+              <div className="flex items-center gap-1.5">
+                <div
+                  className="w-3.5 h-3.5 rounded-full border border-black/15 shadow-xs"
+                  style={{ backgroundColor: activeThemeInfo.palette.primary }}
+                />
+                <div
+                  className="w-3.5 h-3.5 rounded-full border border-black/15 shadow-xs"
+                  style={{ backgroundColor: activeThemeInfo.palette.accent }}
+                />
+              </div>
+              <span className="text-sm font-medium">{activeThemeInfo.name}</span>
+              <span className="text-xs opacity-50 capitalize">({activeThemeInfo.mode})</span>
+              <i className="pi pi-pencil text-xs opacity-60 ml-1" />
+            </button>
+            <ThemeSwitcher />
+            <ThemeDialog
+              visible={themeDialogOpen}
+              activeKey={activeThemeKey}
+              onSelect={(val) => setTheme(val)}
+              onClose={() => setThemeDialogOpen(false)}
+            />
+          </div>
         </div>
       </section>
 
