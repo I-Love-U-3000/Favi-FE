@@ -443,7 +443,7 @@ export default function FriendsPage() {
       {isAuthenticated && (
         <>
           {/* Main 2-Column Section: Followers & Following */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 items-start">
             {/* Followers Column */}
             <section className="flex flex-col">
               <div className="flex items-center justify-between mb-3">
@@ -494,7 +494,7 @@ export default function FriendsPage() {
               )}
 
               {!loadingFollowers && followers.length > 0 && (
-                <div className="space-y-3 flex-1">
+                <div className="space-y-3">
                   {followers.map((f) => renderUserCard(f))}
                 </div>
               )}
@@ -569,7 +569,7 @@ export default function FriendsPage() {
               )}
 
               {!loadingFollowing && friends.length > 0 && (
-                <div className="space-y-3 flex-1">
+                <div className="space-y-3">
                   {friends.map((f) => renderUserCard(f))}
                 </div>
               )}

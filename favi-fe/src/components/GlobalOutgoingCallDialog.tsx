@@ -54,7 +54,7 @@ export default function GlobalOutgoingCallDialog() {
       <div
         className="relative w-full max-w-md rounded-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300"
         style={{
-          background: 'linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)',
+          background: 'linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg) 100%)',
           border: '1px solid var(--border)',
         }}
       >

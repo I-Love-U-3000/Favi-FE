@@ -145,6 +145,13 @@ export function updateHomePostReaction(postId: string, reactions: any) {
   }
 }
 
+export function updateHomePostCommentCount(postId: string, count: number) {
+  const post = homeState.feed.posts.find((p) => p.id === postId);
+  if (post) {
+    post.commentsCount = count;
+  }
+}
+
 // ---------------- STORIES CACHE ----------------
 export function getHomeStoriesCache(userId?: string | null): HomeStoriesCache {
   ensureUserConsistency(userId);

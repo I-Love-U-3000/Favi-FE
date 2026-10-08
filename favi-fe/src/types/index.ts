@@ -204,6 +204,9 @@ export type ReactionSummaryDto = {
 export type PostResponse = {
   id: string; // Guid
   authorProfileId: string; // Guid
+  authorUsername?: string | null;
+  authorDisplayName?: string | null;
+  authorAvatarUrl?: string | null;
   caption?: string | null;
   createdAt: string; // ISO
   updatedAt: string; // ISO
@@ -214,6 +217,7 @@ export type PostResponse = {
   commentsCount: number;
   location?: LocationDto | null;
   isNSFW?: boolean;
+  version?: number;
 };
 
 export type PaginationResult<T> = {

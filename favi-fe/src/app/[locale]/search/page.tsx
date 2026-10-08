@@ -163,8 +163,9 @@ export default function SearchPage() {
   }, [mode, query, pathname, router, sp]);
 
   // Keyword search function
-  const performKeywordSearch = useCallback(async () => {
-    if (!query.trim()) {
+  const performKeywordSearch = useCallback(async (targetQuery?: string) => {
+    const q = (targetQuery ?? query).trim();
+    if (!q) {
       return;
     }
 
@@ -178,7 +179,7 @@ export default function SearchPage() {
 
     try {
       const result: SearchResult = await searchAPI.search({
-        query: query.trim(),
+        query: q,
         page: 1,
         pageSize: 20,
       });
@@ -201,8 +202,9 @@ export default function SearchPage() {
   }, [query]);
 
   // Semantic search function
-  const performSemanticSearch = useCallback(async () => {
-    if (!query.trim()) {
+  const performSemanticSearch = useCallback(async (targetQuery?: string) => {
+    const q = (targetQuery ?? query).trim();
+    if (!q) {
       return;
     }
 
@@ -220,7 +222,7 @@ export default function SearchPage() {
 
     try {
       const result: SearchResult = await searchAPI.semanticSearch({
-        query: query.trim(),
+        query: q,
         page: 1,
         pageSize: 20,
         k: 100,
@@ -243,8 +245,9 @@ export default function SearchPage() {
   }, [query, isAuthenticated]);
 
   // Tag search function
-  const performTagSearch = useCallback(async () => {
-    if (!query.trim()) {
+  const performTagSearch = useCallback(async (targetQuery?: string) => {
+    const q = (targetQuery ?? query).trim();
+    if (!q) {
       return;
     }
 
@@ -257,7 +260,7 @@ export default function SearchPage() {
 
     try {
       // Remove # prefix if present for search
-      const searchQuery = query.trim().startsWith('#') ? query.trim().substring(1) : query.trim();
+      const searchQuery = q.startsWith('#') ? q.substring(1) : q;
       console.log("Searching for tag:", searchQuery);
       const result: SearchResult = await searchAPI.search({
         query: searchQuery,
@@ -279,7 +282,7 @@ export default function SearchPage() {
         console.log("Full posts fetched:", fullPosts.length);
         setTagResults(fullPosts);
       } else {
-        console.log("No posts found for tag:", query.trim());
+        console.log("No posts found for tag:", q);
         setTagResults([]);
       }
 
@@ -292,6 +295,28 @@ export default function SearchPage() {
       setTagLoading(false);
     }
   }, [query]);
+
+  // Auto-search when query param is present on mount or URL change
+  const lastExecutedKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const qFromUrl = sp.get("q");
+    const modeFromUrl = (sp.get("mode") as Mode) || "keyword";
+    if (qFromUrl && qFromUrl.trim()) {
+      const key = `${modeFromUrl}:${qFromUrl.trim()}`;
+      if (lastExecutedKeyRef.current !== key) {
+        lastExecutedKeyRef.current = key;
+        setQuery(qFromUrl);
+        setMode(modeFromUrl);
+        if (modeFromUrl === "keyword") {
+          performKeywordSearch(qFromUrl);
+        } else if (modeFromUrl === "semantic") {
+          performSemanticSearch(qFromUrl);
+        } else {
+          performTagSearch(qFromUrl);
+        }
+      }
+    }
+  }, [sp, performKeywordSearch, performSemanticSearch, performTagSearch]);
 
   // Load more keyword results
   const loadMoreKeyword = useCallback(async () => {
@@ -399,6 +424,7 @@ export default function SearchPage() {
   // Handle tag selection
   const handleSelectTag = (tag: string) => {
     setQuery(tag);
+    performTagSearch(tag);
   };
 
   // Handle search submit

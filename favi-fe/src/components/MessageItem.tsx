@@ -35,7 +35,7 @@ export default function MessageItem({ message, isSent, recipientId, currentUserI
         className="max-w-[75%] rounded-2xl p-3 transition-all duration-200"
         style={{
           backgroundColor: isSent
-            ? "#06b6d4"
+            ? "var(--primary, #3b82f6)"
             : "var(--bg-primary)",
           border: isSent ? "none" : "1px solid var(--border)",
           color: isSent ? "white" : "var(--text)",

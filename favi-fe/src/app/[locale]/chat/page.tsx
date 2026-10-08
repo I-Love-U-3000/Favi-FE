@@ -38,6 +38,9 @@ import {
   saveChatListScroll,
   getOrCreateChatHubConnection,
   removeMessageListener,
+  addPresenceListener,
+  removePresenceListener,
+  type ChatPresenceEvent,
 } from "@/lib/cache/chatCache";
 
 // --------- UI TYPES cho ChatList / MessageList ---------
@@ -150,8 +153,10 @@ export default function ChatPage() {
   // Filter conversations based on search query
   const filteredConversations = useMemo(() => {
     if (!searchQuery.trim()) return conversations;
+    const q = searchQuery.toLowerCase();
     return conversations.filter((conv) =>
-      conv.recipient.username.toLowerCase().includes(searchQuery.toLowerCase())
+      conv.recipient.username.toLowerCase().includes(q) ||
+      (conv.recipient.displayName && conv.recipient.displayName.toLowerCase().includes(q))
     );
   }, [conversations, searchQuery]);
 
@@ -181,6 +186,7 @@ export default function ChatPage() {
           key: c.id,
           recipient: {
             username: other?.username ?? "unknown",
+            displayName: other?.displayName || other?.username || "unknown",
             avatar: other?.avatarUrl ?? "/avatar-default.svg",
             isOnline,
             lastActiveAt: other?.lastActiveAt,
@@ -262,6 +268,7 @@ export default function ChatPage() {
           key: c.id,
           recipient: {
             username: other?.username ?? "unknown",
+            displayName: other?.displayName || other?.username || "unknown",
             avatar: other?.avatarUrl ?? "/avatar-default.svg",
             isOnline,
             lastActiveAt: other?.lastActiveAt,
@@ -643,7 +650,13 @@ export default function ChatPage() {
 
       if (message.conversationId === selectedConversationIdRef.current) {
         setMessages((prev) => {
-          if (prev.some((x) => x.backendId === incoming.backendId)) return prev;
+          if (
+            prev.some(
+              (x) =>
+                x.backendId?.toLowerCase() === incoming.backendId?.toLowerCase()
+            )
+          )
+            return prev;
           return [...prev, incoming];
         });
 
@@ -669,7 +682,20 @@ export default function ChatPage() {
           c.id === message.conversationId
             ? {
                 ...c,
-                messages: [...c.messages, incoming],
+                recipient:
+                  message.senderId && message.senderId !== currentUserId
+                    ? {
+                        ...c.recipient,
+                        isOnline: true,
+                        lastActiveAt: new Date().toISOString(),
+                      }
+                    : c.recipient,
+                messages: c.messages.some(
+                  (m) =>
+                    m.backendId?.toLowerCase() === incoming.backendId?.toLowerCase()
+                )
+                  ? c.messages
+                  : [...c.messages, incoming],
                 lastMessagePreview:
                   incoming.text || (incoming.imageUrl ? "[Image]" : "[Attachment]"),
                 lastMessageAt: new Date().toISOString(),
@@ -719,6 +745,34 @@ export default function ChatPage() {
 
     return () => {
       removeMessageListener(handleIncomingMessage);
+    };
+  }, [currentUserId]);
+
+  // Real-time active status listener
+  useEffect(() => {
+    if (!currentUserId) return;
+    const handlePresence = (ev: ChatPresenceEvent) => {
+      if (ev.userId === currentUserId) return;
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id === ev.conversationId || c.recipient.profileId === ev.userId) {
+            return {
+              ...c,
+              recipient: {
+                ...c.recipient,
+                isOnline: ev.isOnline,
+                lastActiveAt: ev.isOnline ? new Date().toISOString() : c.recipient.lastActiveAt,
+              },
+            };
+          }
+          return c;
+        })
+      );
+    };
+
+    addPresenceListener(handlePresence);
+    return () => {
+      removePresenceListener(handlePresence);
     };
   }, [currentUserId]);
 
@@ -797,12 +851,31 @@ export default function ChatPage() {
           postPreview: sent.postPreview ?? undefined,
         };
 
-        setMessages((prev) => [...prev, msg]);
+        setMessages((prev) => {
+          if (
+            prev.some(
+              (x) => x.backendId?.toLowerCase() === msg.backendId?.toLowerCase()
+            )
+          )
+            return prev;
+          return [...prev, msg];
+        });
 
         setConversations((prev) =>
           prev.map((c) =>
             c.id === selectedConversationId
-              ? { ...c, messages: [...c.messages, msg] }
+              ? {
+                  ...c,
+                  messages: c.messages.some(
+                    (m) =>
+                      m.backendId?.toLowerCase() === msg.backendId?.toLowerCase()
+                  )
+                    ? c.messages
+                    : [...c.messages, msg],
+                  lastMessagePreview:
+                    msg.text || (msg.imageUrl ? "[Image]" : "[Attachment]"),
+                  lastMessageAt: new Date().toISOString(),
+                }
               : c
           )
         );

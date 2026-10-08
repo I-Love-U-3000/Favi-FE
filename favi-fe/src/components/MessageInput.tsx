@@ -289,11 +289,11 @@ export default function MessageInput({ onSend, onSendImage, onSendSticker }: Mes
           className="p-3 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center"
           style={{
             background:
-              "linear-gradient(135deg, #06b6d4 0%, #8b5cf6 50%, #10b981 100%)",
+              "linear-gradient(135deg, var(--primary, #3b82f6) 0%, #8b5cf6 100%)",
             color: "white",
             border: "none",
             boxShadow: (message.trim() || selectedImage)
-              ? "0 4px 12px rgba(6, 182, 212, 0.3)"
+              ? "0 4px 12px rgba(59, 130, 246, 0.3)"
               : "none",
           }}
         >

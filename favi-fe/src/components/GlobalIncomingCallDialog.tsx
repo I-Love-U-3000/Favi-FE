@@ -15,7 +15,7 @@ export default function GlobalIncomingCallDialog() {
       <div
         className="relative w-full max-w-md rounded-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300"
         style={{
-          background: 'linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)',
+          background: 'linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg) 100%)',
           border: '1px solid var(--border)',
         }}
       >
@@ -74,7 +74,7 @@ export default function GlobalIncomingCallDialog() {
           </p>
 
           {/* Call Type Indicator */}
-          <div className="flex items-center gap-2 mt-4 px-4 py-2 rounded-full" style={{ background: 'var(--bg-tertiary)' }}>
+          <div className="flex items-center gap-2 mt-4 px-4 py-2 rounded-full" style={{ background: 'var(--bg-hover)' }}>
             {isVideo ? (
               <>
                 <Video className="w-4 h-4" style={{ color: 'var(--accent)' }} />

@@ -4,10 +4,13 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode 
 import { useRouter } from 'next/navigation';
 import { useSignalRConnection } from '@/lib/hooks/useSignalRConnection';
 import { webrtcManager } from '@/lib/webrtc/webrtcService';
-import type { IncomingCallRequestDto, CallType, MediaStream } from '@/types/call';
+import type { IncomingCallRequestDto, CallType } from '@/types/call';
 import { Toast } from 'primereact/toast';
 import { useRef } from 'react';
 import { useAuth } from './AuthProvider';
+import GlobalIncomingCallDialog from './GlobalIncomingCallDialog';
+import GlobalOutgoingCallDialog from './GlobalOutgoingCallDialog';
+import GlobalActiveCallInterface from './GlobalActiveCallInterface';
 
 type CallStatus = 'calling' | 'ringing' | 'connected' | 'ended' | 'failed';
 type ConnectionStatus = 'connecting' | 'connected';
@@ -383,6 +386,9 @@ export function CallProvider({ children }: CallProviderProps) {
     <CallContext.Provider value={value}>
       <Toast ref={toast} />
       {children}
+      <GlobalIncomingCallDialog />
+      <GlobalOutgoingCallDialog />
+      <GlobalActiveCallInterface />
     </CallContext.Provider>
   );
 }

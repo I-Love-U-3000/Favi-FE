@@ -14,7 +14,7 @@ import {
 const DEFAULT_AVATAR = "/avatar-default.svg";
 
 export default function OnlineFriends() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const cachedFriends = getHomeFriendsCache(user?.id);
 
   const [friends, setFriends] = useState<ProfileResponse[]>(
@@ -30,6 +30,11 @@ export default function OnlineFriends() {
   const hasFetchedRef = useRef(cachedFriends.isInitialized);
 
   const fetchOnlineFriends = async () => {
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     try {
@@ -55,7 +60,9 @@ export default function OnlineFriends() {
       }
     } catch (e: any) {
       if (!cancelled) {
-        console.error("Error fetching online friends:", e);
+        if (e?.status !== 401) {
+          console.warn("Failed to load online friends:", e?.error || e?.message || e);
+        }
         setError(e?.error || e?.message || "Failed to load online friends");
       }
     } finally {
@@ -68,7 +75,7 @@ export default function OnlineFriends() {
   };
 
   const handleLoadMore = async () => {
-    if (loadingMore || !hasNext) return;
+    if (!isAuthenticated || loadingMore || !hasNext) return;
     setLoadingMore(true);
     try {
       const nextPage = page + 1;
@@ -95,20 +102,23 @@ export default function OnlineFriends() {
         userId: user?.id,
       });
     } catch (e: any) {
-      console.error("Error loading more online friends:", e);
+      if (e?.status !== 401) {
+        console.warn("Error loading more online friends:", e);
+      }
     } finally {
       setLoadingMore(false);
     }
   };
 
   useEffect(() => {
-    if (!cachedFriends.isInitialized && !hasFetchedRef.current) {
+    if (isAuthenticated && !cachedFriends.isInitialized && !hasFetchedRef.current) {
       fetchOnlineFriends();
     }
-  }, [cachedFriends.isInitialized]);
+  }, [isAuthenticated, cachedFriends.isInitialized]);
 
   // Refetch when component becomes visible (when user navigates back)
   useEffect(() => {
+    if (!isAuthenticated) return;
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && hasFetchedRef.current) {
         fetchOnlineFriends();
@@ -117,16 +127,19 @@ export default function OnlineFriends() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
+  }, [isAuthenticated]);
 
   // Also refetch periodically (every 1 minute) to update online status
   useEffect(() => {
+    if (!isAuthenticated) return;
     const interval = setInterval(() => {
       fetchOnlineFriends();
     }, 1 * 60 * 1000); // 1 minute
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isAuthenticated]);
+
+  if (!isAuthenticated) return null;
 
   if (loading && !hasFetchedRef.current) {
     return (

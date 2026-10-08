@@ -19,6 +19,7 @@ import PostReactorsDialog from "@/components/PostReactorsDialog";
 import CommentReactorsDialog from "@/components/CommentReactorsDialog";
 import RelatedPosts from "@/components/RelatedPosts";
 import PostSkeleton from "@/components/PostSkeleton";
+import { getHomeFeedCache, updateHomePostReaction, updateHomePostCommentCount } from "@/lib/cache/homeCache";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -40,25 +41,36 @@ export default function PostPage() {
   const routeParams = useParams() as any;
   const id = Array.isArray(routeParams?.id) ? routeParams.id[0] : String(routeParams?.id || "");
 
-  const [loading, setLoading] = useState(true);
+  const [post, setPost] = useState<PostResponse | null>(() => {
+    return getHomeFeedCache().posts.find((p) => p.id === id) || null;
+  });
+  const [loading, setLoading] = useState(() => {
+    return !getHomeFeedCache().posts.some((p) => p.id === id);
+  });
   const [error, setError] = useState<string | null>(null);
-  const [post, setPost] = useState<PostResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      if (!post) {
+        setLoading(true);
+      }
       setError(null);
       try {
         const p = await postAPI.getById(id);
-        if (!cancelled) setPost(p);
+        if (!cancelled) {
+          setPost(p);
+          updateHomePostReaction(id, p.reactions);
+        }
       } catch (e: any) {
         if (!cancelled) {
           if (e?.status === 404) {
             notFound();
             return;
           }
-          setError(e?.error || e?.message || "Failed to load post");
+          if (!post) {
+            setError(e?.error || e?.message || "Failed to load post");
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -69,14 +81,14 @@ export default function PostPage() {
     };
   }, [id]);
 
-  if (loading) {
+  if (loading && !post) {
     return (
       <div className="min-h-screen py-8" style={{ backgroundColor: "var(--bg)", color: "var(--text)" }}>
         <PostSkeleton variant="detail" />
       </div>
     );
   }
-  if (error) return <div className="p-6 text-red-500 text-sm">{error}</div>;
+  if (error && !post) return <div className="p-6 text-red-500 text-sm">{error}</div>;
   if (!post) notFound();
 
   return <PostDetailDataView post={post!} />;
@@ -125,29 +137,61 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
 
   // reactions (kept as-is; call your API)
   const cached = readPostReaction(post.id);
-  const [byType, setByType] = useState<Record<ReactionType, number>>(
-    cached?.byType ?? {
-      Like: post.reactions?.byType?.Like ?? 0,
-      Love: post.reactions?.byType?.Love ?? 0,
-      Haha: post.reactions?.byType?.Haha ?? 0,
-      Wow: post.reactions?.byType?.Wow ?? 0,
-      Sad: post.reactions?.byType?.Sad ?? 0,
-      Angry: post.reactions?.byType?.Angry ?? 0,
-    }
-  );
-  const [userReaction, setUserReaction] = useState<ReactionType | null>(
-    (cached?.currentUserReaction ?? post.reactions?.currentUserReaction ?? null) as any
-  );
-  // Use post.reactions.total as authoritative source, fall back to summing byType
+  const initialUserReaction = (cached && cached.currentUserReaction !== undefined)
+    ? cached.currentUserReaction
+    : (post.reactions?.currentUserReaction ?? null);
+
+  const initialByType = (cached && cached.byType)
+    ? cached.byType
+    : {
+        Like: post.reactions?.byType?.Like ?? 0,
+        Love: post.reactions?.byType?.Love ?? 0,
+        Haha: post.reactions?.byType?.Haha ?? 0,
+        Wow: post.reactions?.byType?.Wow ?? 0,
+        Sad: post.reactions?.byType?.Sad ?? 0,
+        Angry: post.reactions?.byType?.Angry ?? 0,
+      };
+
+  const [byType, setByType] = useState<Record<ReactionType, number>>(initialByType);
+  const [userReaction, setUserReaction] = useState<ReactionType | null>(initialUserReaction as any);
   const [totalReacts, setTotalReacts] = useState<number>(
-    cached?.total ?? post.reactions?.total ?? Object.values(byType).reduce((a, b) => a + b, 0)
+    cached?.total ?? post.reactions?.total ?? Object.values(initialByType).reduce((a, b) => a + b, 0)
   );
+
+  useEffect(() => {
+    const c = readPostReaction(post.id);
+    if (c) {
+      if (c.currentUserReaction !== undefined) setUserReaction(c.currentUserReaction as any);
+      if (c.byType) setByType(c.byType);
+      if (c.total !== undefined) setTotalReacts(c.total);
+    } else if (post.reactions) {
+      setUserReaction((post.reactions.currentUserReaction ?? null) as any);
+      if (post.reactions.byType) setByType(post.reactions.byType);
+      if (post.reactions.total !== undefined) setTotalReacts(post.reactions.total);
+    }
+  }, [post.id, post.reactions]);
   const initialCommentCount =
     post.commentsCount ??
     (post as any).commentCount ??
     (post as any).comments ??
     0;
   const [commentCount, setCommentCount] = useState<number>(initialCommentCount);
+
+  // Sync commentCount whenever post data loads/updates
+  useEffect(() => {
+    const freshCount = post.commentsCount ?? (post as any).commentCount ?? (post as any).comments;
+    if (typeof freshCount === "number") {
+      setCommentCount(freshCount);
+    }
+  }, [post.id, post.commentsCount, (post as any).commentCount, (post as any).comments]);
+
+  const handleCommentCountChange = useCallback((updater: any) => {
+    setCommentCount((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      updateHomePostCommentCount(post.id, next);
+      return next;
+    });
+  }, [post.id]);
   const [shareCount, setShareCount] = useState<number>((post as any).shareCount ?? (post as any).shares ?? 0);
   const [shareToChatOpen, setShareToChatOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
@@ -174,27 +218,20 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
     const prev = userReaction;
     const nextType = prev === type ? null : type;
     try {
-      setByType((prevCounts) => {
-        const next = { ...prevCounts };
-        if (prev && next[prev] > 0) next[prev] -= 1;
-        if (nextType) next[nextType] = (next[nextType] || 0) + 1;
-        return next;
-      });
+      const nextCounts = { ...byType };
+      if (prev && nextCounts[prev] > 0) nextCounts[prev] -= 1;
+      if (nextType) nextCounts[nextType] = (nextCounts[nextType] || 0) + 1;
+      setByType(nextCounts);
       setUserReaction(nextType);
-      // Update total reacts count
-      setTotalReacts((prevTotal) => {
-        let next = prevTotal;
-        if (prev) next = Math.max(0, next - 1);
-        if (nextType) next = next + 1;
-        return next;
-      });
+
+      const nextTotal = Math.max(0, totalReacts + (prev ? -1 : 0) + (nextType ? 1 : 0));
+      setTotalReacts(nextTotal);
+
       await postAPI.toggleReaction(post.id, type);
+
       // persist to cache for feed sync
-      const snapshot = { ...byType } as Record<ReactionType, number>;
-      if (prev && snapshot[prev] > 0) snapshot[prev] -= 1;
-      if (nextType) snapshot[nextType] = (snapshot[nextType] || 0) + 1;
-      const newTotal = (cached?.total ?? post.reactions?.total ?? Object.values(snapshot).reduce((a, b) => a + b, 0));
-      writePostReaction(post.id, { byType: snapshot, currentUserReaction: nextType, total: newTotal });
+      writePostReaction(post.id, { byType: nextCounts, currentUserReaction: nextType, total: nextTotal });
+      updateHomePostReaction(post.id, { currentUserReaction: nextType, total: nextTotal, byType: nextCounts });
     } catch { }
   };
 
@@ -445,7 +482,13 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
 
           {/* Right rail: comments (bật hiển thị ở mọi size để test) */}
           <aside className="block space-y-4">
-            <CommentsPanel postId={post.id} onCountChange={setCommentCount} highlightCommentId={highlightCommentId} height={postDetailHeight} />
+            <CommentsPanel
+              postId={post.id}
+              onCountChange={handleCommentCountChange}
+              commentCount={commentCount}
+              highlightCommentId={highlightCommentId}
+              height={postDetailHeight}
+            />
           </aside>
         </div>
 
@@ -592,7 +635,19 @@ const flattenFromApi = (roots: CommentTreeResponse[]): CommentResponse[] => {
   return out;
 };
 
-function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { postId: string; onCountChange?: (n: number) => void; highlightCommentId?: string | null; height?: number | null }) {
+function CommentsPanel({
+  postId,
+  onCountChange,
+  highlightCommentId,
+  height,
+  commentCount,
+}: {
+  postId: string;
+  onCountChange?: (n: any) => void;
+  highlightCommentId?: string | null;
+  height?: number | null;
+  commentCount?: number;
+}) {
   const { requireAuth, isAuthenticated, user, isAdmin } = useAuth();
   const tReport = useTranslations("ReportButton");
   const [loading, setLoading] = useState(false);
@@ -611,7 +666,6 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
   const [reactorsDialogOpen, setReactorsDialogOpen] = useState<string | null>(null);
   const commentsPanelRef = useRef<HTMLDivElement>(null);
-  const syncedInitialCount = useRef(false);
 
   // Scroll to highlighted comment
   useEffect(() => {
@@ -639,14 +693,6 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
     }
   }, [highlightCommentId, items]);
 
-  useEffect(() => {
-    if (!syncedInitialCount.current) {
-      syncedInitialCount.current = true;
-      return;
-    }
-    onCountChange?.(items.length);
-  }, [items.length, onCountChange]);
-
   const [commentPage, setCommentPage] = useState(1);
   const [hasNextComments, setHasNextComments] = useState(false);
   const [loadingMoreComments, setLoadingMoreComments] = useState(false);
@@ -664,7 +710,6 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
           setItems(flat);
           setCommentPage(res.page || 1);
           setHasNextComments(res.hasNext ?? false);
-          onCountChange?.(Number(res.totalCount ?? flat.length));
         }
       } catch (e: any) {
         if (!cancelled) setError(e?.error || e?.message || "Failed to load comments");
@@ -673,7 +718,7 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
       }
     })();
     return () => { cancelled = true; };
-  }, [postId, onCountChange]);
+  }, [postId]);
 
   const handleLoadMoreComments = async () => {
     if (loadingMoreComments || !hasNextComments) return;
@@ -754,6 +799,7 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
 
       const created = await commentAPI.create({ postId, content: content || "", mediaUrl });
       setItems(prev => [created, ...prev]);
+      onCountChange?.((c: number) => (typeof c === "number" ? c + 1 : 1));
       setNewComment("");
       setSelectedImage(null);
       if (fileInputRef.current) {
@@ -771,6 +817,7 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
       setPosting(true);
       const created = await commentAPI.create({ postId, content, parentCommentId: parentId });
       setItems(prev => [created, ...prev]);
+      onCountChange?.((c: number) => (typeof c === "number" ? c + 1 : 1));
       setReplyToId(null);
       setReplyText("");
     } catch (e: any) {
@@ -853,7 +900,7 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
         }
 
         const next = prev.filter(item => !toRemove.has(getId(item)));
-        onCountChange?.(next.length);
+        onCountChange?.((c: number) => (typeof c === "number" ? Math.max(0, c - toRemove.size) : next.length));
         return next;
       });
     } catch (e: any) {
@@ -870,8 +917,18 @@ function CommentsPanel({ postId, onCountChange, highlightCommentId, height }: { 
         height: height ? `${height}px` : undefined
       }}
     >
-      <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
-        <div className="text-sm font-semibold">Comments</div>
+      <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
+        <div className="text-sm font-semibold flex items-center gap-2">
+          <span>Comments</span>
+          {typeof commentCount === "number" && (
+            <span
+              className="text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{ backgroundColor: "var(--bg-hover)", color: "var(--text-secondary)" }}
+            >
+              {commentCount}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto p-3" style={{ minHeight: 0 }}>

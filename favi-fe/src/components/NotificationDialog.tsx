@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog } from "primereact/dialog";
 import { Button } from "primereact/button";
+import { confirmDialog } from "primereact/confirmdialog";
 import { useSignalRContext } from "@/lib/contexts/SignalRContext";
 import { NotificationDto, NotificationType } from "@/types";
 import { notificationTypeToString } from "@/types";
@@ -155,19 +156,26 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
                 label={t("DeleteRead")}
                 icon={isDeletingRead ? "pi pi-spin pi-spinner" : "pi pi-trash"}
                 disabled={isDeletingRead}
-                className="p-button-text p-button-sm p-button-danger text-xs"
-                onClick={async () => {
-                  const confirmed = window.confirm(t("DeleteAllReadConfirm"));
-                  if (!confirmed) return;
-                  setIsDeletingRead(true);
-                  await deleteAllRead();
-                  setIsDeletingRead(false);
+                className="p-button-text p-button-sm p-button-danger text-xs rounded-lg"
+                onClick={() => {
+                  confirmDialog({
+                    message: t("DeleteAllReadConfirm"),
+                    header: t("DeleteRead"),
+                    icon: "pi pi-exclamation-triangle",
+                    acceptClassName: "p-button-danger rounded-xl px-4 py-2 text-sm",
+                    rejectClassName: "p-button-text rounded-xl px-4 py-2 text-sm",
+                    accept: async () => {
+                      setIsDeletingRead(true);
+                      await deleteAllRead();
+                      setIsDeletingRead(false);
+                    },
+                  });
                 }}
               />
             )}
             <div
-              className={`w-2 h-2 rounded-full ${
-                isConnected ? "bg-green-500" : "bg-red-500"
+              className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                isConnected ? "bg-emerald-500 shadow-sm shadow-emerald-500/50" : "bg-rose-500 shadow-sm shadow-rose-500/50"
               }`}
               title={isConnected ? t("Connected") : t("Disconnected")}
             />
@@ -175,16 +183,16 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
         </div>
       }
       style={{ width: "90vw", maxWidth: "600px", height: "80vh" }}
-      className="rounded-xl"
+      className="rounded-2xl overflow-hidden shadow-2xl"
       contentClassName="!p-0"
-      headerClassName="!py-3 !px-4 border-b"
+      headerClassName="!py-3.5 !px-5 border-b"
     >
-      <style>{`.notif-item:hover { background-color: var(--bg) !important; }`}</style>
+      <style>{`.notif-item:hover { background-color: var(--bg-hover) !important; }`}</style>
       <div className="flex flex-col h-full" style={{ color: "var(--text)" }}>
         {/* Unread count banner */}
         {unreadCount > 0 && (
           <div
-            className="px-4 py-2 text-sm text-center"
+            className="px-4 py-2 text-xs font-semibold text-center tracking-wide"
             style={{ backgroundColor: "var(--primary)", color: "white" }}
           >
             {t("UnreadBanner", { count: unreadCount })}
@@ -208,7 +216,7 @@ export default function NotificationDialog({ visible, onHide }: NotificationDial
                   onClick={() => handleClickNotification(notification)}
                   className="w-full text-left notif-item transition-colors cursor-pointer"
                   style={{
-                    backgroundColor: !notification.isRead ? "var(--bg-highlight)" : "transparent",
+                    backgroundColor: !notification.isRead ? "var(--primary-subtle, rgba(37, 99, 235, 0.08))" : "transparent",
                   }}
                 >
                   <div className="p-4 flex items-start gap-3">

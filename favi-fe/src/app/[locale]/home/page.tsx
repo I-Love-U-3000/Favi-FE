@@ -8,6 +8,7 @@ import { useRouter, Link } from "@/i18n/routing";
 import postAPI from "@/lib/api/postAPI";
 import type { PostResponse, ReactionType, ReportTarget } from "@/types";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
+import { readCachedProfile } from "@/lib/profileCache";
 import { readPostReaction, writePostReaction } from "@/lib/postCache";
 import {
   getHomeFeedCache,
@@ -472,13 +473,15 @@ function PostListItem({
     router.push(`/search?q=${encodeURIComponent(tagName)}&mode=tag`);
   };
 
-  const author = useProfile(post.authorProfileId);
-  const avatar = author.profile?.avatarUrl || "/avatar-default.svg";
+  const cachedProfile = post.authorProfileId ? readCachedProfile(post.authorProfileId) : null;
+  const avatar = post.authorAvatarUrl || cachedProfile?.avatarUrl || "/avatar-default.svg";
   const display =
-    author.profile?.displayName ||
-    author.profile?.username ||
+    post.authorDisplayName ||
+    post.authorUsername ||
+    cachedProfile?.displayName ||
+    cachedProfile?.username ||
     t("FallbackDisplayName");
-  const username = author.profile?.username;
+  const username = post.authorUsername || cachedProfile?.username;
   const fallbackUsername = t("FallbackUsername");
 
   const medias = post.medias || [];
@@ -703,27 +706,38 @@ function PostListItem({
             <div className="flex items-start gap-3 min-w-0">
               <ProfileHoverCard
                 user={{
-                  id: author.profile?.id || post.authorProfileId,
+                  id: cachedProfile?.id || post.authorProfileId,
                   username: username || fallbackUsername,
                   name: display,
                   avatarUrl: avatar,
-                  bio: author.profile?.bio || undefined,
-                  followersCount: author.profile?.stats?.followers,
-                  followingCount: author.profile?.stats?.following,
+                  bio: cachedProfile?.bio || undefined,
+                  followersCount: cachedProfile?.stats?.followers,
+                  followingCount: cachedProfile?.stats?.following,
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={avatar}
                   alt={username || display}
-                  className="w-10 h-10 rounded-full border border-white/20 dark:border-white/10 cursor-pointer shrink-0"
-                  onClick={(e) => e.stopPropagation()}
+                  className="w-10 h-10 rounded-full border border-white/20 dark:border-white/10 cursor-pointer shrink-0 hover:opacity-80 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const authorId = cachedProfile?.id || post.authorProfileId;
+                    if (authorId) router.push(`/profile/${authorId}`);
+                  }}
                 />
               </ProfileHoverCard>
 
-              <div className="min-w-0">
+              <div
+                className="min-w-0 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const authorId = cachedProfile?.id || post.authorProfileId;
+                  if (authorId) router.push(`/profile/${authorId}`);
+                }}
+              >
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="text-sm md:text-[15px] font-semibold truncate">
+                  <div className="text-sm md:text-[15px] font-semibold truncate hover:underline">
                     {display}
                   </div>
                   {username && (

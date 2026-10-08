@@ -3,6 +3,7 @@ import { Phone, Video } from "lucide-react";
 
 interface Recipient {
   username: string;
+  displayName?: string;
   avatar: string;
   isOnline: boolean;
   lastActiveAt?: string;
@@ -67,7 +68,7 @@ export default function ChatHeader({ recipient, onBack, onInfoClick, onVoiceCall
         >
           <img
             src={recipient.avatar}
-            alt={recipient.username}
+            alt={recipient.displayName || recipient.username}
             className="w-full h-full object-cover"
           />
         </div>
@@ -87,7 +88,7 @@ export default function ChatHeader({ recipient, onBack, onInfoClick, onVoiceCall
           className="font-bold text-xl truncate"
           style={{ color: "var(--text)" }}
         >
-          {recipient.username}
+          {recipient.displayName || recipient.username}
         </h2>
 
         <div className="flex items-center gap-2 mt-1">

@@ -262,3 +262,60 @@ body {
 .animate-progress {
   animation: progress 5s linear;
 }
+
+/* Global Themed Dialog & ConfirmDialog */
+.p-dialog,
+.p-confirm-dialog {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 1.25rem !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 25px var(--theme-glow, rgba(0, 0, 0, 0.05)) !important;
+  overflow: hidden !important;
+}
+
+.p-dialog .p-dialog-header,
+.p-confirm-dialog .p-dialog-header {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 1.25rem 1.5rem !important;
+}
+
+.p-dialog .p-dialog-header .p-dialog-title,
+.p-confirm-dialog .p-dialog-header .p-dialog-title {
+  color: var(--text) !important;
+  font-weight: 600 !important;
+}
+
+.p-dialog .p-dialog-header .p-dialog-header-icon,
+.p-confirm-dialog .p-dialog-header .p-dialog-header-icon {
+  color: var(--text-secondary) !important;
+  border-radius: 0.5rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.p-dialog .p-dialog-header .p-dialog-header-icon:hover,
+.p-confirm-dialog .p-dialog-header .p-dialog-header-icon:hover {
+  color: var(--text) !important;
+  background-color: var(--bg-hover) !important;
+}
+
+.p-dialog .p-dialog-content,
+.p-confirm-dialog .p-dialog-content {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text) !important;
+}
+
+.p-dialog .p-dialog-footer,
+.p-confirm-dialog .p-dialog-footer {
+  background-color: var(--bg-secondary) !important;
+  border-top: 1px solid var(--border) !important;
+  padding: 1rem 1.5rem !important;
+}
+
+.p-dialog-mask {
+  background-color: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(4px) !important;
+}
+

@@ -90,7 +90,12 @@ async function tryRefreshAndRetry<T>(
   });
 
   if (!refreshRes.ok) {
-    console.error(`[API Auth Error] Token refresh request failed with status ${refreshRes.status}`);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      window.dispatchEvent(new Event("auth-token-expired"));
+    }
+    console.warn(`[API Auth] Session expired or refresh token invalid (${refreshRes.status}). Cleared tokens.`);
     throw { status: 401, message: "Refresh token expired" };
   }
 

@@ -167,14 +167,6 @@ export default function EditProfileDialog({
               <div className="text-sm mb-1">Bio</div>
               <InputTextarea rows={3} value={draft.bio ?? ''} onChange={(e) => setDraft({ ...draft, bio: e.target.value })} className="w-full" />
             </div>
-            <div>
-              <div className="text-sm mb-1">Website</div>
-              <InputText value={draft.website ?? ''} onChange={(e) => setDraft({ ...draft, website: e.target.value })} className="w-full" />
-            </div>
-            <div>
-              <div className="text-sm mb-1">Location</div>
-              <InputText value={draft.location ?? ""} onChange={(e) => setDraft({ ...draft, location: e.target.value })} className="w-full" />
-            </div>
             <div className="md:col-span-2">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm">Social links</span>

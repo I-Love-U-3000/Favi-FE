@@ -6,6 +6,7 @@ import { Badge } from "primereact/badge";
 
 interface Recipient {
   username: string;
+  displayName?: string;
   avatar: string;
   isOnline: boolean;
 }
@@ -110,7 +111,7 @@ export default function ChatList({
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <div className="font-semibold text-base truncate">
-              {option.recipient.username}
+              {option.recipient.displayName || option.recipient.username}
             </div>
             {(option.unreadCount ?? 0) > 0 && (
               <Badge

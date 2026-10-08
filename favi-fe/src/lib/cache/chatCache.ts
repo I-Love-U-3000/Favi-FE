@@ -1,6 +1,7 @@
 "use client";
 
 import * as signalR from "@microsoft/signalr";
+import { toast } from "@/hooks/use-toast";
 
 export interface ChatMessage {
   backendId: string;
@@ -23,6 +24,7 @@ export interface ChatMessage {
 
 export interface ChatRecipient {
   username: string;
+  displayName?: string;
   avatar: string;
   isOnline: boolean;
   lastActiveAt?: string;
@@ -136,7 +138,12 @@ export function appendMessageToConversation(
 ) {
   const current = chatState.messagesByConv[conversationId];
   if (current) {
-    if (!current.messages.some((m) => m.backendId === message.backendId)) {
+    if (
+      !current.messages.some(
+        (m) =>
+          m.backendId?.toLowerCase() === message.backendId?.toLowerCase()
+      )
+    ) {
       current.messages = [...current.messages, message];
     }
   } else {
@@ -253,6 +260,68 @@ export function getOrCreateChatHubConnection(
         console.error("Error in message listener:", err);
       }
     });
+
+    // If message is from someone else, show popup notification if not currently active on this conversation
+    if (message.senderId && message.senderId !== activeChatHubUserId) {
+      const senderName = message.displayName || message.username || "Tin nhắn mới";
+      const preview = message.content || (message.mediaUrl ? "Đã gửi một hình ảnh" : "Tin nhắn mới");
+
+      const isCurrentConversation =
+        typeof window !== "undefined" &&
+        window.location.pathname.includes("/chat") &&
+        chatState.selectedConversationId === message.conversationId;
+
+      if (!isCurrentConversation) {
+        try {
+          toast({
+            title: `💬 ${senderName}`,
+            description: preview,
+          });
+        } catch {}
+      }
+    }
+  });
+
+  connection.on("UserJoined", (data: any) => {
+    presenceListeners.forEach((l) => {
+      try {
+        l({
+          conversationId: String(data?.conversationId || ""),
+          userId: String(data?.userId || ""),
+          isOnline: true,
+        });
+      } catch (err) {
+        console.error("Error in presence listener:", err);
+      }
+    });
+  });
+
+  connection.on("UserLeft", (data: any) => {
+    presenceListeners.forEach((l) => {
+      try {
+        l({
+          conversationId: String(data?.conversationId || ""),
+          userId: String(data?.userId || ""),
+          isOnline: false,
+        });
+      } catch (err) {
+        console.error("Error in presence listener:", err);
+      }
+    });
+  });
+
+  connection.on("MessageRead", (data: any) => {
+    presenceListeners.forEach((l) => {
+      try {
+        l({
+          conversationId: String(data?.conversationId || ""),
+          userId: String(data?.userId || ""),
+          isOnline: true,
+        });
+      } catch (err) {
+        console.error("Error in presence listener:", err);
+      }
+    });
   });
 
   connection
@@ -278,6 +347,22 @@ export function getOrCreateChatHubConnection(
 
 export function removeMessageListener(listener: (msg: any) => void) {
   messageListeners.delete(listener);
+}
+
+export type ChatPresenceEvent = {
+  conversationId: string;
+  userId: string;
+  isOnline: boolean;
+};
+
+const presenceListeners = new Set<(event: ChatPresenceEvent) => void>();
+
+export function addPresenceListener(listener: (event: ChatPresenceEvent) => void) {
+  presenceListeners.add(listener);
+}
+
+export function removePresenceListener(listener: (event: ChatPresenceEvent) => void) {
+  presenceListeners.delete(listener);
 }
 
 // ---------------- CLEAR ----------------

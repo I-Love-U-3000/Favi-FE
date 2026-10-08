@@ -510,23 +510,36 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
                 </div>
               </div>
             ) : (
-              <div className="w-full max-w-xl">
-                <div className="grid grid-cols-3 gap-2">
+              <div className="w-full max-w-2xl">
+                <div className="flex flex-row overflow-x-auto gap-0 border rounded-xl overflow-hidden shadow-sm" style={{ borderColor: 'var(--border)' }}>
                   {media.map((f, idx) => (
-                    <button
+                    <div
                       key={idx}
-                      type="button"
-                      className="relative group border rounded-lg overflow-hidden"
+                      className="relative group shrink-0 w-44 h-44 overflow-hidden border-r last:border-r-0 cursor-pointer"
+                      style={{ borderColor: 'var(--border)' }}
                       onClick={() => {
                         setActiveIndex(idx);
                         setStep(2);
                       }}
                     >
-                      <img src={mediaPreviewUrls[idx]} alt={f.name} className="w-full h-32 object-cover" />
-                      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition">
-                        <span className="bg-black/60 text-white text-xs px-2 py-1 rounded-full">Edit</span>
+                      <img src={mediaPreviewUrls[idx]} alt={f.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {/* Individual delete button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeMediaAt(idx);
+                        }}
+                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-600/90 text-white hover:bg-red-600 grid place-items-center shadow-md transition-transform hover:scale-110"
+                        title="Xoá ảnh này"
+                      >
+                        <i className="pi pi-times text-xs" />
+                      </button>
+                      <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">Chỉnh sửa</span>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
 
@@ -542,60 +555,78 @@ const InstagramPostDialog: React.FC<InstagramPostDialogProps> = ({ visible, onHi
 
       {/* STEP 2: crop */}
       {step === 2 && (
-        <div className="h-[calc(90vh-60px)] grid grid-cols-1 lg:grid-cols-[1fr_280px]">
+        <div className="h-[calc(90vh-60px)] grid grid-cols-1 lg:grid-cols-[1fr_280px] overflow-hidden">
           {/* left: crop area */}
-          <div className="relative bg-black flex items-center justify-center">
+          <div className="relative bg-black flex flex-col justify-between overflow-hidden h-full">
             {/* fixed “IG-like” crop frame */}
-            <div
-              className="relative w-full max-w-[640px] mx-auto"
-              style={{
-                aspectRatio: ASPECTS[aspectKey],
-                height: 'min(70vh, 520px)',
-              }}
-            >
-              {mediaPreviewUrls[activeIndex] && (
-                <Cropper
-                  image={mediaPreviewUrls[activeIndex]}
-                  crop={crop}
-                  zoom={zoom}
-                  aspect={ASPECTS[aspectKey]}
-                  onCropChange={setCrop}
-                  onZoomChange={setZoom}
-                  onCropComplete={onCropComplete}
-                  showGrid={false}
-                  objectFit="contain"
-                />
-              )}
+            <div className="relative flex-1 w-full flex items-center justify-center p-4 pb-24 overflow-hidden">
+              <div
+                className="relative w-full max-w-[560px] max-h-full"
+                style={{
+                  aspectRatio: ASPECTS[aspectKey],
+                  maxHeight: 'calc(100% - 10px)',
+                }}
+              >
+                {mediaPreviewUrls[activeIndex] && (
+                  <Cropper
+                    image={mediaPreviewUrls[activeIndex]}
+                    crop={crop}
+                    zoom={zoom}
+                    aspect={ASPECTS[aspectKey]}
+                    onCropChange={setCrop}
+                    onZoomChange={setZoom}
+                    onCropComplete={onCropComplete}
+                    showGrid={false}
+                    objectFit="contain"
+                  />
+                )}
+              </div>
             </div>
 
             {/* bottom thumbnails strip */}
-            <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/60">
+            <div className="p-3 bg-black/75 backdrop-blur-sm border-t border-white/10 z-10">
               <div className="flex items-center gap-2 overflow-x-auto">
                 {media.map((f, idx) => (
-                  <button
+                  <div
                     key={idx}
-                    type="button"
-                    onClick={async () => {
-                      // lưu crop preview cho ảnh hiện tại trước khi chuyển
-                      await applyCropForCurrent();
-                      setActiveIndex(idx);
-                      setCrop({ x: 0, y: 0 });
-                      setZoom(1);
-                    }}
-                    className={`relative w-16 h-16 rounded-lg overflow-hidden border ${idx === activeIndex ? 'border-white' : 'border-transparent'}`}
-                    title={f.name}
+                    className="relative shrink-0 group"
                   >
-                    <img src={mediaPreviewUrls[idx]} alt={f.name} className="w-full h-full object-cover" />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        // lưu crop preview cho ảnh hiện tại trước khi chuyển
+                        await applyCropForCurrent();
+                        setActiveIndex(idx);
+                        setCrop({ x: 0, y: 0 });
+                        setZoom(1);
+                      }}
+                      className={`relative w-16 h-16 rounded-lg overflow-hidden border block ${idx === activeIndex ? 'border-blue-500 ring-2 ring-blue-500/50' : 'border-transparent'}`}
+                      title={f.name}
+                    >
+                      <img src={mediaPreviewUrls[idx]} alt={f.name} className="w-full h-full object-cover" />
+                    </button>
+                    {/* Delete button on thumbnail */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeMediaAt(idx);
+                      }}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-600 text-white grid place-items-center opacity-0 group-hover:opacity-100 hover:scale-110 transition-all shadow-md"
+                      title="Xoá ảnh"
+                    >
+                      <i className="pi pi-times text-[10px]" />
+                    </button>
+                  </div>
                 ))}
 
                 <button
                   type="button"
                   onClick={triggerFilePicker}
-                  className="w-16 h-16 rounded-lg border border-dashed border-white/40 text-white flex items-center justify-center flex-shrink-0"
+                  className="w-16 h-16 rounded-lg border border-dashed border-white/40 text-white flex items-center justify-center flex-shrink-0 hover:bg-white/10 transition-colors"
                   title="Thêm ảnh"
                 >
-                  +
+                  <i className="pi pi-plus text-sm" />
                 </button>
               </div>
             </div>
