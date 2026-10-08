@@ -932,9 +932,22 @@ function CommentsPanel({
       </div>
 
       <div className="flex-1 overflow-auto p-3" style={{ minHeight: 0 }}>
-        {loading && <div className="text-xs opacity-70">Loading…</div>}
-        {error && <div className="text-xs text-red-500">{error}</div>}
-        {!loading && roots.length === 0 && <div className="text-xs opacity-70">No comments.</div>}
+        {loading && (
+          <div className="space-y-4 py-2 animate-pulse">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-black/10 dark:bg-white/10 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-28 bg-black/10 dark:bg-white/10 rounded" />
+                  <div className="h-3 w-3/4 bg-black/10 dark:bg-white/10 rounded" />
+                  <div className="h-2 w-16 bg-black/10 dark:bg-white/10 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {error && <div className="text-xs text-red-500 py-2">{error}</div>}
+        {!loading && roots.length === 0 && <div className="text-xs opacity-70 py-2">No comments.</div>}
 
         <div className="space-y-4">
           {roots.map(root => {
@@ -1016,9 +1029,10 @@ function CommentsPanel({
                 type="button"
                 onClick={handleLoadMoreComments}
                 disabled={loadingMoreComments}
-                className="w-full py-2 text-xs font-medium text-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                className="w-full py-2 text-xs font-medium text-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 style={{ color: "var(--primary, #3b82f6)" }}
               >
+                {loadingMoreComments && <i className="pi pi-spin pi-spinner text-xs" />}
                 {loadingMoreComments ? "Loading comments..." : "Load more comments"}
               </button>
             </div>
