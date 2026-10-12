@@ -20,20 +20,26 @@ export default function RelatedPosts({ postId, className = "" }: RelatedPostsPro
   const [nsfwConfirmed, setNsfwConfirmed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    let cancelled = false;
     const loadRelated = async () => {
+      setLoading(true);
       try {
         const result = await postAPI.getRelated(postId, 1, 10);
+        if (cancelled) return;
         const items = result.data || result.items || [];
         setPosts(items.filter((p: PostResponse) => (p.medias || []).length > 0));
         setPage(1);
         setHasNext(result.hasNext ?? false);
       } catch (e) {
-        console.error("Failed to load related posts:", e);
+        if (!cancelled) console.error("Failed to load related posts:", e);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     loadRelated();
+    return () => {
+      cancelled = true;
+    };
   }, [postId]);
 
   const handleLoadMore = async () => {
@@ -75,7 +81,7 @@ export default function RelatedPosts({ postId, className = "" }: RelatedPostsPro
         {posts.map((p) => (
           <Link key={p.id} href={`/posts/${p.id}`} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5">
             <img
-              src={p.medias![0].thumbnailUrl || p.medias![0].url}
+              src={p.medias?.[0]?.thumbnailUrl || p.medias?.[0]?.url || "/avatar-default.svg"}
               alt={p.caption ?? ""}
               className={`h-44 w-full object-cover transition-transform group-hover:scale-105 ${
                 p.isNSFW && !nsfwConfirmed.has(p.id) ? "blur-2xl scale-110" : ""

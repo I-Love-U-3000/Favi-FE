@@ -279,8 +279,8 @@ function PhotoGrid({ items, loadingMore }: { items: PhotoPost[]; loadingMore?: b
                   <i className="pi pi-bookmark text-sm" />
                 </button>
                 <div className="flex gap-1">
-                  {p.tags?.slice(0, 2).map(t => (
-                    <Tag key={t} value={t} rounded className="!text-[10px]" />
+                  {p.tags?.slice(0, 2).map((t, idx) => (
+                    <Tag key={`${p.id}-${t}-${idx}`} value={t} rounded className="!text-[10px]" />
                   ))}
                 </div>
               </div>

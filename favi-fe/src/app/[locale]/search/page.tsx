@@ -95,24 +95,6 @@ function ResultGrid({
   );
 }
 
-function TagCloud({ tags, onSelectTag }: { tags: string[]; onSelectTag: (tag: string) => void }) {
-  if (!tags.length) return null;
-
-  return (
-    <div className="mt-4 flex flex-wrap gap-2">
-      {tags.map((tag) => (
-        <button
-          key={tag}
-          onClick={() => onSelectTag(tag)}
-          className="text-xs px-3 py-1.5 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition border border-neutral-200 dark:border-neutral-700"
-        >
-          #{tag}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 /* ==================== Page ==================== */
 export default function SearchPage() {
   const { isAuthenticated } = useAuth();
@@ -127,7 +109,6 @@ export default function SearchPage() {
 
   // Keyword search state
   const [keywordResults, setKeywordResults] = useState<PostResponse[]>([]);
-  const [keywordTags, setKeywordTags] = useState<string[]>([]);
   const [keywordLoading, setKeywordLoading] = useState(false);
   const [keywordError, setKeywordError] = useState<string | null>(null);
   const [keywordPage, setKeywordPage] = useState(1);
@@ -173,7 +154,6 @@ export default function SearchPage() {
     setKeywordError(null);
     setKeywordPage(1);
     setKeywordResults([]);
-    setKeywordTags([]);
     setHasMoreKeyword(true);
     setKeywordSearched(true);
 
@@ -184,14 +164,12 @@ export default function SearchPage() {
         pageSize: 20,
       });
 
-      // Fetch full post data for each search result
+      // Fetch full post data for search results in a single batch
       const searchPosts = result.posts || [];
-      const fullPosts = await Promise.all(
-        searchPosts.map((sp) => postAPI.getById(sp.id))
-      );
+      const postIds = searchPosts.map((sp) => sp.id);
+      const fullPosts = postIds.length > 0 ? await postAPI.getBatch(postIds) : [];
 
       setKeywordResults(fullPosts);
-      setKeywordTags(result.tags?.map((t) => t.name) || []);
       setHasMoreKeyword((result.posts?.length || 0) === 20);
     } catch (error: any) {
       console.error("Keyword search error:", error);
@@ -228,11 +206,10 @@ export default function SearchPage() {
         k: 100,
       });
 
-      // Fetch full post data for each search result
+      // Fetch full post data in a single batch request
       const searchPosts = result.posts || [];
-      const fullPosts = await Promise.all(
-        searchPosts.map((sp) => postAPI.getById(sp.id))
-      );
+      const postIds = searchPosts.map((sp) => sp.id);
+      const fullPosts = postIds.length > 0 ? await postAPI.getBatch(postIds) : [];
 
       setSemanticResults(fullPosts);
       setHasMoreSemantic((result.posts?.length || 0) === 20);
@@ -271,14 +248,13 @@ export default function SearchPage() {
 
       console.log("Search API result:", result);
 
-      // Fetch full post data for each search result
+      // Fetch full post data for search results in a single batch
       const searchPosts = result.posts || [];
       console.log("Found search posts:", searchPosts.length);
 
       if (searchPosts.length > 0) {
-        const fullPosts = await Promise.all(
-          searchPosts.map((sp) => postAPI.getById(sp.id))
-        );
+        const postIds = searchPosts.map((sp) => sp.id);
+        const fullPosts = await postAPI.getBatch(postIds);
         console.log("Full posts fetched:", fullPosts.length);
         setTagResults(fullPosts);
       } else {
@@ -334,11 +310,10 @@ export default function SearchPage() {
         pageSize: 20,
       });
 
-      // Fetch full post data for each search result
+      // Fetch full post data for each search result in a single batch
       const searchPosts = result.posts || [];
-      const fullPosts = await Promise.all(
-        searchPosts.map((sp) => postAPI.getById(sp.id))
-      );
+      const postIds = searchPosts.map((sp) => sp.id);
+      const fullPosts = postIds.length > 0 ? await postAPI.getBatch(postIds) : [];
 
       setKeywordResults((prev) => [...prev, ...fullPosts]);
       setKeywordPage(nextPage);
@@ -368,11 +343,10 @@ export default function SearchPage() {
         k: 100,
       });
 
-      // Fetch full post data for each search result
+      // Fetch full post data for each search result in a single batch
       const searchPosts = result.posts || [];
-      const fullPosts = await Promise.all(
-        searchPosts.map((sp) => postAPI.getById(sp.id))
-      );
+      const postIds = searchPosts.map((sp) => sp.id);
+      const fullPosts = postIds.length > 0 ? await postAPI.getBatch(postIds) : [];
 
       setSemanticResults((prev) => [...prev, ...fullPosts]);
       setSemanticPage(nextPage);
@@ -404,11 +378,10 @@ export default function SearchPage() {
         pageSize: 20,
       });
 
-      // Fetch full post data for each search result
+      // Fetch full post data for each search result in a single batch
       const searchPosts = result.posts || [];
-      const fullPosts = await Promise.all(
-        searchPosts.map((sp) => postAPI.getById(sp.id))
-      );
+      const postIds = searchPosts.map((sp) => sp.id);
+      const fullPosts = postIds.length > 0 ? await postAPI.getBatch(postIds) : [];
 
       setTagResults((prev) => [...prev, ...fullPosts]);
       setTagPage(nextPage);
@@ -420,12 +393,6 @@ export default function SearchPage() {
       setTagLoading(false);
     }
   }, [tagLoading, hasMoreTag, tagPage, query]);
-
-  // Handle tag selection
-  const handleSelectTag = (tag: string) => {
-    setQuery(tag);
-    performTagSearch(tag);
-  };
 
   // Handle search submit
   const handleSearch = () => {
@@ -489,10 +456,6 @@ export default function SearchPage() {
                   </span>
                   <Button label="Search" onClick={handleSearch} />
                 </div>
-                {/* Related tags */}
-                {mode === "keyword" && keywordTags.length > 0 && !keywordLoading && (
-                  <TagCloud tags={keywordTags} onSelectTag={handleSelectTag} />
-                )}
               </TabPanel>
 
               <TabPanel

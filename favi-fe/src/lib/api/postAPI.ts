@@ -110,6 +110,13 @@ export const postAPI = {
   getById: async (id: string) =>
     camelize<PostResponse>(await fetchWrapper.get<any>(`/Posts/${id}`)),
 
+  getBatch: async (ids: string[]) => {
+    if (!ids || ids.length === 0) return [];
+    return camelize<PostResponse[]>(
+      await fetchWrapper.post<any>("/Posts/batch", { ids }, true)
+    );
+  },
+
   getByProfile: async (profileId: string, page = 1, size = 10) =>
     normalizePagination<PostResponse>(
       await fetchWrapper.get<any>(`/Posts/profile/${profileId}?page=${page}&size=${size}`)

@@ -367,9 +367,9 @@ function PostDetailDataView({ post }: { post: PostResponse }) {
               )}
               {(post.tags || []).length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {post.tags.map((t) => (
+                  {post.tags.map((t, idx) => (
                     <button
-                      key={t.id}
+                      key={`${post.id}-${t.id ?? t.name}-${idx}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         router.push(`/search?q=${encodeURIComponent(t.name)}&mode=tag`);

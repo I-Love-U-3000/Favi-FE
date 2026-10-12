@@ -118,9 +118,9 @@ export default function PostCard({ post }: { post: PostResponse }) {
         {/* Tags */}
         {post.tags && post.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
-            {post.tags.slice(0, 3).map((tag) => (
+            {post.tags.slice(0, 3).map((tag, idx) => (
               <span
-                key={tag.id}
+                key={`${post.id}-tag-${tag.id ?? tag.name}-${idx}`}
                 className="text-xs px-2.5 py-0.5 font-medium rounded-full cursor-pointer hover:opacity-80 transition-opacity"
                 style={{
                   backgroundColor: "var(--primary-subtle)",

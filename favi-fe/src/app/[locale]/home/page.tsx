@@ -244,7 +244,9 @@ export default function HomePage() {
         ? await postAPI.getFeed(nextPage, 10)
         : await postAPI.getGuestFeed(nextPage, 10);
       const newItems = res.data || res.items || [];
-      const updatedPosts = [...posts, ...newItems];
+      const existingIds = new Set(posts.map((p) => p.id));
+      const uniqueNewItems = newItems.filter((p: PostResponse) => !existingIds.has(p.id));
+      const updatedPosts = [...posts, ...uniqueNewItems];
       const updatedPage = res.page || nextPage;
       const updatedHasNext = res.hasNext ?? false;
 
@@ -493,7 +495,9 @@ function PostListItem({
   }, [medias.length]);
 
   const time = new Date(post.createdAt).toLocaleString();
-  const tags = (post.tags || []).map((t) => t.name);
+  const tags = Array.from(
+    new Set((post.tags || []).map((t) => t?.name?.trim()).filter(Boolean) as string[])
+  );
 
   const cached = readPostReaction(post.id);
   const [byType, setByType] = useState<Record<ReactionType, number>>(() => {
@@ -893,9 +897,9 @@ function PostListItem({
               {/* Tags (if any) */}
               {tags.length > 0 && (
                 <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-                  {tags.map((tag) => (
+                  {tags.map((tag, idx) => (
                     <button
-                      key={tag}
+                      key={`${post.id}-tag-${tag}-${idx}`}
                       onClick={(e) => handleTagClick(tag, e)}
                       className="px-3 py-1.5 text-xs font-medium rounded-full transition
                         bg-black/10 dark:bg-white/5 hover:bg-black/20 dark:hover:bg-white/10
