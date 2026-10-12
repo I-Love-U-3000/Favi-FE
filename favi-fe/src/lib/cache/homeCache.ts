@@ -97,6 +97,10 @@ const homeState: HomeState = {
 };
 
 function ensureUserConsistency(userId: string | null | undefined) {
+  // If userId is undefined, it means unauthenticated check or not provided - do not invalidate
+  if (userId === undefined) {
+    return;
+  }
   // If user changed (e.g. login / logout / switch account), clear cache
   if (homeState.cachedUserId !== undefined && homeState.cachedUserId !== userId) {
     clearHomeCache();
@@ -211,6 +215,7 @@ export function updateHomeCollectionsCache(
 
 // ---------------- CLEAR ----------------
 export function clearHomeCache() {
+  homeState.cachedUserId = undefined;
   homeState.feed = {
     ...initialFeedState,
     nsfwConfirmedGridPosts: new Set(),

@@ -87,6 +87,9 @@ let activeChatHubUserId: string | null = null;
 const messageListeners = new Set<(message: any) => void>();
 
 function ensureUserConsistency(userId: string | null | undefined) {
+  if (userId === undefined) {
+    return;
+  }
   if (chatState.cachedUserId !== undefined && chatState.cachedUserId !== userId) {
     clearChatCache();
   }

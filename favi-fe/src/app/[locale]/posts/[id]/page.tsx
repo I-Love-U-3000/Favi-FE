@@ -20,6 +20,7 @@ import CommentReactorsDialog from "@/components/CommentReactorsDialog";
 import RelatedPosts from "@/components/RelatedPosts";
 import PostSkeleton from "@/components/PostSkeleton";
 import { getHomeFeedCache, updateHomePostReaction, updateHomePostCommentCount } from "@/lib/cache/homeCache";
+import { getSearchPageCache } from "@/lib/cache/searchCache";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -42,10 +43,24 @@ export default function PostPage() {
   const id = Array.isArray(routeParams?.id) ? routeParams.id[0] : String(routeParams?.id || "");
 
   const [post, setPost] = useState<PostResponse | null>(() => {
-    return getHomeFeedCache().posts.find((p) => p.id === id) || null;
+    const fromHome = getHomeFeedCache().posts.find((p) => p.id === id);
+    if (fromHome) return fromHome;
+    const searchCache = getSearchPageCache();
+    const fromSearch =
+      searchCache.keyword.results.find((p) => p.id === id) ||
+      searchCache.semantic.results.find((p) => p.id === id) ||
+      searchCache.tag.results.find((p) => p.id === id);
+    return fromSearch || null;
   });
   const [loading, setLoading] = useState(() => {
-    return !getHomeFeedCache().posts.some((p) => p.id === id);
+    const hasInHome = getHomeFeedCache().posts.some((p) => p.id === id);
+    if (hasInHome) return false;
+    const searchCache = getSearchPageCache();
+    return !(
+      searchCache.keyword.results.some((p) => p.id === id) ||
+      searchCache.semantic.results.some((p) => p.id === id) ||
+      searchCache.tag.results.some((p) => p.id === id)
+    );
   });
   const [error, setError] = useState<string | null>(null);
 

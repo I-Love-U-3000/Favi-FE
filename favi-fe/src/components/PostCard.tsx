@@ -3,6 +3,7 @@
 import { useRouter } from "@/i18n/routing";
 import type { PostResponse } from "@/types";
 import { useState } from "react";
+import { saveHomeScroll } from "@/lib/cache/homeCache";
 
 type PrivacyKind = "Public" | "Followers" | "Private";
 
@@ -24,6 +25,9 @@ export default function PostCard({ post }: { post: PostResponse }) {
 
   const handleTagClick = (tagName: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (typeof window !== "undefined") {
+      saveHomeScroll(window.scrollY);
+    }
     router.push(`/search?q=${encodeURIComponent(tagName)}&mode=tag`);
   };
   const medias = post.medias || [];
@@ -40,7 +44,12 @@ export default function PostCard({ post }: { post: PostResponse }) {
         backgroundColor: 'var(--bg-secondary)',
         borderColor: 'var(--border)',
       }}
-      onClick={() => router.push(`/posts/${post.id}`)}
+      onClick={() => {
+        if (typeof window !== "undefined") {
+          saveHomeScroll(window.scrollY);
+        }
+        router.push(`/posts/${post.id}`);
+      }}
     >
       {/* Media preview */}
       {medias.length > 0 && medias[0]?.url ? (

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { Link, usePathname, useRouter } from "@/i18n/routing";
 import { TabView, TabPanel } from "primereact/tabview";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
@@ -13,6 +14,12 @@ import { searchAPI } from "@/lib/api/searchAPI";
 import postAPI from "@/lib/api/postAPI";
 import { useAuth } from "@/components/AuthProvider";
 import PostSkeleton from "@/components/PostSkeleton";
+import {
+  getSearchPageCache,
+  updateSearchPageCache,
+  saveSearchScroll,
+  type SearchMode,
+} from "@/lib/cache/searchCache";
 
 /* ==================== Types & Utils ==================== */
 type Mode = "keyword" | "semantic" | "tag";
@@ -21,10 +28,15 @@ function ResultCard({ post }: { post: PostResponse }) {
   const medias = post.medias || [];
 
   return (
-    <a
+    <Link
       href={`/posts/${post.id}`}
+      onClick={() => {
+        if (typeof window !== "undefined") {
+          saveSearchScroll(window.scrollY);
+        }
+      }}
       className="group relative overflow-hidden rounded-2xl ring-1 ring-black/5 shadow-sm hover:shadow-md transition-shadow block"
-      style={{ borderColor: 'var(--border)' }}
+      style={{ borderColor: "var(--border)" }}
     >
       <div className="relative h-56 w-full bg-gray-100 dark:bg-neutral-800">
         {medias.length > 0 && medias[0]?.url ? (
@@ -44,7 +56,7 @@ function ResultCard({ post }: { post: PostResponse }) {
       <div className="absolute inset-x-0 bottom-0 p-3 text-xs bg-gradient-to-t from-black/60 to-transparent text-white">
         <p className="line-clamp-2 text-sm">{post.caption || "No caption"}</p>
       </div>
-    </a>
+    </Link>
   );
 }
 
@@ -103,36 +115,182 @@ export default function SearchPage() {
   const sp = useSearchParams();
   const t = useTranslations("SearchPage");
 
-  // URL state
-  const [mode, setMode] = useState<Mode>((sp.get("mode") as Mode) || "keyword");
-  const [query, setQuery] = useState(sp.get("q") ?? "");
+  // Read existing cached search state
+  const cachedSearch = getSearchPageCache();
+
+  // URL state with cache fallback
+  const urlMode = sp.get("mode") as Mode | null;
+  const urlQuery = sp.get("q");
+
+  const initialMode: Mode =
+    urlMode || (cachedSearch.isInitialized ? cachedSearch.mode : "keyword");
+  const initialQuery: string =
+    urlQuery !== null
+      ? urlQuery
+      : cachedSearch.isInitialized
+      ? cachedSearch.query
+      : "";
+
+  const [mode, setMode] = useState<Mode>(initialMode);
+  const [query, setQuery] = useState<string>(initialQuery);
 
   // Keyword search state
-  const [keywordResults, setKeywordResults] = useState<PostResponse[]>([]);
+  const [keywordResults, setKeywordResults] = useState<PostResponse[]>(
+    cachedSearch.isInitialized ? cachedSearch.keyword.results : []
+  );
   const [keywordLoading, setKeywordLoading] = useState(false);
   const [keywordError, setKeywordError] = useState<string | null>(null);
-  const [keywordPage, setKeywordPage] = useState(1);
-  const [hasMoreKeyword, setHasMoreKeyword] = useState(true);
-  const [keywordSearched, setKeywordSearched] = useState(false);
+  const [keywordPage, setKeywordPage] = useState(
+    cachedSearch.isInitialized ? cachedSearch.keyword.page : 1
+  );
+  const [hasMoreKeyword, setHasMoreKeyword] = useState(
+    cachedSearch.isInitialized ? cachedSearch.keyword.hasMore : true
+  );
+  const [keywordSearched, setKeywordSearched] = useState(
+    cachedSearch.isInitialized ? cachedSearch.keyword.searched : false
+  );
 
   // Semantic search state
-  const [semanticResults, setSemanticResults] = useState<PostResponse[]>([]);
+  const [semanticResults, setSemanticResults] = useState<PostResponse[]>(
+    cachedSearch.isInitialized ? cachedSearch.semantic.results : []
+  );
   const [semanticLoading, setSemanticLoading] = useState(false);
   const [semanticError, setSemanticError] = useState<string | null>(null);
-  const [semanticPage, setSemanticPage] = useState(1);
-  const [hasMoreSemantic, setHasMoreSemantic] = useState(true);
-  const [semanticSearched, setSemanticSearched] = useState(false);
+  const [semanticPage, setSemanticPage] = useState(
+    cachedSearch.isInitialized ? cachedSearch.semantic.page : 1
+  );
+  const [hasMoreSemantic, setHasMoreSemantic] = useState(
+    cachedSearch.isInitialized ? cachedSearch.semantic.hasMore : true
+  );
+  const [semanticSearched, setSemanticSearched] = useState(
+    cachedSearch.isInitialized ? cachedSearch.semantic.searched : false
+  );
 
   // Tag search state
-  const [tagResults, setTagResults] = useState<PostResponse[]>([]);
+  const [tagResults, setTagResults] = useState<PostResponse[]>(
+    cachedSearch.isInitialized ? cachedSearch.tag.results : []
+  );
   const [tagLoading, setTagLoading] = useState(false);
   const [tagError, setTagError] = useState<string | null>(null);
-  const [tagPage, setTagPage] = useState(1);
-  const [hasMoreTag, setHasMoreTag] = useState(true);
-  const [tagSearched, setTagSearched] = useState(false);
+  const [tagPage, setTagPage] = useState(
+    cachedSearch.isInitialized ? cachedSearch.tag.page : 1
+  );
+  const [hasMoreTag, setHasMoreTag] = useState(
+    cachedSearch.isInitialized ? cachedSearch.tag.hasMore : true
+  );
+  const [tagSearched, setTagSearched] = useState(
+    cachedSearch.isInitialized ? cachedSearch.tag.searched : false
+  );
+
+  // Track whether we are in the middle of restoring scroll or unmounting
+  const isRestoringScrollRef = useRef(cachedSearch.isInitialized && cachedSearch.scrollY > 0);
+  const isNavigatingAwayRef = useRef(false);
+
+  // Temporary minHeight to prevent browser from clamping window.scrollTo
+  const [restorationMinHeight, setRestorationMinHeight] = useState<number | undefined>(
+    cachedSearch.isInitialized && cachedSearch.scrollY > 0
+      ? cachedSearch.scrollY + 800
+      : undefined
+  );
+
+  // Set manual scroll restoration so browser doesn't randomly jump to 0 on back/forward
+  useEffect(() => {
+    if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+  }, []);
+
+  // Restore scroll position after mount if returning to cached page
+  useEffect(() => {
+    if (!cachedSearch.isInitialized || cachedSearch.scrollY <= 0) {
+      isRestoringScrollRef.current = false;
+      return;
+    }
+
+    const targetY = cachedSearch.scrollY;
+    isRestoringScrollRef.current = true;
+
+    window.scrollTo({ top: targetY, behavior: "instant" });
+
+    const cancelRestoration = () => {
+      isRestoringScrollRef.current = false;
+      setRestorationMinHeight(undefined);
+    };
+
+    window.addEventListener("wheel", cancelRestoration, { passive: true, once: true });
+    window.addEventListener("touchstart", cancelRestoration, { passive: true, once: true });
+    window.addEventListener("keydown", cancelRestoration, { passive: true, once: true });
+
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      if (!isRestoringScrollRef.current) {
+        clearInterval(interval);
+        return;
+      }
+
+      window.scrollTo({ top: targetY, behavior: "instant" });
+
+      if (Math.abs(window.scrollY - targetY) < 15 || attempts >= 20) {
+        clearInterval(interval);
+        setTimeout(() => {
+          isRestoringScrollRef.current = false;
+          setRestorationMinHeight(undefined);
+        }, 150);
+      }
+    }, 40);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("wheel", cancelRestoration);
+      window.removeEventListener("touchstart", cancelRestoration);
+      window.removeEventListener("keydown", cancelRestoration);
+    };
+  }, [cachedSearch.isInitialized, cachedSearch.scrollY]);
+
+  // Continuously record scroll position
+  useEffect(() => {
+    let ticking = false;
+    const onScroll = () => {
+      if (isRestoringScrollRef.current || isNavigatingAwayRef.current) {
+        return;
+      }
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (!isRestoringScrollRef.current && !isNavigatingAwayRef.current) {
+            saveSearchScroll(window.scrollY);
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+    const handleNavClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("a") || target?.closest("[data-navigate]") || target?.closest("button")) {
+        isNavigatingAwayRef.current = true;
+        if (window.scrollY > 0) {
+          saveSearchScroll(window.scrollY);
+        }
+      }
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("click", handleNavClick, { capture: true });
+    return () => {
+      isNavigatingAwayRef.current = true;
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("click", handleNavClick, { capture: true });
+    };
+  }, []);
 
   // Sync URL when inputs change (without triggering search)
   useEffect(() => {
+    const currentMode = sp.get("mode") || "keyword";
+    const currentQ = sp.get("q") || "";
+    if (currentMode === mode && currentQ === query) {
+      return;
+    }
     const params = new URLSearchParams(sp.toString());
     params.set("mode", mode);
     if (query) {
@@ -140,7 +298,10 @@ export default function SearchPage() {
     } else {
       params.delete("q");
     }
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    const nextStr = params.toString();
+    if (nextStr !== sp.toString()) {
+      router.replace(`${pathname}?${nextStr}`, { scroll: false });
+    }
   }, [mode, query, pathname, router, sp]);
 
   // Keyword search function
@@ -168,9 +329,21 @@ export default function SearchPage() {
       const searchPosts = result.posts || [];
       const postIds = searchPosts.map((sp) => sp.id);
       const fullPosts = postIds.length > 0 ? await postAPI.getBatch(postIds) : [];
+      const hasMore = (result.posts?.length || 0) === 20;
 
       setKeywordResults(fullPosts);
-      setHasMoreKeyword((result.posts?.length || 0) === 20);
+      setHasMoreKeyword(hasMore);
+
+      updateSearchPageCache({
+        query: q,
+        mode: "keyword",
+        keyword: {
+          results: fullPosts,
+          page: 1,
+          hasMore,
+          searched: true,
+        },
+      });
     } catch (error: any) {
       console.error("Keyword search error:", error);
       setKeywordError(error?.error || error?.message || "Failed to search");
@@ -210,9 +383,21 @@ export default function SearchPage() {
       const searchPosts = result.posts || [];
       const postIds = searchPosts.map((sp) => sp.id);
       const fullPosts = postIds.length > 0 ? await postAPI.getBatch(postIds) : [];
+      const hasMore = (result.posts?.length || 0) === 20;
 
       setSemanticResults(fullPosts);
-      setHasMoreSemantic((result.posts?.length || 0) === 20);
+      setHasMoreSemantic(hasMore);
+
+      updateSearchPageCache({
+        query: q,
+        mode: "semantic",
+        semantic: {
+          results: fullPosts,
+          page: 1,
+          hasMore,
+          searched: true,
+        },
+      });
     } catch (error: any) {
       console.error("Semantic search error:", error);
       setSemanticError(error?.error || error?.message || "Failed to perform semantic search");
@@ -236,9 +421,7 @@ export default function SearchPage() {
     setTagSearched(true);
 
     try {
-      // Remove # prefix if present for search
-      const searchQuery = q.startsWith('#') ? q.substring(1) : q;
-      console.log("Searching for tag:", searchQuery);
+      const searchQuery = q.startsWith("#") ? q.substring(1) : q;
       const result: SearchResult = await searchAPI.search({
         query: searchQuery,
         mode: "tag",
@@ -246,26 +429,31 @@ export default function SearchPage() {
         pageSize: 20,
       });
 
-      console.log("Search API result:", result);
-
-      // Fetch full post data for search results in a single batch
       const searchPosts = result.posts || [];
-      console.log("Found search posts:", searchPosts.length);
-
+      let fullPosts: PostResponse[] = [];
       if (searchPosts.length > 0) {
         const postIds = searchPosts.map((sp) => sp.id);
-        const fullPosts = await postAPI.getBatch(postIds);
-        console.log("Full posts fetched:", fullPosts.length);
+        fullPosts = await postAPI.getBatch(postIds);
         setTagResults(fullPosts);
       } else {
-        console.log("No posts found for tag:", q);
         setTagResults([]);
       }
 
-      setHasMoreTag((result.posts?.length || 0) === 20);
+      const hasMore = (result.posts?.length || 0) === 20;
+      setHasMoreTag(hasMore);
+
+      updateSearchPageCache({
+        query: q,
+        mode: "tag",
+        tag: {
+          results: fullPosts,
+          page: 1,
+          hasMore,
+          searched: true,
+        },
+      });
     } catch (error: any) {
       console.error("Tag search error:", error);
-      console.error("Error details:", error?.response?.data || error.message);
       setTagError(error?.error || error?.message || "Failed to search by tags");
     } finally {
       setTagLoading(false);
@@ -273,12 +461,22 @@ export default function SearchPage() {
   }, [query]);
 
   // Auto-search when query param is present on mount or URL change
-  const lastExecutedKeyRef = useRef<string | null>(null);
+  const cachedActive =
+    cachedSearch.isInitialized && cachedSearch.query.trim()
+      ? cachedSearch[cachedSearch.mode]
+      : null;
+  const initialKey =
+    cachedActive && cachedActive.searched && cachedActive.results.length > 0
+      ? `${cachedSearch.mode}:${cachedSearch.query.trim()}`
+      : null;
+  const lastExecutedKeyRef = useRef<string | null>(initialKey);
+
   useEffect(() => {
     const qFromUrl = sp.get("q");
     const modeFromUrl = (sp.get("mode") as Mode) || "keyword";
     if (qFromUrl && qFromUrl.trim()) {
       const key = `${modeFromUrl}:${qFromUrl.trim()}`;
+      // Skip if this query and mode was already executed and cached in memory
       if (lastExecutedKeyRef.current !== key) {
         lastExecutedKeyRef.current = key;
         setQuery(qFromUrl);
@@ -310,21 +508,31 @@ export default function SearchPage() {
         pageSize: 20,
       });
 
-      // Fetch full post data for each search result in a single batch
       const searchPosts = result.posts || [];
       const postIds = searchPosts.map((sp) => sp.id);
       const fullPosts = postIds.length > 0 ? await postAPI.getBatch(postIds) : [];
+      const updatedResults = [...keywordResults, ...fullPosts];
+      const hasMore = (result.posts?.length || 0) === 20;
 
-      setKeywordResults((prev) => [...prev, ...fullPosts]);
+      setKeywordResults(updatedResults);
       setKeywordPage(nextPage);
-      setHasMoreKeyword((result.posts?.length || 0) === 20);
+      setHasMoreKeyword(hasMore);
+
+      updateSearchPageCache({
+        keyword: {
+          results: updatedResults,
+          page: nextPage,
+          hasMore,
+          searched: true,
+        },
+      });
     } catch (error: any) {
       console.error("Load more keyword search error:", error);
       setKeywordError(error?.error || error?.message || "Failed to load more results");
     } finally {
       setKeywordLoading(false);
     }
-  }, [keywordLoading, hasMoreKeyword, keywordPage, query]);
+  }, [keywordLoading, hasMoreKeyword, keywordPage, query, keywordResults]);
 
   // Load more semantic results
   const loadMoreSemantic = useCallback(async () => {
@@ -343,21 +551,31 @@ export default function SearchPage() {
         k: 100,
       });
 
-      // Fetch full post data for each search result in a single batch
       const searchPosts = result.posts || [];
       const postIds = searchPosts.map((sp) => sp.id);
       const fullPosts = postIds.length > 0 ? await postAPI.getBatch(postIds) : [];
+      const updatedResults = [...semanticResults, ...fullPosts];
+      const hasMore = (result.posts?.length || 0) === 20;
 
-      setSemanticResults((prev) => [...prev, ...fullPosts]);
+      setSemanticResults(updatedResults);
       setSemanticPage(nextPage);
-      setHasMoreSemantic((result.posts?.length || 0) === 20);
+      setHasMoreSemantic(hasMore);
+
+      updateSearchPageCache({
+        semantic: {
+          results: updatedResults,
+          page: nextPage,
+          hasMore,
+          searched: true,
+        },
+      });
     } catch (error: any) {
       console.error("Load more semantic search error:", error);
       setSemanticError(error?.error || error?.message || "Failed to load more results");
     } finally {
       setSemanticLoading(false);
     }
-  }, [semanticLoading, hasMoreSemantic, semanticPage, query]);
+  }, [semanticLoading, hasMoreSemantic, semanticPage, query, semanticResults]);
 
   // Load more tag results
   const loadMoreTag = useCallback(async () => {
@@ -369,8 +587,7 @@ export default function SearchPage() {
 
     try {
       const nextPage = tagPage + 1;
-      // Remove # prefix if present for search
-      const searchQuery = query.trim().startsWith('#') ? query.trim().substring(1) : query.trim();
+      const searchQuery = query.trim().startsWith("#") ? query.trim().substring(1) : query.trim();
       const result: SearchResult = await searchAPI.search({
         query: searchQuery,
         mode: "tag",
@@ -378,24 +595,35 @@ export default function SearchPage() {
         pageSize: 20,
       });
 
-      // Fetch full post data for each search result in a single batch
       const searchPosts = result.posts || [];
       const postIds = searchPosts.map((sp) => sp.id);
       const fullPosts = postIds.length > 0 ? await postAPI.getBatch(postIds) : [];
+      const updatedResults = [...tagResults, ...fullPosts];
+      const hasMore = (result.posts?.length || 0) === 20;
 
-      setTagResults((prev) => [...prev, ...fullPosts]);
+      setTagResults(updatedResults);
       setTagPage(nextPage);
-      setHasMoreTag((result.posts?.length || 0) === 20);
+      setHasMoreTag(hasMore);
+
+      updateSearchPageCache({
+        tag: {
+          results: updatedResults,
+          page: nextPage,
+          hasMore,
+          searched: true,
+        },
+      });
     } catch (error: any) {
       console.error("Load more tag search error:", error);
       setTagError(error?.error || error?.message || "Failed to load more results");
     } finally {
       setTagLoading(false);
     }
-  }, [tagLoading, hasMoreTag, tagPage, query]);
+  }, [tagLoading, hasMoreTag, tagPage, query, tagResults]);
 
   // Handle search submit
   const handleSearch = () => {
+    updateSearchPageCache({ query, mode });
     if (mode === "keyword") {
       performKeywordSearch();
     } else if (mode === "semantic") {
@@ -415,11 +643,18 @@ export default function SearchPage() {
   const currentPage = mode === "keyword" ? keywordPage : mode === "tag" ? tagPage : semanticPage;
 
   return (
-    <div className="min-h-screen pb-24" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
+    <div
+      className="min-h-screen pb-24"
+      style={{
+        backgroundColor: "var(--bg)",
+        color: "var(--text)",
+        minHeight: restorationMinHeight ? `${restorationMinHeight}px` : undefined,
+      }}
+    >
       {/* Hero / Sticky filter bar */}
       <div
         className="sticky top-0 z-40 backdrop-blur-md border-b"
-        style={{ backgroundColor: 'var(--surface-ground,transparent)/70', borderColor: 'var(--border)' }}
+        style={{ backgroundColor: "var(--surface-ground,transparent)/70", borderColor: "var(--border)" }}
       >
         <div className="mx-auto max-w-6xl px-6 py-4">
           <div className="flex items-center justify-between gap-3">
@@ -432,7 +667,11 @@ export default function SearchPage() {
           <div className="mt-3">
             <TabView
               activeIndex={["keyword", "tag", "semantic"].indexOf(mode)}
-              onTabChange={(e) => setMode(["keyword", "tag", "semantic"][e.index] as Mode)}
+              onTabChange={(e) => {
+                const newMode = ["keyword", "tag", "semantic"][e.index] as Mode;
+                setMode(newMode);
+                updateSearchPageCache({ mode: newMode });
+              }}
               pt={{
                 navContainer: { className: "bg-[var(--surface-ground,transparent)]/80 backdrop-blur-md rounded-t-2xl" },
                 panelContainer: { className: "rounded-b-2xl" },
@@ -446,7 +685,10 @@ export default function SearchPage() {
                   <span className="p-input-icon-left flex-1">
                     <InputText
                       value={query}
-                      onChange={(e) => setQuery(e.target.value)}
+                      onChange={(e) => {
+                        setQuery(e.target.value);
+                        updateSearchPageCache({ query: e.target.value });
+                      }}
                       onKeyPress={(e) => {
                         if (e.key === "Enter") handleSearch();
                       }}
@@ -465,7 +707,10 @@ export default function SearchPage() {
                   <span className="p-input-icon-left flex-1">
                     <InputText
                       value={query}
-                      onChange={(e) => setQuery(e.target.value)}
+                      onChange={(e) => {
+                        setQuery(e.target.value);
+                        updateSearchPageCache({ query: e.target.value });
+                      }}
                       onKeyPress={(e) => {
                         if (e.key === "Enter") handleSearch();
                       }}
@@ -487,7 +732,10 @@ export default function SearchPage() {
                   <span className="p-input-icon-left flex-1">
                     <InputText
                       value={query}
-                      onChange={(e) => setQuery(e.target.value)}
+                      onChange={(e) => {
+                        setQuery(e.target.value);
+                        updateSearchPageCache({ query: e.target.value });
+                      }}
                       onKeyPress={(e) => {
                         if (e.key === "Enter") handleSearch();
                       }}
@@ -518,7 +766,7 @@ export default function SearchPage() {
         {currentError && (
           <div
             className="bg-red-50 dark:bg-red-900/20 border rounded-xl p-4 mb-4"
-            style={{ borderColor: 'var(--red-200, rgb(254 202 202))' }}
+            style={{ borderColor: "var(--red-200, rgb(254 202 202))" }}
           >
             <p className="text-sm text-red-600 dark:text-red-400">{currentError}</p>
           </div>

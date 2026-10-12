@@ -173,11 +173,23 @@ export default function HomePage() {
         ticking = true;
       }
     };
+    const handleNavClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("a") || target?.closest("[data-navigate]") || target?.closest("button")) {
+        isNavigatingAwayRef.current = true;
+        if (window.scrollY > 0) {
+          saveHomeScroll(window.scrollY);
+        }
+      }
+    };
+
     window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("click", handleNavClick, { capture: true });
     return () => {
       // Mark navigating away so unmount scroll collapse doesn't overwrite saved scroll with 0
       isNavigatingAwayRef.current = true;
       window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("click", handleNavClick, { capture: true });
     };
   }, []);
 
