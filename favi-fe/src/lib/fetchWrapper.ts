@@ -118,6 +118,23 @@ async function tryRefreshAndRetry<T>(
   return handleResponse<T>(retryRes, init.method || "GET", url);
 }
 
+const DEFAULT_MAX_RETRIES = 3;
+const MAX_RETRY_INTERVAL_MS = 15000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Calculates progressive retry delay:
+ * - Retry 1: 0ms (immediate)
+ * - Retry 2: 5000ms (5 seconds after Retry 1)
+ * - Retry 3: 10000ms (10 seconds after Retry 2)
+ * - Subsequent retries: capped at 15000ms (15 seconds max)
+ */
+export function calculateRetryDelay(retryCount: number): number {
+  if (retryCount <= 1) return 0;
+  return Math.min((retryCount - 1) * 5000, MAX_RETRY_INTERVAL_MS);
+}
+
 const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 
 function getAuthHeaders(): Record<string, string> {
@@ -130,7 +147,8 @@ async function request<T>(
   path: string,
   body?: RequestBody,
   auth = true,
-  customBaseUrl?: string
+  customBaseUrl?: string,
+  maxRetries = DEFAULT_MAX_RETRIES
 ): Promise<ApiResponse<T>> {
   const base = customBaseUrl || baseUrl;
   if (!base && !path.startsWith("http")) throw new Error("Missing API URL");
@@ -164,35 +182,83 @@ async function request<T>(
         : JSON.stringify(body),
   };
 
-  let res: Response;
-  try {
-    res = await fetch(url, init);
-  } catch (e: unknown) {
-    const error = e as Error;
-    console.error(`[API Network Error] ${method} ${url} failed to connect:`, error);
-    throw { status: 0, error: error?.message || "Network error" };
-  }
+  let retryCount = 0;
 
-  if (res.status === 401 && auth) {
-    try {
-      return await tryRefreshAndRetry<T>(url, init);
-    } catch (err: unknown) {
-      console.warn("Token refresh failed", err);
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
+  while (true) {
+    // Keep Authorization header synchronized with latest token if updated between retries
+    if (auth) {
+      const currentAuth = getAuthHeaders();
+      if (currentAuth.Authorization) {
+        (init.headers as Record<string, string>)["Authorization"] = currentAuth.Authorization;
       }
-      throw err;
     }
-  }
 
-  return handleResponse<T>(res, method, url);
+    let res: Response | null = null;
+    let networkError: Error | null = null;
+
+    try {
+      res = await fetch(url, init);
+    } catch (e: unknown) {
+      networkError = e as Error;
+      console.warn(`[API Network Error] ${method} ${url} failed to connect (attempt ${retryCount + 1}):`, networkError?.message);
+    }
+
+    // 1. If network error occurred (fetch threw, status: 0)
+    if (!res) {
+      if (retryCount < maxRetries) {
+        retryCount++;
+        const delay = calculateRetryDelay(retryCount);
+        console.warn(`[API Retry] ${method} ${url} retrying attempt ${retryCount}/${maxRetries} in ${delay}ms...`);
+        if (delay > 0) await sleep(delay);
+        continue;
+      }
+
+      console.error(`[API Network Failure] ${method} ${url} failed after ${maxRetries} retries:`, networkError);
+      throw { status: 0, error: networkError?.message || "Network error" };
+    }
+
+    // 2. HTTP 401 Unauthorized: handled exclusively via tryRefreshAndRetry
+    if (res.status === 401 && auth) {
+      try {
+        return await tryRefreshAndRetry<T>(url, init);
+      } catch (err: unknown) {
+        console.warn("[API Auth] Token refresh failed, terminating retry:", err);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+        }
+        throw err;
+      }
+    }
+
+    // 3. HTTP 404 Not Found: explicitly excluded from retries
+    if (res.status === 404) {
+      return handleResponse<T>(res, method, url);
+    }
+
+    // 4. Successful response: return immediately
+    if (res.ok) {
+      return handleResponse<T>(res, method, url);
+    }
+
+    // 5. Any other failure status (except 404 and 401): retry according to policy
+    if (retryCount < maxRetries) {
+      retryCount++;
+      const delay = calculateRetryDelay(retryCount);
+      console.warn(`[API Retry] ${method} ${url} failed with status ${res.status}. Retrying attempt ${retryCount}/${maxRetries} in ${delay}ms...`);
+      if (delay > 0) await sleep(delay);
+      continue;
+    }
+
+    // 6. Max retries exhausted: handle and throw standard ApiError
+    return handleResponse<T>(res, method, url);
+  }
 }
 
 export const fetchWrapper = {
-  get:  <T>(path: string, auth = true, customBaseUrl?: string) => request<T>("GET", path, undefined, auth, customBaseUrl),
-  post: <T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string) => request<T>("POST", path, body, auth, customBaseUrl),
-  put:  <T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string) => request<T>("PUT", path, body, auth, customBaseUrl),
-  patch:<T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string) => request<T>("PATCH", path, body, auth, customBaseUrl),
-  del:  <T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string) => request<T>("DELETE", path, body, auth, customBaseUrl),
+  get:  <T>(path: string, auth = true, customBaseUrl?: string, maxRetries = DEFAULT_MAX_RETRIES) => request<T>("GET", path, undefined, auth, customBaseUrl, maxRetries),
+  post: <T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string, maxRetries = DEFAULT_MAX_RETRIES) => request<T>("POST", path, body, auth, customBaseUrl, maxRetries),
+  put:  <T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string, maxRetries = DEFAULT_MAX_RETRIES) => request<T>("PUT", path, body, auth, customBaseUrl, maxRetries),
+  patch:<T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string, maxRetries = DEFAULT_MAX_RETRIES) => request<T>("PATCH", path, body, auth, customBaseUrl, maxRetries),
+  del:  <T>(path: string, body?: RequestBody, auth = true, customBaseUrl?: string, maxRetries = DEFAULT_MAX_RETRIES) => request<T>("DELETE", path, body, auth, customBaseUrl, maxRetries),
 };

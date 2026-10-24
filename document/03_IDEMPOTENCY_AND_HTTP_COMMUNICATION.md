@@ -108,3 +108,109 @@ This frees frontend engineers to write natural TypeScript code without boilerpla
 When transmitting media binaries or multipart form payloads:
 - `fetchWrapper` detects `body instanceof FormData`.
 - **Strict Rule: Never explicitly set `Content-Type: application/json` or `Content-Type: multipart/form-data` manually**. The browser must generate this header automatically along with the required multi-segment boundary string to ensure accurate payload parsing on the server.
+
+---
+
+## 5. Standard Error Envelope Parsing & Client Error Dispatch
+
+When the backend returns an error response (`res.ok === false`), `fetchWrapper` intercepts the payload and parses the backend standard error envelope into a strongly-typed `ApiError` object:
+
+```typescript
+export interface ApiError {
+  status: number;
+  code?: string;
+  message?: string;
+  details?: string;
+  error?: string;
+}
+```
+
+### 5.1 Extraction & Logging Flow
+```typescript
+const thrownError: ApiError = {
+  status: res.status,
+  error: (apiError.error || apiError.message || "Request failed") as string,
+  message: apiError.message as string | undefined,
+  code: apiError.code as string | undefined,
+  details: apiError.details as string | undefined,
+};
+
+if (res.status === 404) {
+  console.debug(`[API 404] ${method} ${url} (Resource not found or private)`);
+} else {
+  console.error(`[API Error] ${method} ${url} failed with status ${res.status}:`, {
+    code: thrownError.code,
+    message: thrownError.message,
+    details: thrownError.details,
+    rawResponse: data
+  });
+}
+```
+
+### 5.2 Global Custom Events on Specific Error Codes
+- **`CONCURRENCY_CONFLICT` / HTTP 409**:
+  ```typescript
+  if (res.status === 409 && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("favi-concurrency-conflict", { detail: thrownError }));
+  }
+  ```
+  Components and contexts listen for this event to render non-intrusive warnings prompting the user to refresh their view rather than crashing.
+- **`auth-token-expired` / HTTP 401**:
+  When refresh token calls fail, `fetchWrapper` clears credentials from `localStorage` and emits `new Event("auth-token-expired")` to redirect the user to `/login`.
+- **UI Error Feedback (Toasts)**:
+  Components pass `thrownError.message` or `thrownError.code` into `showToast.error(thrownError.message || "Operation failed")` from `src/lib/toast.ts` to surface user-friendly notifications.
+
+---
+
+## 6. Progressive Outbound Retry Policy (Client Fault Tolerance)
+
+To withstand transient network drops, gateway failovers, and server blips, `fetchWrapper` incorporates an automated progressive retry mechanism for all outbound requests.
+
+```
+Outgoing Request
+      │
+      ▼
+┌───────────────┐
+│ fetch(url)    │
+└───────┬───────┘
+        │
+        ├──▶ Success (2xx) ──────────────────────────▶ Return response (0 retries)
+        │
+        ├──▶ HTTP 404 (Not Found) ───────────────────▶ Reject immediately (Excluded from retries)
+        │
+        ├──▶ HTTP 401 (Unauthorized) ────────────────▶ Token Refresh & Replay (tryRefreshAndRetry)
+        │
+        └──▶ Any Failure (Network Error, 5xx, 4xx) ──▶ Retry Pipeline:
+                                                        │
+                                                        ├── Attempt 1: Immediate retry (0s delay)
+                                                        ├── Attempt 2: Wait 5 seconds
+                                                        ├── Attempt 3: Wait 10 seconds
+                                                        └── Attempt N+: Wait max 15 seconds
+```
+
+### 6.1 Exclusion Rules
+1. **HTTP 404 Not Found**: A 404 indicates a missing resource (e.g., deleted post or non-existent profile). Retrying would be redundant and wasteful.
+2. **HTTP 401 Unauthorized**: Handled exclusively through the dedicated `tryRefreshAndRetry()` workflow. If the refresh token is invalid or expired, further retries are terminated to prevent authentication loops.
+
+### 6.2 Progressive Delay Schedule
+The retry delay is computed using the `calculateRetryDelay` function:
+```typescript
+export function calculateRetryDelay(retryCount: number): number {
+  if (retryCount <= 1) return 0;
+  return Math.min((retryCount - 1) * 5000, 15000);
+}
+```
+
+| Attempt | Nature | Delay Before Dispatch | Cumulative Elapsed |
+|:---:|---|:---:|:---:|
+| **Initial** | First outbound execution | 0 ms | 0 ms |
+| **Retry 1** | Immediate recovery | **0 ms** | 0 ms |
+| **Retry 2** | First backoff | **5,000 ms (5s)** | ~5s |
+| **Retry 3** | Second backoff | **10,000 ms (10s)** | ~15s |
+| **Subsequent** | Sustained recovery *(if configured)* | **15,000 ms (15s max)** | +15s each |
+
+### 6.3 Idempotency Key Consistency Across Retries
+For state-mutating requests (`POST`, `PUT`, `PATCH`, `DELETE`), the `Idempotency-Key` header generated on the initial attempt is **preserved unchanged across all retry attempts**. If the initial request succeeded on the backend but the response was lost due to network disruption, subsequent retries hit backend `IdempotencyMiddleware` and receive the cached result without creating duplicate records or executing redundant side effects.
+
+### 6.4 Dynamic Token Synchronization
+Before dispatching each retry attempt, `request()` dynamically reads `localStorage.getItem("access_token")`. If another concurrent request refreshed the access token during a retry backoff interval, the retried request automatically picks up and attaches the renewed bearer token.
