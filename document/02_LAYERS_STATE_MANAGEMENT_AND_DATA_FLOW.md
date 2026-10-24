@@ -1,8 +1,8 @@
-# 02 — Phân Tầng Frontend, Quản Lý Trạng Thái & Luồng Dữ Liệu (Favi-FE)
+# 02 — Frontend Layers, State Management & Data Flow (Favi-FE)
 
-## 1. Cấu Trúc Phân Tầng Ứng Dụng (Layered Architecture)
+## 1. Application Layered Architecture
 
-Dự án tuân thủ mô hình phân tầng từ giao diện người dùng xuống tầng mạng:
+The project adheres to a clean, multi-layered architecture separating presentation concerns from network communications:
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -23,76 +23,76 @@ Dự án tuân thủ mô hình phân tầng từ giao diện người dùng xu�
 ┌────────────────────────────────────────────────────────┐
 │                   Custom Hooks Layer                   │
 │      useAuth, usePosts, useChat, useNotifications      │
-│      (Đóng gói logic nghiệp vụ, debounce, state)       │
+│      (Business logic encapsulation, debounce, state)   │
 └───────────────────────────┬────────────────────────────┘
                             │
                             ▼
 ┌────────────────────────────────────────────────────────┐
 │                   Service / API Layer                  │
 │      src/lib/api/* (postService, authService, etc.)    │
-│      Định nghĩa contracts, URLs và parameters          │
+│      Defines contracts, endpoints, and parameters      │
 └───────────────────────────┬────────────────────────────┘
                             │
                             ▼
 ┌────────────────────────────────────────────────────────┐
 │                 Network & Client Layer                 │
 │      src/lib/fetchWrapper.ts                           │
-│      - Gắn Idempotency-Key tự động                     │
-│      - Intercept 401 & Auto Refresh Token              │
-│      - Chuẩn hóa PascalCase -> camelCase               │
+│      - Automatic Idempotency-Key generation            │
+│      - Transparent 401 interception & token refresh    │
+│      - Bidirectional case normalization                │
 └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Quản Lý Trạng Thái Toàn Cục (Global Context Providers)
+## 2. Global State Management (Context Providers)
 
-Thay vì cài đặt các thư viện state phức tạp (như Redux) gây bloat mã nguồn, Favi-FE sử dụng React Contexts chuyên biệt:
+Rather than introducing heavy, boilerplate-laden state libraries (such as Redux), Favi-FE leverages purpose-built React Contexts:
 
 ### 2.1 `AuthProvider` (`src/components/AuthProvider.tsx`)
-- Quản lý phiên làm việc của người dùng hiện tại (`currentUser: Profile | null`).
-- Quản lý trạng thái xác thực (`isAuthenticated: boolean`, `isLoading: boolean`).
-- Cung cấp các hàm: `login(email, password)`, `logout()`, `updateProfile(data)`.
-- Lắng nghe sự kiện toàn cục `"auth-token-expired"` từ `fetchWrapper` để tự động dọn dẹp state và chuyển hướng về trang `/login` khi phiên làm việc hết hạn.
+- Manages the authenticated user session (`currentUser: Profile | null`).
+- Tracks authentication status (`isAuthenticated: boolean`, `isLoading: boolean`).
+- Exposes authentication actions: `login(email, password)`, `logout()`, `updateProfile(data)`.
+- Listens for the global browser event `"auth-token-expired"` dispatched by `fetchWrapper` to clean up local storage and navigate the user to `/login` when a session lapses.
 
 ### 2.2 `RootProvider` (`src/components/RootProvider.tsx`)
-- Quản lý trạng thái của các Modal dùng chung trên toàn ứng dụng:
-  - `isCreatePostOpen`: Bật/tắt modal tạo bài viết từ bất kỳ đâu (Navbar, phím tắt).
-  - `isShareModalOpen`: Bật/tắt modal chia sẻ bài viết.
-  - `isImagePreviewOpen`: Xem ảnh phóng to toàn màn hình.
-- Khởi tạo component `Toast` của PrimeReact và export instance ra `src/lib/toast.ts` để bất kỳ file `.ts` nào cũng có thể gọi `showToast.success(...)`, `showToast.error(...)` mà không cần hook.
+- Coordinates application-wide dialogs and overlays:
+  - `isCreatePostOpen`: Opens/closes post creation modal globally (Navbar, keyboard shortcuts).
+  - `isShareModalOpen`: Opens/closes post sharing modal.
+  - `isImagePreviewOpen`: Controls fullscreen image lightbox views.
+- Mounts PrimeReact's `Toast` container and exports the instance via `src/lib/toast.ts`, enabling any pure `.ts` utility to call `showToast.success(...)` or `showToast.error(...)` without needing React hook bindings.
 
 ---
 
-## 3. Bộ Nhớ Đệm Phía Client (Client-Side Caching)
+## 3. Client-Side Caching
 
-Để tăng tốc độ chuyển trang và giảm tải cho backend, Favi-FE triển khai các cache module có thời gian sống (TTL):
+To ensure snappy page transitions and reduce unnecessary network calls to the backend, Favi-FE uses in-memory TTL-based cache utilities:
 
 ### 3.1 `profileCache.ts`
-- Lưu trữ thông tin hồ sơ của các người dùng đã tải: `Map<userId, { profile, timestamp }>`.
-- Giúp FeedCard hiển thị tức thì avatar và tên người đăng bài mà không cần gọi API lặp đi lặp lại.
+- Caches loaded user profile objects: `Map<userId, { profile, timestamp }>`.
+- Allows `FeedCard` components to instantly display author avatars and display names without redundant profile lookup requests.
 
 ### 3.2 `postCache.ts` & `collectionCache.ts`
-- Lưu tạm danh sách bài viết trên bảng tin và chi tiết bộ sưu tập.
-- Khi người dùng điều hướng sang trang khác rồi quay lại, bảng tin hiển thị ngay lập tức từ cache trong khi ngầm gửi request (Stale-While-Revalidate).
+- Temporarily stores feed posts and collection details.
+- When users navigate away and return, views render immediately from local cache while a background fetch updates state under a Stale-While-Revalidate pattern.
 
 ---
 
-## 4. Xử Lý Xung Đột Đồng Thời (Concurrency Conflict Handling)
+## 4. Concurrency Conflict Handling
 
-Khi xảy ra xung đột dữ liệu trên backend (HTTP `409 Conflict`), `fetchWrapper` phát ra một Custom Event trên trình duyệt:
+When the backend detects a race condition or version mismatch (HTTP `409 Conflict`), `fetchWrapper` dispatches a Custom Event across the browser window:
 
 ```typescript
-// Trong fetchWrapper.ts
+// Inside fetchWrapper.ts
 if (res.status === 409 && typeof window !== "undefined") {
   window.dispatchEvent(new CustomEvent("favi-concurrency-conflict", { detail: thrownError }));
 }
 ```
 
-- Các components hoặc context lắng nghe sự kiện này:
+- Components or context listeners subscribe to this event:
   ```typescript
   window.addEventListener("favi-concurrency-conflict", (event) => {
-    showToast.warn("Dữ liệu đang được cập nhật bởi một phiên khác hoặc yêu cầu trước đó đang được xử lý.");
+    showToast.warn("This record is being modified in another session or an operation is in flight. Please refresh.");
   });
   ```
-- Giúp người dùng hiểu rõ trạng thái thay vì hiển thị lỗi chung chung "Đã có lỗi xảy ra".
+- This informs the user with actionable context instead of displaying a generic "An error occurred" message.

@@ -1,25 +1,25 @@
 # Favi-FE Technical Documentation Index
 
-Chào mừng bạn đến với tài liệu kỹ thuật hoàn chỉnh của hệ thống **Favi Frontend (Favi-FE)** — giao diện người dùng mạng xã hội hiện đại được xây dựng trên nền tảng **Next.js 15 (App Router), React 19, TypeScript, PrimeReact và Tailwind CSS**.
+Welcome to the comprehensive technical documentation for the **Favi Frontend (Favi-FE)** system — a modern social media user interface built on **Next.js 15 (App Router), React 19, TypeScript, PrimeReact, and Tailwind CSS**.
 
 ---
 
-## Danh mục tài liệu kỹ thuật
+## Technical Documentation Directory
 
-| # | Tài liệu | Mô tả chi tiết |
+| # | Document | Detailed Description |
 |---|---|---|
-| **00** | [00_OVERVIEW_AND_FRONTEND_ARCHITECTURE.md](./00_OVERVIEW_AND_FRONTEND_ARCHITECTURE.md) | Tổng quan kiến trúc Next.js 15, App Router, React 19, phân định Server/Client Components, cấu trúc thư mục `src`. |
-| **01** | [01_PAGES_ROUTING_AND_USER_JOURNEYS.md](./01_PAGES_ROUTING_AND_USER_JOURNEYS.md) | Bản đồ định tuyến (Routing map), luồng người dùng (User features) và Cổng quản trị Admin Portal toàn diện. |
-| **02** | [02_LAYERS_STATE_MANAGEMENT_AND_DATA_FLOW.md](./02_LAYERS_STATE_MANAGEMENT_AND_DATA_FLOW.md) | Cấu trúc phân tầng UI - Contexts - Hooks - API Services - FetchWrapper, bộ nhớ đệm (Cache) và xử lý xung đột dữ liệu. |
-| **03** | [03_IDEMPOTENCY_AUTH_AND_HTTP_COMMUNICATION.md](./03_IDEMPOTENCY_AUTH_AND_HTTP_COMMUNICATION.md) | Cơ chế sinh `Idempotency-Key` tự động, JWT Token Refresh tự động trên lỗi 401, chuyển đổi PascalCase ↔ camelCase. |
-| **04** | [04_REALTIME_WEBRTC_AND_EXTERNAL_INTEGRATIONS.md](./04_REALTIME_WEBRTC_AND_EXTERNAL_INTEGRATIONS.md) | Tích hợp SignalR WebSockets (Chat, Notifications, Call), luồng WebRTC P2P Call, Supabase và Cloudinary Media. |
-| **05** | [05_VERSION_CONTROL_RELEASE_AND_STANDARDS.md](./05_VERSION_CONTROL_RELEASE_AND_STANDARDS.md) | Chuẩn mực Git, biến môi trường `.env`, kiểm soát type TypeScript, tối ưu hóa bundle và quy trình build/deploy. |
-| **06** | [06_UI_SYSTEM_AND_COMPONENT_GUIDE.md](./06_UI_SYSTEM_AND_COMPONENT_GUIDE.md) | Hướng dẫn phát triển UI với PrimeReact components, Tailwind CSS styling, Dialogs/Toasts và Accessibility. |
+| **00** | [00_OVERVIEW_AND_FRONTEND_ARCHITECTURE.md](./00_OVERVIEW_AND_FRONTEND_ARCHITECTURE.md) | Next.js 15 App Router architecture, React 19 features, Server vs. Client Component boundaries, `src` folder structure. |
+| **01** | [01_PAGES_ROUTING_AND_USER_JOURNEYS.md](./01_PAGES_ROUTING_AND_USER_JOURNEYS.md) | Comprehensive route map, user feature flows, and complete Admin Portal specification. |
+| **02** | [02_LAYERS_STATE_MANAGEMENT_AND_DATA_FLOW.md](./02_LAYERS_STATE_MANAGEMENT_AND_DATA_FLOW.md) | Layered UI - Contexts - Custom Hooks - API Services - FetchWrapper architecture, client cache, and data conflict handling. |
+| **03** | [03_IDEMPOTENCY_AND_HTTP_COMMUNICATION.md](./03_IDEMPOTENCY_AND_HTTP_COMMUNICATION.md) | Automatic `Idempotency-Key` generation, transparent 401 JWT token refresh loops, PascalCase ↔ camelCase transformations. |
+| **04** | [04_REALTIME_WEBRTC_AND_EXTERNAL_INTEGRATIONS.md](./04_REALTIME_WEBRTC_AND_EXTERNAL_INTEGRATIONS.md) | SignalR WebSocket integration (Chat, Notifications, Call), WebRTC P2P video/audio calling, Supabase & Cloudinary media handling. |
+| **05** | [05_VERSION_CONTROL_RELEASE_AND_STANDARDS.md](./05_VERSION_CONTROL_RELEASE_AND_STANDARDS.md) | Git conventions, `.env` environment variables, TypeScript strictness, bundle optimization, and production build pipelines. |
+| **06** | [06_UI_SYSTEM_AND_COMPONENT_GUIDE.md](./06_UI_SYSTEM_AND_COMPONENT_GUIDE.md) | UI engineering guidelines with PrimeReact components, Tailwind CSS styling, Dialogs/Toasts, and Accessibility standards. |
 
 ---
 
-## Nguyên tắc bắt buộc đối với Kỹ sư & AI Agent
+## Mandatory Principles for Engineers & AI Agents
 
-1. **Đọc tài liệu trước khi code**: Trước khi can thiệp vào bất kỳ page, hook, hoặc service nào, bắt buộc phải tra cứu tài liệu liên quan trong thư mục này.
-2. **Cập nhật tài liệu song song**: Mọi thay đổi về API endpoint, giao diện màn hình, luồng xác thực hay cấu trúc state đều phải được cập nhật vào tài liệu tương ứng ngay trong cùng commit.
-3. **Tuân thủ chuẩn mực UI/UX**: Sử dụng PrimeReact components có sẵn thay vì tự viết lại; luôn gửi kèm `Idempotency-Key` cho các mutating request và xử lý đầy đủ các trạng thái Loading, Empty, Error.
+1. **Review Before Execution**: Before modifying any page, hook, or API service, consult the relevant technical documentation in this directory.
+2. **Synchronous Documentation Updates**: Any changes to API endpoints, page layouts, authentication flows, or state architectures must be reflected in documentation within the same commit.
+3. **UI/UX Consistency Standards**: Leverage standard PrimeReact components rather than custom reinvented controls; always include `Idempotency-Key` headers on state-mutating requests, and handle Loading, Empty, and Error states thoroughly.

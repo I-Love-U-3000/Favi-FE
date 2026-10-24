@@ -1,67 +1,67 @@
-# 04 — Kết Nối Thời Gian Thực (SignalR), WebRTC & Dịch Vụ Đám Mây (Favi-FE)
+# 04 — Realtime (SignalR), WebRTC & Cloud Integrations (Favi-FE)
 
-## 1. Tích Hợp SignalR WebSockets
+## 1. SignalR WebSockets Integration
 
-Favi-FE sử dụng thư viện `@microsoft/signalr` để duy trì kết nối hai chiều với backend thông qua 3 Hubs chính:
+Favi-FE utilizes `@microsoft/signalr` to maintain bidirectional real-time channels with the backend across 3 specialized Hubs:
 
 ```
 [ Frontend Client ]
         │
-        ├──▶ /chatHub          (Nhắn tin trực tiếp, trạng thái đang soạn thảo 'typing', đã xem)
-        ├──▶ /notificationHub  (Thông báo tương tác: Like, Comment, Follow, System alerts)
-        └──▶ /callHub          (Báo hiệu cuộc gọi thoại & video WebRTC Signaling)
+        ├──▶ /chatHub          (Direct messages, typing indicators, read receipts)
+        ├──▶ /notificationHub  (Engagement notifications: Likes, Comments, Follows, System alerts)
+        └──▶ /callHub          (WebRTC voice and video call signaling channel)
 ```
 
-### 1.1 Cấu Hình Kết Nối & Tương Thích NGINX Sticky Session
-Để đảm bảo kết nối SignalR không bị lỗi khi chạy qua cụm NGINX nhiều node (Load Balancer):
-1. Client thiết lập kết nối với `withUrl`:
+### 1.1 Connection Setup & NGINX Sticky Session Compatibility
+To ensure persistent connections avoid handoff issues across multi-node load-balanced clusters:
+1. The client configures `HubConnectionBuilder`:
    ```typescript
    import * as signalR from "@microsoft/signalr";
 
    const connection = new signalR.HubConnectionBuilder()
      .withUrl(`${process.env.NEXT_PUBLIC_API_URL}/chatHub`, {
        accessTokenFactory: () => localStorage.getItem("access_token") || "",
-       transport: signalR.HttpTransportType.WebSockets // Ưu tiên WebSockets thuần
+       transport: signalR.HttpTransportType.WebSockets // Prioritizes native WebSockets
      })
-     .withAutomaticReconnect([0, 2000, 5000, 10000, 30000]) // Tự động kết nối lại
+     .withAutomaticReconnect([0, 2000, 5000, 10000, 30000]) // Reconnection backoff policy
      .build();
    ```
-2. Nhờ cấu hình `ip_hash` trên NGINX Gateway, bước Negotiate ban đầu và kết nối WebSocket tiếp theo luôn được giữ đúng trên cùng một replica backend.
+2. By virtue of the Gateway's `ip_hash` configuration, the initial HTTP `/negotiate` step and subsequent WebSocket handshake consistently target the identical backend replica.
 
 ---
 
-## 2. Luồng Cuộc Gọi Trực Tuyến WebRTC (Peer-to-Peer Calls)
+## 2. WebRTC Peer-to-Peer Calling Architecture
 
-Hệ thống hỗ trợ gọi video và gọi thoại 1-1 trực tiếp trên trình duyệt sử dụng chuẩn WebRTC kết hợp SignalR làm kênh báo hiệu (Signaling Channel):
+The platform supports browser-native 1-on-1 audio and video calling leveraging WebRTC peer connections coordinated via SignalR `/callHub` as the signaling plane:
 
 ```
 User A (Caller)                     SignalR /callHub                     User B (Callee)
       │                                    │                                    │
-      │── 1. Gửi 'CallUser' (Offer SDP) ──▶│                                    │
-      │                                    │── 2. Chuyển 'IncomingCall' ───────▶│
+      │── 1. Send 'CallUser' (Offer SDP) ─▶│                                    │
+      │                                    │── 2. Forward 'IncomingCall' ──────▶│
       │                                    │                                    │
-      │                                    │◀── 3. Chấp nhận 'AnswerCall' (SDP)─│
-      │◀── 4. Nhận 'CallAccepted' ─────────│                                    │
+      │                                    │◀── 3. Accept 'AnswerCall' (SDP) ───│
+      │◀── 4. Receive 'CallAccepted' ──────│                                    │
       │                                    │                                    │
-      │── 5. Trao đổi ICE Candidates ─────▶│── 5. Trao đổi ICE Candidates ─────▶│
-      │◀──    (Thông tin địa chỉ mạng)   ──│◀──    (Thông tin địa chỉ mạng)   ──│
+      │── 5. Exchange ICE Candidates ─────▶│── 5. Exchange ICE Candidates ─────▶│
+      │◀──    (Network topologies)      ───│◀──    (Network topologies)      ───│
       │                                    │                                    │
       ▼═════════════════════════════════════════════════════════════════════════▼
-                         [ Kết Nối P2P Audio/Video Trực Tiếp ]
+                         [ Direct P2P Audio/Video Stream ]
 ```
 
-- Mã nguồn quản lý kết nối P2P và xử lý camera/microphone được đặt tại `src/lib/webrtc/`.
+- Peer connection lifecycles, media stream capture, and device permission management reside in `src/lib/webrtc/`.
 
 ---
 
-## 3. Tích Hợp Các Dịch Vụ Đám Mây Ngoài (Cloud Services)
+## 3. External Cloud Service Integrations
 
-### 3.1 Lưu Trữ Đa Phương Tiện: Supabase Storage & Cloudinary
-- **Ảnh bài viết và media lớn**: Được upload và lưu trữ trên Cloudinary hoặc Supabase Storage bucket.
-- **Tối ưu hóa ảnh**:
-  - Tự động chuyển đổi định dạng sang `WebP` hoặc `AVIF` để giảm 40-60% dung lượng tải.
-  - Sử dụng tham số CDN để resize ảnh phù hợp với kích thước màn hình (thumbnail, feed card, hoặc full preview).
+### 3.1 Multimedia Storage: Supabase Storage & Cloudinary
+- **Post media and high-resolution assets**: Uploaded and served via Cloudinary or Supabase Storage buckets.
+- **Image Optimization & Delivery**:
+  - Automatic format negotiation to `WebP` or `AVIF`, trimming network payloads by 40–60%.
+  - On-the-fly CDN transformation parameters for responsive screen density sizing (thumbnails, feed cards, fullscreen previews).
 
-### 3.2 Dịch Vụ Địa Lý & Gợi Ý Vị Trí: LocationIQ
-- Màn hình tạo bài viết (`CreatePostModal`) tích hợp LocationIQ Autocomplete API.
-- Cho phép người dùng tìm kiếm tên địa điểm/thành phố và lưu trữ tọa độ kinh độ/vĩ độ (`latitude`, `longitude`) kèm tên địa danh.
+### 3.2 Geocoding & Location Suggestions: LocationIQ
+- Post creation (`CreatePostModal`) integrates LocationIQ's Autocomplete API.
+- Allows users to search locations, tagging coordinates (`latitude`, `longitude`) alongside human-readable place names.

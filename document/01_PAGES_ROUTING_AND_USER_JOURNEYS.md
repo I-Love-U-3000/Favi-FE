@@ -1,63 +1,63 @@
-# 01 — Danh Sách Trang, Định Tuyến & Luồng Người Dùng (Favi-FE)
+# 01 — Pages, Routing & User Journeys (Favi-FE)
 
-## 1. Bản Đồ Định Tuyến Ứng Dụng Người Dùng (User App Routing)
+## 1. User Application Route Map
 
-Mọi đường dẫn người dùng đều được tiền tố hóa bằng mã ngôn ngữ `/[locale]` (mặc định: `vi` hoặc `en`).
+All client-facing routes are prefixed with the locale code segment `/[locale]` (defaults to `vi` or `en`).
 
-| Đường dẫn (Route) | Tên Màn Hình | Loại Truy Cập | Chức Năng Cốt Lõi |
+| Route Path | Screen Name | Access Level | Core Capabilities |
 |---|---|---|---|
-| `/[locale]/home` | Trang Bảng Tin (Home Feed) | Công khai / Đăng nhập | Hiển thị Stories bar, danh sách bài viết theo thuật toán bảng tin, tương tác Like/Comment nhanh, nút thêm vào bộ sưu tập. |
-| `/[locale]/search` | Khám Phá & Tìm Kiếm | Công khai / Đăng nhập | Tìm kiếm ngữ nghĩa bằng AI (Semantic Vector Search qua OpenCLIP), tìm theo hashtag, từ khóa, hiển thị bộ sưu tập nổi bật. |
-| `/[locale]/chat` | Tin Nhắn Trực Tiếp (Chat) | Yêu cầu đăng nhập | Danh sách hội thoại 1-1 và nhóm, nhắn tin văn bản, ảnh thời gian thực qua SignalR ChatHub, nút gọi video WebRTC. |
-| `/[locale]/notifications` | Trung Tâm Thông Báo | Yêu cầu đăng nhập | Danh sách thông báo (Like, Comment, Follow, System), lọc đã đọc/chưa đọc, đánh dấu đã đọc tất cả, deep-link tới bài viết. |
-| `/[locale]/profile/[id]` | Trang Cá Nhân (Profile) | Công khai / Đăng nhập | Avatar, Cover, Bio, liên kết MXH, số lượng Follower/Following, các tab: Bài viết đã đăng, Bộ sưu tập, Bài viết đã thích. |
-| `/[locale]/posts/[id]` | Chi Tiết Bài Viết | Công khai / Đăng nhập | Hiển thị ảnh chất lượng cao, caption, cây bình luận đa cấp (nested replies), danh sách người đã thích. |
-| `/[locale]/collections` | Bộ Sưu Tập Của Tôi | Yêu cầu đăng nhập | Danh sách các bộ sưu tập ảnh cá nhân, quản lý quyền riêng tư (Public / Followers / Private), thêm/bớt bài viết. |
-| `/[locale]/friends` | Bạn Bè & Mạng Xã Hội | Yêu cầu đăng nhập | Quản lý danh sách đang theo dõi, người theo dõi mình, gợi ý người dùng tương đồng (User Recommendations). |
-| `/[locale]/settings` | Cài Đặt Tài Khoản | Yêu cầu đăng nhập | Chỉnh sửa hồ sơ, đổi mật khẩu, bật tắt âm thanh thông báo, lựa chọn ngôn ngữ, chế độ giao diện sáng/tối. |
-| `/[locale]/recycle-bin` | Thùng Rác (Recycle Bin) | Yêu cầu đăng nhập | Xem lại và khôi phục các bài viết đã xóa mềm (Soft-deleted) trong vòng 30 ngày. |
-| `/[locale]/(auth)/login` | Đăng Nhập | Khách (Guest) | Đăng nhập bằng Email/Password hoặc Google OAuth, lưu JWT Access & Refresh Token. |
-| `/[locale]/(auth)/register`| Đăng Ký Tài Khoản | Khách (Guest) | Đăng ký tài khoản mới, xác thực thông tin cơ bản. |
-| `/[locale]/onboarding` | Hướng Dẫn Ban Đầu | Yêu cầu đăng nhập | Hướng dẫn người dùng mới chọn chủ đề yêu thích, cập nhật avatar và theo dõi những người đầu tiên. |
+| `/[locale]/home` | Home Feed | Public / Authenticated | Stories reel, algorithmically ranked post feed, instant Like/Comment reactions, bookmark to collection. |
+| `/[locale]/search` | Discover & Search | Public / Authenticated | Multimodal AI Semantic Vector Search (OpenCLIP), hashtag filtering, keyword search, trending collections showcase. |
+| `/[locale]/chat` | Direct & Group Messaging | Authenticated | 1-on-1 and group chats, realtime text & image messaging via SignalR ChatHub, WebRTC video calling trigger. |
+| `/[locale]/notifications` | Notification Center | Authenticated | Grouped notifications (Like, Comment, Follow, System), read/unread filtering, mark-all-as-read, post deep-linking. |
+| `/[locale]/profile/[id]` | User Profile | Public / Authenticated | Avatar, Cover banner, Bio, social links, Follower/Following metrics, tabs: Posts, Collections, Liked Posts. |
+| `/[locale]/posts/[id]` | Post Detail | Public / Authenticated | High-resolution image viewer, caption, hierarchical nested comment replies, likers roster. |
+| `/[locale]/collections` | Collections Board | Authenticated | User-curated image collections, privacy control toggles (Public / Followers / Private), add/remove post assignments. |
+| `/[locale]/friends` | Friends & Social Graph | Authenticated | Manage followers and following lists, view bidirectional mutuals, smart user recommendations. |
+| `/[locale]/settings` | Account Settings | Authenticated | Edit profile information, change password, notification audio toggles, language selector, light/dark theme switch. |
+| `/[locale]/recycle-bin` | Recycle Bin | Authenticated | View and restore soft-deleted posts within a 30-day retention window. |
+| `/[locale]/(auth)/login` | Login | Guest | Email/Password or Google OAuth login, receives and stores JWT Access & Refresh Tokens. |
+| `/[locale]/(auth)/register`| Registration | Guest | New account signup, initial profile setup and validation. |
+| `/[locale]/onboarding` | User Onboarding | Authenticated | Guides new users to pick interest tags, upload their avatar, and follow starter accounts. |
 
 ---
 
-## 2. Bản Đồ Cổng Quản Trị Hệ Thống (Admin Portal Routing)
+## 2. Admin Portal Route Map
 
-Toàn bộ các trang quản trị được bảo vệ bởi quyền `Admin` và sử dụng bố cục chuyên biệt `/[locale]/admin/layout.tsx` (Sidebar quản trị + Header thống kê):
+All administrative routes are protected by role-based guards (`Admin`) and rendered within a dedicated administrative shell layout `/[locale]/admin/layout.tsx` (Sidebar + Header Analytics Bar):
 
-| Đường dẫn (Route) | Trang Quản Trị | Chức Năng Chi Tiết | Linh Kiện Chính (PrimeReact) |
+| Route Path | Admin View | Functional Scope | Primary Components (PrimeReact) |
 |---|---|---|---|
-| `/[locale]/admin` | Dashboard Tổng Quan | Số liệu tổng hợp (Users, Posts, Reports, Active conns), biểu đồ tăng trưởng theo tuần/tháng. | `Card`, `Chart` (Recharts), `ProgressBar` |
-| `/[locale]/admin/users` | Quản Lý Người Dùng | Bảng danh sách người dùng, tìm kiếm theo email/username, lọc trạng thái (Active/Banned), bulk ban/unban. | `DataTable`, `Column`, `Tag`, `FilterMenu` |
-| `/[locale]/admin/users/[id]` | Chi Tiết Người Dùng | Toàn bộ lịch sử hoạt động, bài viết, các lần bị báo cáo, nhật ký cảnh cáo và form áp đặt hình phạt. | `Timeline`, `Card`, `Button`, `Dialog` |
-| `/[locale]/admin/posts` | Quản Lý Bài Viết | Duyệt bài viết, lọc theo mức độ nhạy cảm (NSFW score do AI chấm), xem trước media, xóa bài vi phạm. | `DataTable`, `Image` preview, `Badge`, `ConfirmDialog` |
-| `/[locale]/admin/reports` | Tiếp Nhận Báo Cáo | Hàng đợi các báo cáo vi phạm từ cộng đồng, lọc theo lý do (Spam, Harassment, NSFW, Copyright). | `DataTable`, `Dropdown`, `StatusTag` |
-| `/[locale]/admin/reports/[id]` | Xử Lý Báo Cáo | Đối chiếu nội dung bị tố cáo với người báo cáo, ghi chú của kiểm duyệt viên, hành động xử lý (Dismiss/Ban). | `Card`, `Textarea`, `RadioButton`, `Toast` |
-| `/[locale]/admin/comments` | Kiểm Duyệt Bình Luận | Tìm kiếm bình luận có từ ngữ độc hại, xóa hàng loạt bình luận spam. | `DataTable`, `MultiSelect`, `Button` |
-| `/[locale]/admin/audit` | Nhật Ký Kiểm Toán (Audit) | Lịch sử toàn bộ hành động của các Admin và Moderator trong hệ thống (Ai đã làm gì, thời gian nào, IP nào). | `DataTable`, `Calendar` range filter |
-| `/[locale]/admin/analytics` | Phân Tích Chuyên Sâu | Biểu đồ tương tác (Likes/Comments theo giờ), phân bố bài viết theo danh mục, báo cáo xuất file Excel/CSV. | `Chart`, `Dropdown`, `Button` (Export) |
-| `/[locale]/admin/health` | Giám Sát Sức Khỏe | Trạng thái thời gian thực của NGINX Gateway, PostgreSQL DB, Redis Cache, Qdrant Vector Engine. | `Tag` (Success/Danger), `ProgressBar`, `Card` |
+| `/[locale]/admin` | Executive Dashboard | KPI metrics (Users, Posts, Reports, Active conns), growth trend charts across weekly/monthly intervals. | `Card`, `Chart` (Recharts), `ProgressBar` |
+| `/[locale]/admin/users` | User Management | User registry table, search by email/username, status filtering (Active/Banned), bulk account actions. | `DataTable`, `Column`, `Tag`, `FilterMenu` |
+| `/[locale]/admin/users/[id]` | User Audit View | Complete account history, published posts, incoming reports, warning log, and disciplinary penalty form. | `Timeline`, `Card`, `Button`, `Dialog` |
+| `/[locale]/admin/posts` | Content Moderation | Post review, filter by AI NSFW confidence score, media preview lightbox, takedown actions. | `DataTable`, `Image` preview, `Badge`, `ConfirmDialog` |
+| `/[locale]/admin/reports` | Report Queue | Community abuse intake queue, categorized by violation type (Spam, Harassment, NSFW, Copyright). | `DataTable`, `Dropdown`, `StatusTag` |
+| `/[locale]/admin/reports/[id]` | Report Resolution | Side-by-side comparison of reported content and reporter claim, moderator notes, adjudication actions. | `Card`, `Textarea`, `RadioButton`, `Toast` |
+| `/[locale]/admin/comments` | Comment Moderation | Toxic keyword search across comment streams, mass spam comment deletion. | `DataTable`, `MultiSelect`, `Button` |
+| `/[locale]/admin/audit` | Audit Logs | Chronological ledger of all Admin/Moderator actions (Who, What action, Timestamp, Origin IP). | `DataTable`, `Calendar` date-range filter |
+| `/[locale]/admin/analytics` | Deep Analytics | Hourly engagement heatmaps, category distribution charts, CSV/Excel export facilities. | `Chart`, `Dropdown`, `Button` (Export) |
+| `/[locale]/admin/health` | System Health | Real-time status indicators for NGINX Gateway, PostgreSQL DB, Redis Cluster, and Qdrant Vector Engine. | `Tag` (Success/Danger), `ProgressBar`, `Card` |
 
 ---
 
-## 3. Các Luồng Nghiệp Vụ Chính (Core User Workflows)
+## 3. Core User Workflows
 
-### 3.1 Luồng Đăng Bài Viết (Create Post Workflow)
-1. Người dùng bấm nút **"Create" (+)** trên Navbar hoặc nhấn phím tắt.
-2. Dialog `CreatePostModal` mở ra:
-   - Cho phép kéo thả (Drag & Drop) một hoặc nhiều file ảnh.
-   - Hỗ trợ cắt ảnh (Crop) và áp bộ lọc màu (Filter).
-   - Nhập Caption, gắn Hashtags (tự động gợi ý tag) và chọn mức độ riêng tư (Public / Followers / Private).
-3. Khi bấm Submit:
-   - Form đóng gói thành `FormData`.
-   - Client gọi `fetchWrapper.post('/api/posts', formData)`.
-   - `fetchWrapper` tự động gắn header `Idempotency-Key` ngẫu nhiên để chống submit trùng lặp khi mạng chậm.
-   - Khi thành công, tự động đóng modal, hiển thị Toast thông báo và đẩy bài viết mới lên đầu bảng tin.
+### 3.1 Post Creation Workflow
+1. User clicks the **"Create" (+)** action in the Navbar or presses the global keyboard shortcut.
+2. The `CreatePostModal` opens:
+   - Supports Drag & Drop for single or multiple high-resolution images.
+   - Built-in crop tool and color filter presets.
+   - Caption input with auto-suggesting hashtags and privacy selection (Public / Followers / Private).
+3. Upon clicking Submit:
+   - Data is packaged into a `FormData` envelope.
+   - The client invokes `fetchWrapper.post('/api/posts', formData)`.
+   - `fetchWrapper` automatically attaches a unique `Idempotency-Key` header, preventing duplicate post uploads during flaky network conditions.
+   - On success, the modal closes, a confirmation Toast is dispatched, and the new post is prepended to the top of the user's feed.
 
-### 3.2 Luồng Thả Cảm Xúc (Reaction Toggle Workflow)
-1. Người dùng click vào icon Trái Tim (Like) trên `FeedCard`.
-2. Giao diện thực hiện **Cập Nhật Lạc Quan (Optimistic UI Update)**: Ngay lập tức đổi màu icon và tăng biến đếm số lượt like lên +1.
-3. Đồng thời gọi API: `fetchWrapper.post('/api/posts/${id}/reaction', { type: 'Like' })`.
-4. Nếu request thành công: Giữ nguyên trạng thái mới.
-5. Nếu request thất bại (lỗi mạng hoặc server): Revert biến đếm về số cũ và hiển thị thông báo lỗi Toast để người dùng biết.
+### 3.2 Reaction Toggle Workflow (Optimistic UI)
+1. User clicks the Heart (Like) icon on a `FeedCard`.
+2. The UI applies an **Optimistic UI Update**: Instantly turns the icon red and increments the like counter by +1.
+3. Simultaneously dispatches the network mutation: `fetchWrapper.post('/api/posts/${id}/reaction', { type: 'Like' })`.
+4. If the request succeeds: The optimistic state is confirmed and retained.
+5. If the request fails (network error or server outage): The state automatically reverts to previous count and a Toast alerts the user.

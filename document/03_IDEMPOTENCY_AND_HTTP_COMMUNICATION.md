@@ -1,12 +1,12 @@
-# 03 — Idempotency Phía Client, Xác Thực & Chuẩn Hóa HTTP (Favi-FE)
+# 03 — Client-Side Idempotency, Authentication & HTTP Protocols (Favi-FE)
 
-## 1. Cơ Chế Tự Động Gắn `Idempotency-Key`
+## 1. Automated `Idempotency-Key` Generation
 
-Một trong những điểm quan trọng nhất của Favi-FE là **tự động đảm bảo tính Idempotent cho tất cả các HTTP request làm thay đổi dữ liệu**. 
-Logic này được đóng gói tập trung duy nhất tại `src/lib/fetchWrapper.ts`.
+One of the foundational architectural tenets of Favi-FE is **guaranteeing client-side idempotency across all state-mutating HTTP operations**.
+This behavior is encapsulated in `src/lib/fetchWrapper.ts`.
 
-### 1.1 Nguyên Lý Hoạt Động
-Mỗi khi lập trình viên hoặc component gọi các phương thức mutating:
+### 1.1 Implementation Architecture
+Whenever frontend code invokes mutating network methods:
 ```typescript
 fetchWrapper.post(url, body)
 fetchWrapper.put(url, body)
@@ -14,7 +14,7 @@ fetchWrapper.patch(url, body)
 fetchWrapper.del(url, body)
 ```
 
-`fetchWrapper` sẽ thực hiện kiểm tra và tự động sinh header:
+`fetchWrapper` automatically inspects the verb and generates a fresh unique identifier:
 ```typescript
 const isMutating = ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase());
 const idempotencyKey = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -28,39 +28,39 @@ const headers: Record<string, string> = {
 };
 ```
 
-### 1.2 Lợi Ích Của Thiết Kế Này
-- **Lập trình viên không cần nhớ truyền key**: Mọi form submit, reaction click, comment post đều tự động được bảo vệ chống double-click và network retry.
-- **Tương thích hoàn hảo với Backend**: Backend `IdempotencyMiddleware` yêu cầu header `Idempotency-Key` cho mọi request thay đổi dữ liệu dưới `/api/`; việc tự động hóa tại `fetchWrapper` giúp không bao giờ bị dính lỗi `400 MISSING_IDEMPOTENCY_KEY`.
+### 1.2 Architectural Benefits
+- **Zero Developer Overhead**: Form submissions, reaction toggles, and comment posts are transparently protected against double-clicking, browser lag, and network retries without manual key passing.
+- **Flawless Backend Integration**: The backend `IdempotencyMiddleware` requires an `Idempotency-Key` on all mutating routes under `/api/`; automating this at the client wrapper ensures requests never fail with `400 MISSING_IDEMPOTENCY_KEY`.
 
 ---
 
-## 2. Vòng Đời Xác Thực JWT & Tự Động Làm Mới Token (Auto Refresh)
+## 2. JWT Authentication Lifecycle & Transparent Token Refresh
 
-Hệ thống sử dụng cơ chế **JWT Access Token + Refresh Token**:
-- `access_token`: Có hạn ngắn (60 phút), gửi trong header `Authorization: Bearer <token>`.
-- `refresh_token`: Có hạn dài (7 ngày), dùng để xin cấp access token mới khi token cũ hết hạn.
+The application employs a dual **JWT Access Token + Refresh Token** lifecycle:
+- `access_token`: Short lifespan (60 minutes), forwarded via `Authorization: Bearer <token>`.
+- `refresh_token`: Long lifespan (7 days), stored securely to request renewed credentials when the access token lapses.
 
 ```
-[ Request Gửi Đi ] ──▶ Backend trả về 401 Unauthorized (Token hết hạn)
+[ Outgoing Request ] ──▶ Backend returns 401 Unauthorized (Expired Token)
                                │
                                ▼
-               [ tryRefreshAndRetry Interceptor ]
+                [ tryRefreshAndRetry Interceptor ]
                                │
-                Lấy refresh_token từ localStorage
+                 Reads refresh_token from localStorage
                                │
                                ▼
-               Gọi POST /auth/refresh (Body: refresh_token)
+                Calls POST /auth/refresh (Body: refresh_token)
                                │
               ┌────────────────┴────────────────┐
-              │ (Thành công)                    │ (Thất bại / Hết hạn)
+              │ (Success)                       │ (Failure / Session Expired)
               ▼                                 ▼
-       Lưu access_token mới               Xóa sạch localStorage
-       Lưu refresh_token mới              Bắn event 'auth-token-expired'
-       Tự động gửi lại request cũ         Chuyển hướng về trang /login
-       và trả kết quả cho caller          Hiển thị thông báo "Phiên đăng nhập hết hạn"
+       Stores new access_token           Clears localStorage completely
+       Stores new refresh_token          Dispatches 'auth-token-expired' event
+       Replays original request          Redirects user to /login
+       and returns result to caller      Shows toast: "Session expired. Please log in again."
 ```
 
-### Mã nguồn xử lý tại `fetchWrapper.ts`:
+### Refresh Implementation in `fetchWrapper.ts`:
 ```typescript
 if (res.status === 401 && auth) {
   try {
@@ -78,14 +78,14 @@ if (res.status === 401 && auth) {
 
 ---
 
-## 3. Tự Động Chuẩn Hóa Casing (PascalCase ↔ camelCase)
+## 3. Bidirectional Casing Normalization (PascalCase ↔ camelCase)
 
-### 3.1 Vấn Đề Khác Biệt Nền Tảng
-- Backend C# / .NET tuân thủ chuẩn `PascalCase` (`CreatedAt`, `UserProfile`, `LikeCount`).
-- Frontend TypeScript / React tuân thủ chuẩn `camelCase` (`createdAt`, `userProfile`, `likeCount`).
+### 3.1 Cross-Platform Friction
+- Backend C# / .NET models adhere to `PascalCase` (`CreatedAt`, `UserProfile`, `LikeCount`).
+- Frontend TypeScript / React conventions demand idiomatic `camelCase` (`createdAt`, `userProfile`, `likeCount`).
 
-### 3.2 Giải Pháp Tự Động Hóa Trong `handleResponse`
-`fetchWrapper` tích hợp sẵn hàm đệ quy chuyển đổi toàn bộ keys của object và array nhận từ backend về `camelCase` trước khi trả về component:
+### 3.2 Automated Normalization in `handleResponse`
+`fetchWrapper` automatically and recursively normalizes all object and array keys received from the backend into idiomatic `camelCase` prior to returning data to components:
 
 ```typescript
 function toCamelCase(obj: unknown): unknown {
@@ -99,12 +99,12 @@ function toCamelCase(obj: unknown): unknown {
   }, {} as Record<string, unknown>);
 }
 ```
-Nhờ đó, lập trình viên frontend luôn viết code theo chuẩn JavaScript/TypeScript tự nhiên mà không cần viết các hàm mapper thủ công.
+This frees frontend engineers to write natural TypeScript code without boilerplate mapper functions.
 
 ---
 
-## 4. Xử Lý Upload File Đa Phương Tiện (FormData)
+## 4. Multipart Media Uploads (FormData Handling)
 
-Khi gửi file ảnh hoặc media lên server:
-- `fetchWrapper` tự động nhận diện `body instanceof FormData`.
-- **Tuyệt đối không set header `Content-Type: application/json`** và **không set `Content-Type: multipart/form-data` bằng tay**. Trình duyệt bắt buộc phải tự sinh header này kèm chuỗi phân cách `boundary` ngẫu nhiên để server giải mã chính xác các phần file.
+When transmitting media binaries or multipart form payloads:
+- `fetchWrapper` detects `body instanceof FormData`.
+- **Strict Rule: Never explicitly set `Content-Type: application/json` or `Content-Type: multipart/form-data` manually**. The browser must generate this header automatically along with the required multi-segment boundary string to ensure accurate payload parsing on the server.

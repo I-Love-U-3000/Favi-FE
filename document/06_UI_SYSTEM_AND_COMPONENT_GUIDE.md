@@ -1,81 +1,81 @@
-# 06 — Hệ Thống UI, PrimeReact Components & Hướng Dẫn Phát Triển (Favi-FE)
+# 06 — UI System, PrimeReact Components & Engineering Guidelines (Favi-FE)
 
-## 1. Thư Viện UI Cốt Lõi: PrimeReact
+## 1. Core UI Library: PrimeReact
 
-Favi-FE chuẩn hóa toàn bộ giao diện bằng cách sử dụng các components của **PrimeReact** kết hợp các class tiện ích của **Tailwind CSS**. 
-Trước khi tự viết một component giao diện mới, lập trình viên bắt buộc phải kiểm tra và tái sử dụng component có sẵn của PrimeReact.
+Favi-FE standardizes its presentation layer by combining **PrimeReact** design primitives with **Tailwind CSS** utility classes.
+Before building custom UI components from scratch, engineers must inspect and reuse existing PrimeReact components.
 
 ### 1.1 Form Elements
 ```tsx
-import { InputText } from "primereact/inputtext";       // Ô nhập văn bản ngắn
-import { InputTextarea } from "primereact/inputtextarea"; // Ô nhập văn bản nhiều dòng
-import { Button } from "primereact/button";             // Nút bấm (hỗ trợ loading spinner, icons)
-import { Dropdown } from "primereact/dropdown";         // Menu chọn 1 mục
-import { MultiSelect } from "primereact/multiselect";   // Menu chọn nhiều mục
-import { Checkbox } from "primereact/checkbox";         // Hộp kiểm
-import { RadioButton } from "primereact/radiobutton";   // Nút chọn radio duy nhất
-import { Calendar } from "primereact/calendar";         // Chọn ngày tháng / Date range
-import { FileUpload } from "primereact/fileupload";     // Tải lên file / ảnh
-import { Chips } from "primereact/chips";               // Nhập danh sách tags
+import { InputText } from "primereact/inputtext";       // Single-line text input
+import { InputTextarea } from "primereact/inputtextarea"; // Multi-line text input
+import { Button } from "primereact/button";             // Action button (with built-in loading spinner & icons)
+import { Dropdown } from "primereact/dropdown";         // Single select dropdown
+import { MultiSelect } from "primereact/multiselect";   // Multi select tag input
+import { Checkbox } from "primereact/checkbox";         // Form checkbox
+import { RadioButton } from "primereact/radiobutton";   // Radio choice selector
+import { Calendar } from "primereact/calendar";         // Date picker / date-range selector
+import { FileUpload } from "primereact/fileupload";     // Drag & drop file / image uploader
+import { Chips } from "primereact/chips";               // Comma/enter separated tag inputs
 ```
 
-### 1.2 Hiển Thị Dữ Liệu (Display & Media)
+### 1.2 Display & Media Primitives
 ```tsx
 import { Card } from "primereact/card";
-import { Image as PrimeImage } from "primereact/image"; // Xem ảnh kèm preview phóng to
-import { Avatar } from "primereact/avatar";             // Ảnh đại diện người dùng
-import { Tag } from "primereact/tag";                   // Nhãn trạng thái (Success, Warning, Danger)
-import { Badge } from "primereact/badge";               // Huy hiệu số thông báo chưa đọc
-import { Skeleton } from "primereact/skeleton";         // Khung xương placeholder khi đang tải
+import { Image as PrimeImage } from "primereact/image"; // Image viewer with fullscreen zoom preview
+import { Avatar } from "primereact/avatar";             // User avatar with initials fallback
+import { Tag } from "primereact/tag";                   // Status badge (Success, Warning, Danger)
+import { Badge } from "primereact/badge";               // Numerical unread indicator
+import { Skeleton } from "primereact/skeleton";         // Content loading placeholder shape
 import { ProgressSpinner } from "primereact/progressspinner";
 ```
 
-### 1.3 Bảng Dữ Liệu Chuyên Nghiệp (Data Display)
-Đặc biệt dùng cho toàn bộ Cổng quản trị Admin Portal:
+### 1.3 Professional Data Grids & Views
+Primary data presentation layer for the Admin Portal:
 ```tsx
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import { Timeline } from "primereact/timeline";         // Dòng thời gian lịch sử hoạt động
+import { Timeline } from "primereact/timeline";         // Chronological activity history feed
 ```
 
-### 1.4 Hộp Thoại & Thông Báo (Dialog & Overlays)
+### 1.4 Overlays, Modals & Notifications
 ```tsx
-import { Dialog } from "primereact/dialog";             // Cửa sổ modal
-import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog"; // Hộp thoại xác nhận xóa
-import { Toast } from "primereact/toast";               // Thông báo góc màn hình
-import { Tooltip } from "primereact/tooltip";           // Gợi ý khi hover
-import { Sidebar } from "primereact/sidebar";           // Menu trượt từ cạnh màn hình
+import { Dialog } from "primereact/dialog";             // Accessible modal window
+import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog"; // Destruction confirmation modal
+import { Toast } from "primereact/toast";               // Screen toast notifications
+import { Tooltip } from "primereact/tooltip";           // Hover tooltip trigger
+import { Sidebar } from "primereact/sidebar";           // Slide-over navigation panel
 ```
 
 ---
 
-## 2. Hệ Thống Biểu Tượng (PrimeIcons)
+## 2. Icon System (PrimeIcons)
 
-Dự án tích hợp bộ icon `primeicons`. Sử dụng trực tiếp class `pi pi-<icon-name>`:
+The project embeds `primeicons`. Use icon classes directly via `pi pi-<icon-name>`:
 
-| Tên Icon | Class Name | Sử Dụng Cho |
+| Icon Name | Class Name | Common Application |
 |---|---|---|
-| Home | `pi pi-home` | Trang chủ bảng tin |
-| Search | `pi pi-search` | Thanh tìm kiếm & khám phá |
-| User | `pi pi-user` | Trang cá nhân, profile |
-| Heart | `pi pi-heart` | Thả tim / Like bài viết |
-| Comment | `pi pi-comment` | Bình luận |
-| Send / Share | `pi pi-send` | Gửi tin nhắn, chia sẻ bài |
-| Bookmark | `pi pi-bookmark` | Lưu vào bộ sưu tập |
-| Trash | `pi pi-trash` | Xóa bài viết / bình luận |
-| Spinner | `pi pi-spin pi-spinner` | Icon loading khi thực thi |
-| Ban / Lock | `pi pi-ban` | Khóa tài khoản trong Admin |
+| Home | `pi pi-home` | Home feed navigation |
+| Search | `pi pi-search` | Search bar & explore triggers |
+| User | `pi pi-user` | Profile navigation & user tabs |
+| Heart | `pi pi-heart` | Post like & reaction actions |
+| Comment | `pi pi-comment` | Comment threads |
+| Send / Share | `pi pi-send` | Messaging & post sharing |
+| Bookmark | `pi pi-bookmark` | Save to collection |
+| Trash | `pi pi-trash` | Delete post / comment / media |
+| Spinner | `pi pi-spin pi-spinner` | Active loading state indicator |
+| Ban / Lock | `pi pi-ban` | Admin account suspension actions |
 
 ---
 
-## 3. Quy Tắc Thiết Kế Trải Nghiệm Người Dùng (UX Standards)
+## 3. User Experience (UX) Standards
 
-1. **Luôn có trạng thái Loading rõ ràng**:
-   - Khi đang nạp dữ liệu ban đầu: Hiển thị `Skeleton` hoặc `ProgressSpinner`.
-   - Khi đang bấm nút submit: Bật prop `loading={isLoading}` trên `Button` của PrimeReact để vô hiệu hóa nút bấm và hiện con quay, ngăn chặn người dùng bấm nhiều lần.
-2. **Xử lý trạng thái rỗng (Empty State)**:
-   - Khi bảng tin hoặc kết quả tìm kiếm không có bài viết: Hiển thị icon minh họa cùng dòng chữ gợi ý thân thiện (ví dụ: *"Chưa có bài viết nào. Hãy theo dõi bạn bè để xem tin mới!"*).
-3. **Xác nhận trước hành động nguy hiểm**:
-   - Xóa bài viết, xóa bộ sưu tập, khóa tài khoản người dùng bắt buộc phải bật `confirmDialog` để người dùng xác nhận lần thứ hai trước khi gửi lệnh gọi API DELETE.
-4. **Thông báo phản hồi kết quả (Feedback via Toast)**:
-   - Mọi hành động thành công hoặc thất bại đều phải kích hoạt thông báo Toast ở góc màn hình (`showToast.success(...)` hoặc `showToast.error(...)`).
+1. **Explicit Loading States**:
+   - Initial page loads: Render `Skeleton` shapes matching target layout geometries or a centered `ProgressSpinner`.
+   - Action mutations: Set `loading={isLoading}` on PrimeReact `Button` to disable user input and show a spinner, preventing repeated submissions.
+2. **Graceful Empty States**:
+   - When feeds or search results return zero items: Display an illustrative icon paired with helpful messaging (e.g., *"No posts found. Follow friends or explore topics to see new content!"*).
+3. **Double Confirmation for Destructive Actions**:
+   - Takedowns, post deletions, and account bans must trigger a `confirmDialog` prompt requiring explicit user confirmation before dispatching HTTP DELETE requests.
+4. **Immediate Toast Feedback**:
+   - Every mutating user interaction must trigger a corner Toast notification (`showToast.success(...)` or `showToast.error(...)`).
