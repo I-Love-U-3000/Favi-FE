@@ -11,7 +11,11 @@ You must work with exceptional precision and system-level depth because GPT Code
 - Review the specific screen designs, component standards, API wrappers, caching rules, and state management conventions established for the affected areas.
 - Never write code based on assumptions if a document exists covering that domain.
 
-### 1.2 After Making Any Changes (Keep Documents Synchronized)
+### 1.2 Undocumented Technical Terms & Patterns Protocol (Proactive Documentation)
+- **Mandatory Documentation of New / Discovered Concepts**: If the agent implements, updates, discovers, or encounters any technical terms, UI/UX patterns, architectural mechanisms, client caching strategies, WebRTC signaling states, or HTTP interceptor workflows that are **not yet documented** or are insufficiently documented in `document/`, the agent **MUST proactively create new documentation or update existing documents** covering those terms and concepts.
+- No technical term, pattern, or mechanism should exist in the codebase without a formal, comprehensive technical specification in `document/`.
+
+### 1.3 After Making Any Changes (Keep Documents Synchronized)
 - **Mandatory Documentation Update**: After implementing, refactoring, or modifying any page, component, hook, service, or API integration, the agent **MUST immediately update the corresponding documents** in `document/` to reflect the changes.
 - Implementation and documentation must stay 100% in sync at all times. Leaving documents stale or outdated is strictly forbidden.
 
